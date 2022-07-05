@@ -4,7 +4,7 @@ target:
   azure:
     subscription_id: "my-awesome-subscription"
     location: "germanywestcentral"
-    resource_group: "rg-dev-edge-v2"
+    resource_group: "rg-dev-terraform-example"
 
     network:
       vnet_address_space:

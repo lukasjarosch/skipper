@@ -2,7 +2,7 @@
 
 resource "azurerm_resource_group" "example" {
   location = "germanywestcentral"
-  name     = "rg-dev-edge-v2"
+  name     = "rg-dev-terraform-example"
   tags = {
     service   = "terraform-example"
   }
