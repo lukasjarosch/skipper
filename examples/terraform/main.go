@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
 
-	"github.com/lukasjarosch/templater/internal"
+	"github.com/lukasjarosch/templater"
 )
 
 var (
@@ -66,7 +66,7 @@ func main() {
 		return nil
 	})
 
-	inventory, err := internal.NewInventory(afero.NewOsFs())
+	inventory, err := templater.NewInventory(afero.NewOsFs())
 	if err != nil {
 		// TODO: handle error instead of panicking
 		panic(err)
@@ -128,7 +128,7 @@ func main() {
 		panic(fmt.Errorf("target '%s' not found in '%s'", target, targetPath))
 	}
 
-	targetFile, err := internal.NewFile(targetFilePath)
+	targetFile, err := templater.NewFile(targetFilePath)
 	if err != nil {
 		// TODO: handle error instead of panicking
 		panic(err)
@@ -187,14 +187,14 @@ func main() {
 		}
 
 		// ensure '.Target.name' is always set to the file-basename of the target
-		targetFile.Data["target"].(internal.Data)["name"] = target
+		targetFile.Data["target"].(templater.Data)["name"] = target
 
 		templateData := struct {
-			Inventory internal.Data
-			Target    internal.Data
+			Inventory templater.Data
+			Target    templater.Data
 		}{
 			Inventory: inventory.Data,
-			Target:    targetFile.Data["target"].(internal.Data), // TODO: ensure targets always use top-level-key 'target'
+			Target:    targetFile.Data["target"].(templater.Data), // TODO: ensure targets always use top-level-key 'target'
 		}
 
 		err = tpl.Execute(outFile, templateData)

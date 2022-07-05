@@ -1,0 +1,3 @@
+gitlab:
+  project_id: 1234
+  base_url: https://gitlab.example.com

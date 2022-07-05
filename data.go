@@ -1,4 +1,4 @@
-package internal
+package templater
 
 type Data map[string]interface{}
 
