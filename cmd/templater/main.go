@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
-	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -80,8 +80,10 @@ func main() {
 
 	// discover templates ----------------------------------------------------------------------------------
 
+	// iterate over templatePath, where we set the filesystem root to templatePath
+	// this allows us to only get relative paths to the template file
 	var templateFiles []string
-	err = afero.Walk(fileSystem, templatePath, func(path string, info fs.FileInfo, err error) error {
+	err = afero.Walk(afero.NewBasePathFs(fileSystem, templatePath), "", func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -145,6 +147,8 @@ func main() {
 
 	// render templates
 	for _, templateFile := range templateFiles {
+		templateFilePath := path.Join(templatePath, templateFile)
+
 		tpl := template.New(filepath.Base(templateFile)).Funcs(sprig.TxtFuncMap()).Funcs(map[string]any{
 			"tfStringArray": func(input []interface{}) string {
 				var s []string
@@ -155,7 +159,7 @@ func main() {
 			},
 		})
 
-		tplContent, err := afero.ReadFile(fileSystem, templateFile)
+		tplContent, err := afero.ReadFile(fileSystem, templateFilePath)
 		if err != nil {
 			// TODO: handle error instead of panicking
 			panic(err)
@@ -167,17 +171,16 @@ func main() {
 			panic(err)
 		}
 
-		targetPath := strings.Join(strings.Split(templateFile, string(os.PathSeparator))[1:], string(os.PathSeparator))
-		log.Println(templateFile)
-		log.Println(targetPath)
+		// create the file output path: <output>/<target>/<template>
+		fileOutputPath := path.Join(outputPath, target, templateFile)
 
-		err = fileSystem.MkdirAll(filepath.Join(outputPath, filepath.Dir(targetPath)), 0755)
+		err = fileSystem.MkdirAll(filepath.Dir(fileOutputPath), 0755)
 		if err != nil {
 			// TODO: handle error instead of panicking
 			panic(err)
 		}
 
-		outFile, err := fileSystem.Create(filepath.Join(outputPath, targetPath))
+		outFile, err := fileSystem.Create(fileOutputPath)
 		if err != nil {
 			// TODO: handle error instead of panicking
 			panic(err)
