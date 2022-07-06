@@ -2,7 +2,7 @@ target:
   use: 
   - foo
 
-  name: "edge-v2"
+  name: "terraform-example"
 
   azure:
     subscription_id: "my-awesome-subscription"
