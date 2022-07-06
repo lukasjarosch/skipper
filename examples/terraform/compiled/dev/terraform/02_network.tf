@@ -6,7 +6,7 @@ resource "azurerm_virtual_network" "edge" {
   resource_group_name = azurerm_resource_group.edge.name
   address_space       = ["10.1.0.0.0/16"]
   tags = {
-    service   = "terraform-example"
+    service   = "<no value>"
   }
 }
 

@@ -72,10 +72,18 @@ func main() {
 		panic(err)
 	}
 
-	err = inventory.Load(dataPath)
+	// TODO: make configurable
+	targetPath := path.Join(dataPath, "targets")
+	classPath := path.Join(dataPath, "classes")
+
+	err = inventory.Load(classPath, targetPath)
 	if err != nil {
 		// TODO: handle error instead of panicking
 		panic(err)
+	}
+
+	if !inventory.TargetExists(target) {
+		log.Fatalf("target '%s' does not exist", target)
 	}
 
 	// discover templates ----------------------------------------------------------------------------------

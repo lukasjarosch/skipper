@@ -1,4 +1,7 @@
 target:
+  use: 
+  - foo
+
   name: "edge-v2"
 
   azure:
