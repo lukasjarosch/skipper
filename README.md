@@ -6,6 +6,12 @@
 <h3 align="center">Skipper</h3>
 </div>
 
+# What is skipper?
+
+Skipper is heavily inspired by the awesome [Kapitan](https://kapitan.dev/) tool. The major difference
+is that skipper is primarily meant to be used as library. This allows you for example to have way more
+control over the data-structures used inside the templates. 
+
 ## TODO
 
 - [ ] `<no value>` detection in rendered templates
