@@ -38,3 +38,15 @@ func (f *YamlFile) Load(fs afero.Fs) error {
 	f.Data = d
 	return nil
 }
+
+func (f *YamlFile) LoadAs(fs afero.Fs, target interface{}) error {
+	fileBytes, err := afero.ReadFile(fs, f.Path)
+	if err != nil {
+		return fmt.Errorf("failed to Load: %w", err)
+	}
+
+	if err := yaml.Unmarshal(fileBytes, target); err != nil {
+		return err
+	}
+	return nil
+}

@@ -20,6 +20,10 @@ type Target struct {
 	Name string
 }
 
+type TargetConfig struct {
+	Use []string `mapstructure:"use"`
+}
+
 func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 	if file == nil {
 		return nil, fmt.Errorf("file cannot be nil")

@@ -69,6 +69,10 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 			return err
 		}
 
+		ta := &TargetConfig{}
+		target.LoadAs(inv.fs, ta)
+		log.Println(ta)
+
 		relativePath := strings.ReplaceAll(target.Path, targetPath, "")
 		relativePath = strings.TrimLeft(relativePath, "/")
 
