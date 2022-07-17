@@ -4,7 +4,7 @@ target:
     - gitlab
     - foo.bar
 
-  name: "terraform-example"
+  name: "dev"
 
   azure:
     subscription_id: "my-awesome-subscription"

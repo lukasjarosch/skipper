@@ -1,6 +1,3 @@
-{{ $t := .Target -}}
-{{ $i := .Inventory -}}
-# Readme for '{{ $i.project.name }} - {{ $t.name }}'
+{{ $inv := .Inventory }}
 
-{{ $t }}
-{{ $i }}
+# Readme for {{ $inv.target.name }}
