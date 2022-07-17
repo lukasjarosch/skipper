@@ -1,5 +1,4 @@
-{{ $t := .Target -}}
-{{ $i := .Inventory -}}
+{{ $inv := .Inventory -}}
 // This code is generated; DO NOT EDIT.
 
 terraform {
@@ -11,9 +10,9 @@ terraform {
     }
   }
   backend "http" {
-    address        = "{{ $i.gitlab.base_url }}/api/v4/projects/{{ $i.gitlab.project_id }}/terraform/state/{{ $t.terraform.state_name }}"
-    lock_address   = "{{ $i.gitlab.base_url }}/api/v4/projects/{{ $i.gitlab.project_id }}/terraform/state/{{ $t.terraform.state_name }}/lock"
-    unlock_address = "{{ $i.gitlab.base_url }}/api/v4/projects/{{ $i.gitlab.project_id }}/terraform/state/{{ $t.terraform.state_name }}/lock"
+    address        = "{{ $inv.gitlab.base_url }}/api/v4/projects/{{ $inv.gitlab.project_id }}/terraform/state/{{ $inv.target.terraform.state_name }}"
+    lock_address   = "{{ $inv.gitlab.base_url }}/api/v4/projects/{{ $inv.gitlab.project_id }}/terraform/state/{{ $inv.target.terraform.state_name }}/lock"
+    unlock_address = "{{ $inv.gitlab.base_url }}/api/v4/projects/{{ $inv.gitlab.project_id }}/terraform/state/{{ $inv.target.terraform.state_name }}/lock"
     lock_method    = "POST"
     unlock_method  = "DELETE"
     retry_wait_min = 5
@@ -24,5 +23,5 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "{{ $t.azure.subscription_id }}"
+  subscription_id = "{{ $inv.target.azure.subscription_id }}"
 }

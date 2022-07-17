@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/spf13/afero"
@@ -87,8 +88,29 @@ func (inv *Inventory) Data(targetName string) (data Data, err error) {
 		data[class.RootKey()] = class.Data().Get(class.RootKey())
 	}
 
-	// TODO: the target must be able to overwrite class values and must not only be an isolated key in the data map
-	data[targetKey] = target.Data()
+	// next we need to determine which keys are present in the target which are also defined by the classes
+	// these keys need to be merged into the existing data, eventually overwriting values since the target always has precendende over classes.
+	dataKeys := reflect.ValueOf(data).MapKeys()            // we know that it's a map so we skip some checks
+	targetKeys := reflect.ValueOf(target.Data()).MapKeys() // we know that it's a map so we skip some checks
+
+	targetData := target.Data()   // copy target data since we're going to delete keys and like to preserve the original
+	targetMergeData := make(Data) // target data which needs to be merged into the main data
+
+	// copy existing keys in target data into targetMergeData and remove the key from targetData.
+	for _, dataKey := range dataKeys {
+		for _, targetKey := range targetKeys {
+			if dataKey.String() == targetKey.String() {
+				targetMergeData[targetKey.String()] = targetData[targetKey.String()]
+				delete(targetData, targetKey.String())
+				break
+			}
+		}
+	}
+	data = data.MergeReplace(targetMergeData)
+
+	// add 'leftover' keys from the target under the 'target' key
+	// TODO: what if a class defines the 'target' key?
+	data[targetKey] = targetData
 
 	return data, nil
 }
