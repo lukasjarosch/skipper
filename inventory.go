@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/spf13/afero"
@@ -16,7 +17,6 @@ type Inventory struct {
 	fileExtensions []string
 	classFiles     []*Class
 	targetFiles    []*Target
-	Data           Data
 }
 
 // NewInventory creates a new Inventory with the given afero.Fs.
@@ -55,10 +55,64 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 		}
 	}
 
-	// TODO: How to handle if imported classes define the same keys?
-	// Maybe just overwrite based on the 'use' order in the target?
-
 	return nil
+}
+
+// Data loads the required inventory data map given the target.
+func (inv *Inventory) Data(targetName string) (data Data, err error) {
+	data = make(Data)
+
+	target, err := inv.Target(targetName)
+	if err != nil {
+		return nil, err
+	}
+
+	// load all classes as defined by the target
+	var classes []*Class
+	for _, className := range target.UsedClasses {
+		class, err := inv.Class(className)
+		if err != nil {
+			return nil, err
+		}
+		classes = append(classes, class)
+	}
+
+	// ensure that the loaded class-data does not conflict
+	// If two classes with the same root-key are selected, we cannot continue.
+	// We could attempt to perform a 'smart' merge or apply some precendende rules, but
+	// this will inevitably cause unexpected behaviour which is not what we want.
+	for _, class := range classes {
+		if _, exists := data[class.RootKey()]; exists {
+			return nil, fmt.Errorf("duplicate key '%s' registered by class '%s'", class.RootKey(), class.Name)
+		}
+		data[class.RootKey()] = class.Data().Get(class.RootKey())
+	}
+
+	// next we need to determine which keys are present in the target which are also defined by the classes
+	// these keys need to be merged into the existing data, eventually overwriting values since the target always has precendende over classes.
+	dataKeys := reflect.ValueOf(data).MapKeys()            // we know that it's a map so we skip some checks
+	targetKeys := reflect.ValueOf(target.Data()).MapKeys() // we know that it's a map so we skip some checks
+
+	targetData := target.Data()   // copy target data since we're going to delete keys and like to preserve the original
+	targetMergeData := make(Data) // target data which needs to be merged into the main data
+
+	// copy existing keys in target data into targetMergeData and remove the key from targetData.
+	for _, dataKey := range dataKeys {
+		for _, targetKey := range targetKeys {
+			if dataKey.String() == targetKey.String() {
+				targetMergeData[targetKey.String()] = targetData[targetKey.String()]
+				delete(targetData, targetKey.String())
+				break
+			}
+		}
+	}
+	data = data.MergeReplace(targetMergeData)
+
+	// add 'leftover' keys from the target under the 'target' key
+	// TODO: what if a class defines the 'target' key?
+	data[targetKey] = targetData
+
+	return data, nil
 }
 
 func (inv *Inventory) Target(name string) (*Target, error) {
@@ -85,13 +139,28 @@ func (inv *Inventory) getTarget(name string) *Target {
 	return nil
 }
 
+func (inv *Inventory) Class(name string) (*Class, error) {
+	if !inv.ClassExists(name) {
+		return nil, fmt.Errorf("class '%s' does not exist", name)
+	}
+	return inv.getClass(name), nil
+}
+
 func (inv *Inventory) ClassExists(name string) bool {
+	if inv.getClass(name) == nil {
+		return false
+	}
+	return true
+}
+
+func (inv *Inventory) getClass(name string) *Class {
 	for _, class := range inv.classFiles {
 		if class.Name == name {
-			return true
+			return class
 		}
 	}
-	return false
+	return nil
+
 }
 
 func (inv *Inventory) discoverFiles(rootPath string) ([]*YamlFile, error) {
@@ -138,7 +207,7 @@ func (inv *Inventory) loadClassFiles(classPath string) error {
 
 		c, err := NewClass(class, relativePath)
 		if err != nil {
-			return fmt.Errorf("unable to create class from file: %s: %w", class.Path, err)
+			return fmt.Errorf("%s: %w", class.Path, err)
 		}
 		inv.classFiles = append(inv.classFiles, c)
 	}

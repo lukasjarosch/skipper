@@ -90,10 +90,11 @@ func main() {
 		panic(err)
 	}
 
-	// fetch target file ----------------------------------------------------------------------------------
-	targetFile, err := inventory.Target(target)
+	// render inventory data based on target ----------------------------------------------------------------------------------
+
+	data, err := inventory.Data(target)
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 
 	// render output  ----------------------------------------------------------------------------------
@@ -141,10 +142,8 @@ func main() {
 
 		templateData := struct {
 			Inventory skipper.Data
-			Target    skipper.Data
 		}{
-			Inventory: inventory.Data,
-			Target:    targetFile.Data(), // TODO: ensure targets always use top-level-key 'target'
+			Inventory: data,
 		}
 
 		err = tpl.Execute(outFile, templateData)
@@ -154,8 +153,8 @@ func main() {
 		}
 	}
 
-	s, _ := yaml.Marshal(inventory.Data)
+	s, _ := yaml.Marshal(data)
 	fmt.Println(string(s))
 
-	log.Printf("%+v", inventory.Data)
+	log.Printf("%+v", data)
 }

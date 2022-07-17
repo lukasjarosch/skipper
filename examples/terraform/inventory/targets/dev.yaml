@@ -2,9 +2,12 @@ target:
   use: 
     - project
     - gitlab
-    - foo.bar
 
-  name: "terraform-example"
+  name: "dev"
+
+  gitlab:
+    foo: bar
+    project_id: REPLACED
 
   azure:
     subscription_id: "my-awesome-subscription"
