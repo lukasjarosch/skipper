@@ -1,5 +1,7 @@
 target:
   use: 
+    - project
+    - gitlab
     - foo.bar
 
   name: "terraform-example"

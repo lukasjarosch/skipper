@@ -1,4 +1,4 @@
-package templater
+package skipper
 
 import (
 	"fmt"

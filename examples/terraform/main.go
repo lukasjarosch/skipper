@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
 
-	"github.com/lukasjarosch/templater"
+	"github.com/lukasjarosch/skipper"
 )
 
 var (
@@ -53,16 +53,9 @@ func main() {
 	log.Printf("compiled path set to '%s'", outputPath)
 	log.Printf("desired target is '%s'", target)
 
-	// load data inventory ----------------------------------------------------------------------------------
+	// load inventory ----------------------------------------------------------------------------------
 
-	/*
-		afero.Walk(fileSystem, dataPath, func(path string, info fs.FileInfo, err error) error {
-			log.Println(path)
-			return nil
-		})
-	*/
-
-	inventory, err := templater.NewInventory(afero.NewOsFs())
+	inventory, err := skipper.NewInventory(afero.NewOsFs())
 	if err != nil {
 		// TODO: handle error instead of panicking
 		panic(err)
@@ -78,10 +71,6 @@ func main() {
 	if err != nil {
 		// TODO: handle error instead of panicking
 		panic(err)
-	}
-
-	if !inventory.TargetExists(target) {
-		log.Fatalf("target '%s' does not exist", target)
 	}
 
 	// discover templates ----------------------------------------------------------------------------------
@@ -101,53 +90,11 @@ func main() {
 		panic(err)
 	}
 
-	// load target file ----------------------------------------------------------------------------------
-
-	exists, err := afero.Exists(fileSystem, targetPath)
+	// fetch target file ----------------------------------------------------------------------------------
+	targetFile, err := inventory.Target(target)
 	if err != nil {
-		panic(fmt.Errorf("failed to check target path: %w", err))
+		log.Fatalln(err)
 	}
-	if !exists {
-		panic(fmt.Errorf("data path does not exist: %s", targetPath))
-	}
-
-	var targetFilePath string
-	err = afero.Walk(fileSystem, targetPath, func(path string, info fs.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-
-		baseName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-		if baseName == target {
-			targetFilePath = path
-			return nil
-		}
-
-		return nil
-	})
-	if err != nil {
-		// TODO: handle error instead of panicking
-		panic(err)
-	}
-
-	if targetFilePath == "" {
-		panic(fmt.Errorf("target '%s' not found in '%s'", target, targetPath))
-	}
-
-	targetFile, err := templater.NewFile(targetFilePath)
-	if err != nil {
-		// TODO: handle error instead of panicking
-		panic(err)
-	}
-	err = targetFile.Load(fileSystem)
-	if err != nil {
-		// TODO: handle error instead of panicking
-		panic(err)
-	}
-
-	log.Printf("%#v", targetFile.Data)
-
-	// TODO: load target data and map to data into _target
 
 	// render output  ----------------------------------------------------------------------------------
 
@@ -192,15 +139,12 @@ func main() {
 			panic(err)
 		}
 
-		// ensure '.Target.name' is always set to the file-basename of the target
-		targetFile.Data["target"].(templater.Data)["name"] = target
-
 		templateData := struct {
-			Inventory templater.Data
-			Target    templater.Data
+			Inventory skipper.Data
+			Target    skipper.Data
 		}{
 			Inventory: inventory.Data,
-			Target:    targetFile.Data["target"].(templater.Data), // TODO: ensure targets always use top-level-key 'target'
+			Target:    targetFile.Data(), // TODO: ensure targets always use top-level-key 'target'
 		}
 
 		err = tpl.Execute(outFile, templateData)

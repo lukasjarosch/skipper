@@ -1,4 +1,4 @@
-module github.com/lukasjarosch/templater
+module github.com/lukasjarosch/skipper
 
 go 1.18
 

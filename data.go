@@ -1,4 +1,4 @@
-package templater
+package skipper
 
 type Data map[string]interface{}
 

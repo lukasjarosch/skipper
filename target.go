@@ -1,4 +1,4 @@
-package templater
+package skipper
 
 import (
 	"fmt"
@@ -53,6 +53,10 @@ func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 	}
 
 	return target, nil
+}
+
+func (t *Target) Data() Data {
+	return t.File.Data.Get(targetKey)
 }
 
 // loadUsedClasses will check that the target has the 'use' key,
