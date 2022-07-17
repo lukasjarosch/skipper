@@ -1,0 +1,19 @@
+target:
+  use: 
+    - foo.bar
+
+  name: "terraform-example"
+
+  azure:
+    subscription_id: "my-awesome-subscription"
+    location: "germanywestcentral"
+    resource_group: "rg-dev-terraform-example"
+
+    network:
+      vnet_address_space:
+        - "10.1.0.0.0/16"
+      appgw_snet_address_prefixes:
+        - "10.1.1.0/24"
+
+  terraform:
+    state_name: "dev-state"
