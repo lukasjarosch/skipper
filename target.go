@@ -17,7 +17,8 @@ type Target struct {
 	File *YamlFile
 	// Name is the relative path of the file inside the inventory
 	// where '/' is replaced with '.' and without file extension.
-	Name string
+	Name        string
+	UsedClasses []string
 }
 
 type TargetConfig struct {
@@ -41,18 +42,40 @@ func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 		return nil, fmt.Errorf("target must have valid top-level key")
 	}
 
-	// Targets must at least use one class, otherwise there would be no data available from the inventory.
-	if !file.Data.Get(targetKey).HasKey(useKey) {
-		return nil, fmt.Errorf("target must use at least one class")
-	}
-
-	// ensure that the useKey is an array
-	if reflect.TypeOf(file.Data.Get(targetKey)[useKey]).Kind() != reflect.Slice {
-		return nil, fmt.Errorf("%s.%s must be a string array", targetKey, useKey)
-	}
-
-	return &Target{
+	target := &Target{
 		File: file,
 		Name: name,
-	}, nil
+	}
+
+	err := target.loadUsedClasses()
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
+}
+
+// loadUsedClasses will check that the target has the 'use' key,
+// with a value of kind []string which is not empty. At least one class must be used by every target.
+// If these preconditions are met, the values are loaded into 'UsedClasses'.
+func (t *Target) loadUsedClasses() error {
+	if !t.File.Data.Get(targetKey).HasKey(useKey) {
+		return fmt.Errorf("target does not have a '%s.%s' key", targetKey, useKey)
+	}
+
+	useValue := t.File.Data.Get(targetKey)[useKey]
+	if useValue == nil {
+		return fmt.Errorf("target must use at least one class")
+	}
+
+	if reflect.TypeOf(useValue).Kind() != reflect.Slice {
+		return fmt.Errorf("%s.%s must be a string array", targetKey, useKey)
+	}
+
+	// convert []interface to []string
+	for _, class := range useValue.([]interface{}) {
+		t.UsedClasses = append(t.UsedClasses, class.(string))
+	}
+
+	return nil
 }

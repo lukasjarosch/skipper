@@ -1,6 +1,6 @@
 target:
   use: 
-  - foo
+    - foo.bar
 
   name: "terraform-example"
 

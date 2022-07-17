@@ -30,7 +30,7 @@ var (
 func init() {
 	flag.StringVar(&dataPath, "data", "inventory", "path to the data folder")
 	flag.StringVar(&target, "target", "", "name of the target to use")
-	flag.StringVar(&targetPath, "targetPath", "targets", "path to the targets directory")
+	//flag.StringVar(&targetPath, "targetPath", "targets", "path to the targets directory")
 	flag.StringVar(&templatePath, "templates", "templates", "path to the templates folder")
 	flag.StringVar(&outputPath, "output", "output", "template output path")
 	flag.Parse()
@@ -46,25 +46,28 @@ func main() {
 	if target == "" {
 		log.Fatalln("target cannot be empty")
 	}
-	if targetPath == "" {
-		log.Fatalln("targetPath cannot be empty")
-	}
+	/*
+		if targetPath == "" {
+			log.Fatalln("targetPath cannot be empty")
+		}
+	*/
 	if outputPath == "" {
 		log.Fatalln("outputPath cannot be empty")
 	}
 
-	log.Printf("dataPath set to '%s'", dataPath)
-	log.Printf("templatePath set to '%s'", templatePath)
-	log.Printf("target set to '%s'", target)
-	log.Printf("targetPath set to '%s'", targetPath)
-	log.Printf("outputPath set to '%s'", outputPath)
+	log.Printf("inventory path set to '%s'", dataPath)
+	log.Printf("template path set to '%s'", templatePath)
+	log.Printf("compiled path set to '%s'", outputPath)
+	log.Printf("desired target is '%s'", target)
 
 	// load data inventory ----------------------------------------------------------------------------------
 
-	afero.Walk(fileSystem, dataPath, func(path string, info fs.FileInfo, err error) error {
-		log.Println(path)
-		return nil
-	})
+	/*
+		afero.Walk(fileSystem, dataPath, func(path string, info fs.FileInfo, err error) error {
+			log.Println(path)
+			return nil
+		})
+	*/
 
 	inventory, err := templater.NewInventory(afero.NewOsFs())
 	if err != nil {
@@ -75,6 +78,8 @@ func main() {
 	// TODO: make configurable
 	targetPath := path.Join(dataPath, "targets")
 	classPath := path.Join(dataPath, "classes")
+	log.Printf("target path: '%s'", targetPath)
+	log.Printf("classes path: '%s'", classPath)
 
 	err = inventory.Load(classPath, targetPath)
 	if err != nil {

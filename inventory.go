@@ -35,91 +35,28 @@ func NewInventory(fs afero.Fs) (*Inventory, error) {
 }
 
 func (inv *Inventory) Load(classPath, targetPath string) error {
-	classFiles, err := inv.discoverFiles(classPath)
+
+	err := inv.loadClassFiles(classPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to load class files: %w", err)
 	}
 
-	// load all class files, replacing the inventory-relative path with dot-separated style
-	for _, class := range classFiles {
-		err = class.Load(inv.fs)
-		if err != nil {
-			return err
-		}
-
-		relativePath := strings.ReplaceAll(class.Path, classPath, "")
-		relativePath = strings.TrimLeft(relativePath, "/")
-
-		c, err := NewClass(class, relativePath)
-		if err != nil {
-			return fmt.Errorf("unable to create class from file: %s: %w", class.Path, err)
-		}
-		inv.classFiles = append(inv.classFiles, c)
-	}
-
-	targetFiles, err := inv.discoverFiles(targetPath)
+	err = inv.loadTargetFiles(targetPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to load target files: %w", err)
 	}
 
-	// load all target files the same way as we load the class files
-	for _, target := range targetFiles {
-		err = target.Load(inv.fs)
-		if err != nil {
-			return err
+	// check for all targets whether they use classes which actually exist
+	for _, target := range inv.targetFiles {
+		for _, class := range target.UsedClasses {
+			if !inv.ClassExists(class) {
+				return fmt.Errorf("target '%s' uses class '%s' which does not exist", target.Name, class)
+			}
 		}
-
-		ta := &TargetConfig{}
-		target.LoadAs(inv.fs, ta)
-		log.Println(ta)
-
-		relativePath := strings.ReplaceAll(target.Path, targetPath, "")
-		relativePath = strings.TrimLeft(relativePath, "/")
-
-		t, err := NewTarget(target, relativePath)
-		if err != nil {
-			return fmt.Errorf("unable to create target from file: %s: %w", target.Path, err)
-		}
-		inv.targetFiles = append(inv.targetFiles, t)
-
-		log.Println("target file:", t)
 	}
 
 	// TODO: How to handle if imported classes define the same keys?
 	// Maybe just overwrite based on the 'use' order in the target?
-
-	/*
-		// Sort data files by path-depth.
-		// They are sorted in order to allow for 'depth-based' overwriting. The idea behind that is that
-		// you define the more general data in the upper directories (say 'common.yaml') and specify it
-		// while going 'down the path'. This allows you to overwrite common data easily.
-		sort.SliceStable(inv.files, func(i, j int) bool {
-			return strings.Count(inv.files[i].Path, string(os.PathSeparator)) < strings.Count(inv.files[j].Path, string(os.PathSeparator))
-		})
-
-		for _, dataFile := range inv.files {
-			relativePath := strings.ReplaceAll(dataFile.Path, dataPath, "")
-			relativePath = strings.TrimLeft(relativePath, "/")
-			class, err := NewClass(dataFile, relativePath)
-			if err != nil {
-				return fmt.Errorf("unable to create class from data file: %s: %w", dataFile, err)
-			}
-
-			log.Println(class)
-		}
-
-		// Merge the sorted data files into one Data map
-		var data Data
-		for i := 0; i < len(inv.files); i++ {
-			err := inv.files[i].Load(inv.fs)
-			if err != nil {
-				return err
-			}
-			data = mergeData(data, inv.files[i].Data)
-		}
-		inv.Data = data
-
-	*/
 
 	return nil
 }
@@ -127,6 +64,15 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 func (inv *Inventory) TargetExists(name string) bool {
 	for _, target := range inv.targetFiles {
 		if strings.ToLower(name) == strings.ToLower(target.Name) {
+			return true
+		}
+	}
+	return false
+}
+
+func (inv *Inventory) ClassExists(name string) bool {
+	for _, class := range inv.classFiles {
+		if class.Name == name {
 			return true
 		}
 	}
@@ -157,6 +103,58 @@ func (inv *Inventory) discoverFiles(rootPath string) ([]*YamlFile, error) {
 		return nil
 	})
 	return files, err
+}
+
+func (inv *Inventory) loadClassFiles(classPath string) error {
+	classFiles, err := inv.discoverFiles(classPath)
+	if err != nil {
+		return err
+	}
+
+	// load all class files, replacing the inventory-relative path with dot-separated style
+	for _, class := range classFiles {
+		err = class.Load(inv.fs)
+		if err != nil {
+			return err
+		}
+
+		relativePath := strings.ReplaceAll(class.Path, classPath, "")
+		relativePath = strings.TrimLeft(relativePath, "/")
+
+		c, err := NewClass(class, relativePath)
+		if err != nil {
+			return fmt.Errorf("unable to create class from file: %s: %w", class.Path, err)
+		}
+		inv.classFiles = append(inv.classFiles, c)
+	}
+	return nil
+}
+
+func (inv *Inventory) loadTargetFiles(targetPath string) error {
+	targetFiles, err := inv.discoverFiles(targetPath)
+	if err != nil {
+		return err
+	}
+
+	for _, target := range targetFiles {
+		err = target.Load(inv.fs)
+		if err != nil {
+			return err
+		}
+
+		relativePath := strings.ReplaceAll(target.Path, targetPath, "")
+		relativePath = strings.TrimLeft(relativePath, "/")
+
+		t, err := NewTarget(target, relativePath)
+		if err != nil {
+			return fmt.Errorf("%s: %w", target.Path, err)
+		}
+		inv.targetFiles = append(inv.targetFiles, t)
+
+		log.Println(t.UsedClasses)
+	}
+
+	return nil
 }
 
 func (inv *Inventory) matchesExtension(path string) bool {
