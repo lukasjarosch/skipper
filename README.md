@@ -3,7 +3,9 @@
     <img src="./assets/logo.png" alt="Logo" width="128" height="128">
   </a>
 
-<h3 align="center">Skipper</h3>
+<h1 align="center">Skipper</h3>
+<p>Inventory based templated configuration library based on the kapitan project</p>
+</br>
 </div>
 
 # What is skipper?
