@@ -8,7 +8,7 @@
 
 # What is skipper?
 
-Skipper is heavily inspired by the awesome [Kapitan](https://kapitan.dev/) tool. The major difference
+Skipper is heavily inspired by the awesome [Kapitan](https://kapitan.dev/) project. The major difference
 is that skipper is primarily meant to be used as library. This allows you for example to have way more
 control over the data-structures used inside the templates. 
 
