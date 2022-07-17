@@ -52,6 +52,9 @@ func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 		return nil, err
 	}
 
+	// TODO: do we allow to set the 'target.name' key or is it automatically populated with the target name?
+	// Or do we handle it the same as kapitan where the value must match the filename?
+
 	return target, nil
 }
 
