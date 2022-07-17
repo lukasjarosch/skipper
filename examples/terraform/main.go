@@ -20,7 +20,6 @@ import (
 var (
 	dataPath     string
 	target       string
-	targetPath   string
 	templatePath string
 	outputPath   string
 
@@ -30,7 +29,6 @@ var (
 func init() {
 	flag.StringVar(&dataPath, "data", "inventory", "path to the data folder")
 	flag.StringVar(&target, "target", "", "name of the target to use")
-	//flag.StringVar(&targetPath, "targetPath", "targets", "path to the targets directory")
 	flag.StringVar(&templatePath, "templates", "templates", "path to the templates folder")
 	flag.StringVar(&outputPath, "output", "output", "template output path")
 	flag.Parse()
@@ -46,11 +44,6 @@ func main() {
 	if target == "" {
 		log.Fatalln("target cannot be empty")
 	}
-	/*
-		if targetPath == "" {
-			log.Fatalln("targetPath cannot be empty")
-		}
-	*/
 	if outputPath == "" {
 		log.Fatalln("outputPath cannot be empty")
 	}
