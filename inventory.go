@@ -1,4 +1,4 @@
-package templater
+package skipper
 
 import (
 	"fmt"
@@ -61,13 +61,28 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 	return nil
 }
 
+func (inv *Inventory) Target(name string) (*Target, error) {
+	if !inv.TargetExists(name) {
+		return nil, fmt.Errorf("target '%s' does not exist", name)
+	}
+
+	return inv.getTarget(name), nil
+}
+
 func (inv *Inventory) TargetExists(name string) bool {
+	if inv.getTarget(name) == nil {
+		return false
+	}
+	return true
+}
+
+func (inv *Inventory) getTarget(name string) *Target {
 	for _, target := range inv.targetFiles {
 		if strings.ToLower(name) == strings.ToLower(target.Name) {
-			return true
+			return target
 		}
 	}
-	return false
+	return nil
 }
 
 func (inv *Inventory) ClassExists(name string) bool {
