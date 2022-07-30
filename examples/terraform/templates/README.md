@@ -5,3 +5,5 @@
 {{ $inv.gitlab.project_id }}
 {{ $inv.target.azure.resource_group}}
 
+{{ foo }}
+
