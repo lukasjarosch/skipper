@@ -54,8 +54,15 @@ func main() {
 	}
 
 	// discover, load and parse the templates ----------------------------------------------------------------------------------
+
+	myTemplateFuncs := map[string]any{
+		"foo": func() string {
+			return "foo-bar-baz"
+		},
+	}
+
 	templateOutputPath := path.Join(outputPath, target)
-	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath)
+	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, myTemplateFuncs)
 	if err != nil {
 		panic(err)
 	}

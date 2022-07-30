@@ -29,10 +29,24 @@ type Templater struct {
 	outputFs         afero.Fs
 }
 
-func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string) (*Templater, error) {
+func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, userFuncMap map[string]any) (*Templater, error) {
 	t := &Templater{
 		templateFs: afero.NewBasePathFs(fileSystem, templateRootPath),
 		outputFs:   afero.NewBasePathFs(fileSystem, outputRootPath),
+	}
+
+	// perpare template functions
+	templateFunctions := sprig.TxtFuncMap()
+
+	// merge our own custom functions
+	for key, customFunc := range customFuncs {
+		templateFunctions[key] = customFunc
+	}
+	// merge userFuncMap
+	if userFuncMap != nil {
+		for key, customFunc := range userFuncMap {
+			templateFunctions[key] = customFunc
+		}
 	}
 
 	err := afero.Walk(t.templateFs, "", func(filePath string, info fs.FileInfo, err error) error {
@@ -40,14 +54,7 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string) 
 			return nil
 		}
 
-		// merge custom functions for templates
-		// TODO: allow the user to add their own via constructor
-		funcMap := sprig.TxtFuncMap()
-		for key, customFunc := range customFuncs {
-			funcMap[key] = customFunc
-		}
-
-		file, err := NewTemplateFile(filePath, funcMap)
+		file, err := NewTemplateFile(filePath, templateFunctions)
 		if err != nil {
 			return err
 		}
