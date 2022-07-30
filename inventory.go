@@ -213,6 +213,11 @@ func (inv *Inventory) loadClassFiles(classPath string) error {
 			return err
 		}
 
+		// skip empty files
+		if len(class.Data) == 0 {
+			continue
+		}
+
 		relativePath := strings.ReplaceAll(class.Path, classPath, "")
 		relativePath = strings.TrimLeft(relativePath, "/")
 
