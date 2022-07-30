@@ -7,46 +7,69 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type YamlFile struct {
-	Path string
-	Data Data
+type file struct {
+	Path  string
+	Bytes []byte
 }
 
-func NewFile(path string) (*YamlFile, error) {
+func newFile(path string) (*file, error) {
 	if path == "" {
 		return nil, fmt.Errorf("path cannot be empty")
 	}
 
-	f := &YamlFile{
-		Path: path,
-	}
-
-	return f, nil
+	return &file{Path: path}, nil
 }
 
-// TODO: separate from yaml, depend only on an unmarshaller interface
-func (f *YamlFile) Load(fs afero.Fs) error {
-	fileBytes, err := afero.ReadFile(fs, f.Path)
+func (f *file) Load(fs afero.Fs) (err error) {
+	f.Bytes, err = afero.ReadFile(fs, f.Path)
 	if err != nil {
-		return fmt.Errorf("failed to Load: %w", err)
+		return fmt.Errorf("failed to Load %s: %w", f.Path, err)
+	}
+	return nil
+}
+
+type YamlFile struct {
+	file
+	Data Data
+}
+
+// TODO: change name to NewYamlFile
+func NewFile(path string) (*YamlFile, error) {
+	f, err := newFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &YamlFile{
+		file: *f,
+	}, nil
+}
+
+func (f *YamlFile) Load(fs afero.Fs) error {
+	err := f.file.Load(fs)
+	if err != nil {
+		return err
 	}
 
 	var d Data
-	if err := yaml.Unmarshal(fileBytes, &d); err != nil {
+	if err := yaml.Unmarshal(f.Bytes, &d); err != nil {
 		return err
 	}
 	f.Data = d
 	return nil
 }
 
-func (f *YamlFile) LoadAs(fs afero.Fs, target interface{}) error {
-	fileBytes, err := afero.ReadFile(fs, f.Path)
+type TemplateFile struct {
+	file
+}
+
+func NewTemplateFile(path string) (*TemplateFile, error) {
+	f, err := newFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to Load: %w", err)
+		return nil, err
 	}
 
-	if err := yaml.Unmarshal(fileBytes, target); err != nil {
-		return err
-	}
-	return nil
+	return &TemplateFile{
+		file: *f,
+	}, nil
 }
