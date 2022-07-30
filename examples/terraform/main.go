@@ -42,7 +42,7 @@ func main() {
 	log.Printf("compiled path set to '%s'", outputPath)
 	log.Printf("desired target is '%s'", target)
 
-	// initialiye and load inventory ----------------------------------------------------------------------------------
+	// initialize and load inventory ----------------------------------------------------------------------------------
 	inventory, err := skipper.NewInventory(afero.NewOsFs())
 	if err != nil {
 		panic(err)
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	templateData := struct {
-		Inventory skipper.Data
+		Inventory any
 	}{
 		Inventory: data,
 	}

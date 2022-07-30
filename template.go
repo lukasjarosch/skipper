@@ -61,6 +61,8 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string) 
 	return t, nil
 }
 
+// Execute is responsible of parsing and executing the given template, using the passed data context.
+// If exection is successful, the template is written to it's desired target location.
 func (t *Templater) Execute(template *TemplateFile, data any) error {
 	err := template.Parse(t.templateFs)
 	if err != nil {
@@ -83,6 +85,7 @@ func (t *Templater) Execute(template *TemplateFile, data any) error {
 	return nil
 }
 
+// ExecuteAll is just a convenience function to execute all templates in `Templater.Files`
 func (t *Templater) ExecuteAll(data any) error {
 	for _, template := range t.Files {
 		err := t.Execute(template, data)
@@ -94,8 +97,8 @@ func (t *Templater) ExecuteAll(data any) error {
 	return nil
 }
 
+// writeOutputFile ensures that `filePath` exists in the `outputFs` and then writes `data` into it.
 func (t *Templater) writeOutputFile(data []byte, filePath string) error {
-
 	err := t.outputFs.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
 		return err

@@ -3,7 +3,6 @@ package skipper
 import (
 	"fmt"
 	"io/fs"
-	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -34,8 +33,9 @@ func NewInventory(fs afero.Fs) (*Inventory, error) {
 	return inv, nil
 }
 
+// Load will discover and load all classes and targets given the paths.
+// It will also ensure that all targets only use classes which are actually defined.
 func (inv *Inventory) Load(classPath, targetPath string) error {
-
 	err := inv.loadClassFiles(classPath)
 	if err != nil {
 		return fmt.Errorf("unable to load class files: %w", err)
@@ -115,6 +115,7 @@ func (inv *Inventory) Data(targetName string) (data Data, err error) {
 	return data, nil
 }
 
+// Target returns a target given a name.
 func (inv *Inventory) Target(name string) (*Target, error) {
 	if !inv.TargetExists(name) {
 		return nil, fmt.Errorf("target '%s' does not exist", name)
@@ -123,6 +124,7 @@ func (inv *Inventory) Target(name string) (*Target, error) {
 	return inv.getTarget(name), nil
 }
 
+// TargetExists returns true if the given target name exists
 func (inv *Inventory) TargetExists(name string) bool {
 	if inv.getTarget(name) == nil {
 		return false
@@ -130,6 +132,7 @@ func (inv *Inventory) TargetExists(name string) bool {
 	return true
 }
 
+// getTarget attempts to return a target struct given a target name
 func (inv *Inventory) getTarget(name string) *Target {
 	for _, target := range inv.targetFiles {
 		if strings.ToLower(name) == strings.ToLower(target.Name) {
@@ -139,6 +142,8 @@ func (inv *Inventory) getTarget(name string) *Target {
 	return nil
 }
 
+// Class attempts to return a Class, given a name.
+// If the class does not exist, an error is returned.
 func (inv *Inventory) Class(name string) (*Class, error) {
 	if !inv.ClassExists(name) {
 		return nil, fmt.Errorf("class '%s' does not exist", name)
@@ -146,6 +151,7 @@ func (inv *Inventory) Class(name string) (*Class, error) {
 	return inv.getClass(name), nil
 }
 
+// ClassExists returns true if a class with the given name exists.
 func (inv *Inventory) ClassExists(name string) bool {
 	if inv.getClass(name) == nil {
 		return false
@@ -153,6 +159,8 @@ func (inv *Inventory) ClassExists(name string) bool {
 	return true
 }
 
+// getClass attempts to return a Class, given a name.
+// If the class does not exist, nil is returned.
 func (inv *Inventory) getClass(name string) *Class {
 	for _, class := range inv.classFiles {
 		if class.Name == name {
@@ -163,6 +171,8 @@ func (inv *Inventory) getClass(name string) *Class {
 
 }
 
+// discoverFiles iterates over a given rootPath recursively, filters out all files with the appropriate file fileExtensions
+// and finally creates a YamlFile slice which is then returned.
 func (inv *Inventory) discoverFiles(rootPath string) ([]*YamlFile, error) {
 	exists, err := afero.Exists(inv.fs, rootPath)
 	if err != nil {
@@ -189,6 +199,7 @@ func (inv *Inventory) discoverFiles(rootPath string) ([]*YamlFile, error) {
 	return files, err
 }
 
+// loadClassFiles
 func (inv *Inventory) loadClassFiles(classPath string) error {
 	classFiles, err := inv.discoverFiles(classPath)
 	if err != nil {
@@ -214,6 +225,7 @@ func (inv *Inventory) loadClassFiles(classPath string) error {
 	return nil
 }
 
+// loadTargetFiles
 func (inv *Inventory) loadTargetFiles(targetPath string) error {
 	targetFiles, err := inv.discoverFiles(targetPath)
 	if err != nil {
@@ -234,13 +246,12 @@ func (inv *Inventory) loadTargetFiles(targetPath string) error {
 			return fmt.Errorf("%s: %w", target.Path, err)
 		}
 		inv.targetFiles = append(inv.targetFiles, t)
-
-		log.Println(t.UsedClasses)
 	}
 
 	return nil
 }
 
+// matchesExtension returns true if the given string has a valid extension as defined in `Inventory.fileExtensions`
 func (inv *Inventory) matchesExtension(path string) bool {
 	ext := filepath.Ext(path)
 	for _, extension := range inv.fileExtensions {
