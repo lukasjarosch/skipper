@@ -2,6 +2,8 @@ package skipper
 
 import (
 	"fmt"
+	"io"
+	"text/template"
 
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
@@ -61,15 +63,37 @@ func (f *YamlFile) Load(fs afero.Fs) error {
 
 type TemplateFile struct {
 	file
+	tpl *template.Template
 }
 
-func NewTemplateFile(path string) (*TemplateFile, error) {
+func NewTemplateFile(path string, funcs map[string]any) (*TemplateFile, error) {
 	f, err := newFile(path)
 	if err != nil {
 		return nil, err
 	}
 
+	tpl := template.New(path).Funcs(funcs)
+
 	return &TemplateFile{
 		file: *f,
+		tpl:  tpl,
 	}, nil
+}
+
+func (tmpl *TemplateFile) Parse(fs afero.Fs) (err error) {
+	err = tmpl.file.Load(fs)
+	if err != nil {
+		return err
+	}
+
+	tmpl.tpl, err = tmpl.tpl.Parse(string(tmpl.Bytes))
+	if err != nil {
+		return fmt.Errorf("failed to parse template %s: %w", tmpl.Path, err)
+	}
+
+	return nil
+}
+
+func (tmpl *TemplateFile) Execute(out io.Writer, data any) (err error) {
+	return tmpl.tpl.Execute(out, data)
 }
