@@ -7,3 +7,5 @@
 
 {{ foo }}
 
+{{ .Additional }}
+

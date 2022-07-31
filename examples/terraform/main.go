@@ -54,7 +54,6 @@ func main() {
 	}
 
 	// discover, load and parse the templates ----------------------------------------------------------------------------------
-
 	myTemplateFuncs := map[string]any{
 		"foo": func() string {
 			return "foo-bar-baz"
@@ -77,10 +76,17 @@ func main() {
 		panic(err)
 	}
 
+	// pretend that we've got some other data source
+	additional := map[string]any{
+		"something": "else",
+	}
+
 	templateData := struct {
-		Inventory any
+		Inventory  any
+		Additional any
 	}{
-		Inventory: data,
+		Inventory:  data,
+		Additional: additional,
 	}
 
 	// execute templates  ----------------------------------------------------------------------------------
