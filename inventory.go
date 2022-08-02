@@ -3,6 +3,7 @@ package skipper
 import (
 	"fmt"
 	"io/fs"
+	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -53,6 +54,12 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 				return fmt.Errorf("target '%s' uses class '%s' which does not exist", target.Name, class)
 			}
 		}
+	}
+
+	// TODO: variable preprocessing for classes and targets
+	for _, class := range inv.classFiles {
+		vars := class.Data().FindVariables()
+		log.Println(vars)
 	}
 
 	return nil

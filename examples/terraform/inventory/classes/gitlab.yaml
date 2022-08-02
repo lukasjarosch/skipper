@@ -1,3 +1,10 @@
 gitlab:
   project_id: 1234
   base_url: https://gitlab.example.com
+  something: ${gitlab:base_url}/${gitlab:project_id}
+  foo:
+    bar: baz
+    this:
+      - is
+      - an
+      - array
