@@ -3,6 +3,7 @@ package skipper
 import (
 	"reflect"
 	"regexp"
+	"strings"
 )
 
 var variableRegex = regexp.MustCompile(`\$\{((\w*)(\:\w+)*)\}`)
@@ -48,12 +49,18 @@ func (d Data) MergeReplace(data Data) Data {
 	return out
 }
 
+// Variable is a keyword which self-references the Data map it is defined in.
+// A Variable has the form ${key:key}.
 type Variable struct {
-	FullName string
-	Name     string
+	// FullName is the whole variable name, including the delimiters (${foo:bar})
+	Name string
+	// Identifier is the actual variable identifier (foo:bar) which points to the referenced value
+	Identifier string
 }
 
-func (d Data) FindVariables() (variables []Variable) {
+// Variables recursively iterates over the data to find any leaf values which match the variableRegex
+// Any value matching the regex is extracted and returned as Variable
+func (d Data) Variables() (variables []Variable) {
 	var walk func(reflect.Value)
 	walk = func(v reflect.Value) {
 		// fix indirects through pointers and interfaces
@@ -79,8 +86,8 @@ func (d Data) FindVariables() (variables []Variable) {
 				for _, variable := range matches {
 					if len(variable) >= 2 {
 						variables = append(variables, Variable{
-							FullName: variable[0],
-							Name:     variable[1],
+							Name:       variable[0],
+							Identifier: variable[1],
 						})
 					}
 				}
@@ -90,4 +97,37 @@ func (d Data) FindVariables() (variables []Variable) {
 	walk(reflect.ValueOf(d))
 
 	return variables
+}
+
+// VariableValue attempts to fetch the variable identifier (foo:bar) from Data and returns it as interface type.
+func (d Data) VariableValue(variable Variable) interface{} {
+	if len(variable.Identifier) == 0 {
+		return nil
+	}
+
+	variableKeys := strings.Split(variable.Identifier, ":")
+	data := d
+
+	for i, val := range variableKeys {
+		if i == len(variableKeys)-1 {
+			return data[val]
+		}
+		tmp := make(Data)
+
+		if _, ok := data[val]; !ok {
+			return nil
+		}
+
+		m, ok := data[val].(Data)
+		if !ok {
+			return nil
+		}
+
+		for key, value := range m {
+			tmp[key] = value
+		}
+		data = tmp
+	}
+
+	return nil
 }

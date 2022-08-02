@@ -58,8 +58,11 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 
 	// TODO: variable preprocessing for classes and targets
 	for _, class := range inv.classFiles {
-		vars := class.Data().FindVariables()
-		log.Println(vars)
+		vars := class.Data().Variables()
+
+		for _, variable := range vars {
+			log.Println("VALUE", class.Data().VariableValue(variable))
+		}
 	}
 
 	return nil
