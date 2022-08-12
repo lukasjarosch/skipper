@@ -57,12 +57,32 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 	}
 
 	// TODO: variable preprocessing for classes and targets
-	for _, class := range inv.classFiles {
-		vars := class.Data().Variables()
 
-		for _, variable := range vars {
-			log.Println("VALUE", class.Data().VariableValue(variable))
+	for _, class := range inv.classFiles {
+		// Determine which variables exist in the Data struct and store them (remove duplicates from this)
+
+		variables := FindVariables(class.Data()).Deduplicate()
+		log.Printf("class '%s' contains %d variables", class.Name, len(variables))
+
+		if len(variables) == 0 {
+			break
 		}
+
+		/*
+			vars := FindVariables(class.Data()).Deduplicate()
+				for _, variable := range vars {
+					variable.FindIdentifiers(class.Data())
+				}
+
+				// Determine where all of the found variables are located inside the class/target (store duplicates here) and save the identifiers
+
+				// Find all the values to which the variables point to
+				// Replace all variable-identifiers with the discovered values
+
+				for _, variable := range vars {
+					log.Println(variable.Name)
+				}
+		*/
 	}
 
 	return nil
