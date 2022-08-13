@@ -61,11 +61,29 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 	for _, class := range inv.classFiles {
 		// Determine which variables exist in the Data struct and store them (remove duplicates from this)
 
-		variables := FindVariables(class.Data()).Deduplicate()
+		variables := FindVariables(class.Data())
 		log.Printf("class '%s' contains %d variables", class.Name, len(variables))
 
 		if len(variables) == 0 {
-			break
+			continue
+		}
+
+		for _, variable := range variables {
+
+			// If the variable points to something which could not be resolved, just skip it
+			if !class.Data().HasValueAtIdentifier(variable.NameAsIdentifier()) {
+				continue
+			}
+
+			log.Printf("Variable '%s' at position '%s' points to value '%v'",
+				variable.Name, variable.Identifier, class.Data().GetByIdentifier(variable.NameAsIdentifier()))
+
+			sourceValue := class.Data().GetByIdentifier(variable.Identifier)
+			targetValue := class.Data().GetByIdentifier(variable.NameAsIdentifier())
+
+			class.Data().SetByIdentifier(variable.Identifier, targetValue)
+
+			log.Println(sourceValue, targetValue, strings.ReplaceAll(fmt.Sprint(sourceValue), "${"+variable.Name+"}", fmt.Sprint(targetValue)))
 		}
 
 		/*

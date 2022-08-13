@@ -1,10 +1,10 @@
 package skipper
 
 import (
+	"log"
 	"strings"
 )
 
-//type Data map[string]interface{}
 type Data map[string]interface{}
 
 const IdentifierSeparator = "."
@@ -20,6 +20,7 @@ func (d Data) Get(k string) Data {
 	return d[k].(Data)
 }
 
+// HasValueAtIdentifier returns true if the given identifier path points to a value.
 func (d Data) HasValueAtIdentifier(path string) bool {
 	if d.GetByIdentifier(path) == nil {
 		return false
@@ -28,13 +29,15 @@ func (d Data) HasValueAtIdentifier(path string) bool {
 }
 
 // GetByIdentifier returns a value given a dot-separated identifier.
-// Note: array indices (foo.bar.2) are NOT supported.
-// You can only index map values which do have a string index (which is everything except arrays).
+// TODO: add support for array indexing (e.g. 'foo.bar.3.baz')
 func (d Data) GetByIdentifier(path string) interface{} {
 	var segments = strings.Split(path, IdentifierSeparator)
+
 	obj := d
 
 	for i, v := range segments {
+
+		// we found the last segment of the identifier path
 		if i == len(segments)-1 {
 			return obj[v]
 		}
@@ -50,6 +53,30 @@ func (d Data) GetByIdentifier(path string) interface{} {
 	return obj
 }
 
+func (d *Data) SetByIdentifier(path string, value interface{}) {
+	var segments = strings.Split(path, IdentifierSeparator)
+
+	obj := (*d)
+
+	for i, v := range segments {
+
+		// we found the last segment of the identifier path
+		if i == len(segments)-1 {
+			log.Println("REPLACE HERE", obj[v])
+			obj[v] = value
+			(*d) = obj
+			return
+		}
+
+		switch obj[v].(type) {
+		case Data:
+			obj = Data(obj[v].(Data))
+		}
+	}
+}
+
+// MergeReplace merges the existing Data with the given.
+// If a key already exists, the passed data has precedence and it's value will be used.
 func (d Data) MergeReplace(data Data) Data {
 	out := make(Data, len(d))
 	for k, v := range d {

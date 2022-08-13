@@ -5,7 +5,7 @@
 REPLACED
 rg-dev-terraform-example
 
-something: ${gitlab:base_url}/${gitlab:project_id}
+something: 1234
 
 foo-bar-baz
 
