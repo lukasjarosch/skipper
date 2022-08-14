@@ -1,0 +1,7 @@
+---
+resources:
+  default_location: "westeurope"
+
+  resource_group:
+    location: "${target_name}"
+    name: "rg-${target_name}-terraform"

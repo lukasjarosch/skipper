@@ -3,6 +3,7 @@ package skipper
 import (
 	"fmt"
 	"io/fs"
+	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -168,6 +169,8 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 	}
 
 	for _, variable := range variables {
+
+		log.Println("replacing variable", variable.FullName(), "at", variable.Identifier)
 
 		var targetValue interface{}
 

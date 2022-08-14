@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"regexp"
 	"strings"
@@ -39,8 +40,19 @@ func (v Variable) NameAsIdentifier() (id []interface{}) {
 
 type VariableList []Variable
 
-// Variables recursively iterates over the data to find any leaf values which match the variableRegex.
+// FindVariables recursively iterates over the data to find any leaf values which match the variableRegex.
 func FindVariables(data any) (variables VariableList) {
+
+	// newPath is used to copy an existing []interface and hard-copy it.
+	// This is required because Go wants to optimize slice usage by reusing memory.
+	// Most of the time, this is totally find, but in this case it would mess up the slice
+	// by rewriting variables already stored in the slice.
+	newPath := func(path []interface{}, appendValue interface{}) []interface{} {
+		tmp := make([]interface{}, len(path))
+		copy(tmp, path)
+		tmp = append(tmp, appendValue)
+		return tmp
+	}
 
 	var walk func(reflect.Value, []interface{})
 	walk = func(v reflect.Value, path []interface{}) {
@@ -53,14 +65,15 @@ func FindVariables(data any) (variables VariableList) {
 		switch v.Kind() {
 		case reflect.Array, reflect.Slice:
 			for i := 0; i < v.Len(); i++ {
-				walk(v.Index(i), append(path, i))
+				walk(v.Index(i), newPath(path, i))
 			}
 		case reflect.Map:
 			for _, key := range v.MapKeys() {
 				if v.MapIndex(key).IsNil() {
 					break
 				}
-				walk(v.MapIndex(key), append(path, key.String()))
+
+				walk(v.MapIndex(key), newPath(path, key.String()))
 			}
 		default:
 			// Here we've arrived at actual values, hence we can check whether the value is a variable
@@ -72,12 +85,17 @@ func FindVariables(data any) (variables VariableList) {
 							Name:       variable[1],
 							Identifier: path,
 						})
+						log.Println("found variable", variable[0], "at", path)
 					}
 				}
 			}
 		}
 	}
 	walk(reflect.ValueOf(data), nil)
+
+	for _, v := range variables {
+		log.Println("loaded variable", v.FullName(), "at", v.Identifier)
+	}
 
 	return variables
 }

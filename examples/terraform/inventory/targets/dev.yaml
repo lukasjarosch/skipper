@@ -2,9 +2,8 @@ target:
   use: 
     - project
     - gitlab
-    - common
     - terraform.common
-    - terraform.azure.common
+    - terraform.resources
 
   name: "dev"
 

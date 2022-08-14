@@ -83,7 +83,7 @@ func main() {
 	}
 
 	out, _ := yaml.Marshal(data)
-	log.Println(string(out))
+	log.Printf("\n%s", string(out))
 
 	// pretend that we've got some other data source
 	additional := map[string]any{

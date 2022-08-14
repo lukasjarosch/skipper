@@ -1,5 +1,7 @@
 ---
 common:
+  state_name: ${target_name}.tfstate
+
   required_version: ">= 0.14"
   providers:
     - name: "azurerm"
