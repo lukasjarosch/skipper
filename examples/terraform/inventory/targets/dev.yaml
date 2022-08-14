@@ -6,7 +6,7 @@ target:
   name: "dev"
 
   gitlab:
-    foo: bar
+    baz: bar
     project_id: REPLACED
 
   azure:
@@ -22,3 +22,4 @@ target:
 
   terraform:
     state_name: "dev-state"
+    gitlab: ${gitlab:base_url}

@@ -5,7 +5,7 @@
 REPLACED
 rg-dev-terraform-example
 
-something: https://gitlab.example.com/1234
+something: https://gitlab.example.com/REPLACED
 
 foo-bar-baz
 

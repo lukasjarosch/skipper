@@ -55,43 +55,6 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 		}
 	}
 
-	// TODO replace variables in targets
-	// TODO replace pre-defined variables (e.g. ${target_name})
-	// TODO enable custom variable definition inside classes
-
-	// replace all variables with the required value
-	/*
-		for _, class := range inv.classFiles {
-
-			// Determine which variables exist in the Data map
-			variables := FindVariables(class.Data())
-
-			if len(variables) == 0 {
-				continue
-			}
-
-			for _, variable := range variables {
-
-				// sourceValue is the value on which the variable points to.
-				// This is the value we need to replace the variable with
-				targetValue, err := class.Data().GetPath(variable.NameAsIdentifier()...)
-				if err != nil {
-					return err
-				}
-
-				// targetValue is the value where the variable is. It needs to be replaced with an actual value
-				sourceValue, err := class.Data().GetPath(variable.Identifier...)
-				if err != nil {
-					return err
-				}
-
-				// Replace the full variable name (${variable}) with the targetValue
-				sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), variable.FullName(), fmt.Sprint(targetValue))
-				class.Data().SetPath(sourceValue, variable.Identifier...)
-			}
-		}
-	*/
-
 	return nil
 }
 
@@ -149,7 +112,11 @@ func (inv *Inventory) Data(targetName string) (data Data, err error) {
 	// TODO: what if a class defines the 'target' key?
 	data[targetKey] = targetData
 
-	err = inv.replaceVariables(data)
+	predefinedVariables := map[string]interface{}{
+		"target_name": targetName,
+	}
+
+	err = inv.replaceVariables(data, predefinedVariables)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +125,10 @@ func (inv *Inventory) Data(targetName string) (data Data, err error) {
 }
 
 // replaceVariables iterates over the given Data map and replaces all variables with the required value.
-func (inv *Inventory) replaceVariables(data Data) error {
+// TODO replace pre-defined variables (e.g. ${target_name})
+// TODO enable custom variable definition inside classes
+func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string]interface{}) (err error) {
+
 	// Determine which variables exist in the Data map
 	variables := FindVariables(data)
 
@@ -166,16 +136,31 @@ func (inv *Inventory) replaceVariables(data Data) error {
 		return nil
 	}
 
+	isPredefinedVariable := func(variable Variable) bool {
+		for name := range predefinedVariables {
+			if strings.EqualFold(variable.Name, name) {
+				return true
+			}
+		}
+		return false
+	}
+
 	for _, variable := range variables {
 
-		// sourceValue is the value on which the variable points to.
-		// This is the value we need to replace the variable with
-		targetValue, err := data.GetPath(variable.NameAsIdentifier()...)
-		if err != nil {
-			return err
+		var targetValue interface{}
+
+		if isPredefinedVariable(variable) {
+			targetValue = predefinedVariables[variable.Name]
+		} else {
+			// targetValue is the value on which the variable points to.
+			// This is the value we need to replace the variable with
+			targetValue, err = data.GetPath(variable.NameAsIdentifier()...)
+			if err != nil {
+				return err
+			}
 		}
 
-		// targetValue is the value where the variable is. It needs to be replaced with an actual value
+		// sourceValue is the value where the variable is. It needs to be replaced with an actual value
 		sourceValue, err := data.GetPath(variable.Identifier...)
 		if err != nil {
 			return err
