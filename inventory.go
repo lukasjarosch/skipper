@@ -55,6 +55,37 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 		}
 	}
 
+	// replace all variables with the required value
+	for _, class := range inv.classFiles {
+
+		// Determine which variables exist in the Data map
+		variables := FindVariables(class.Data())
+
+		if len(variables) == 0 {
+			continue
+		}
+
+		for _, variable := range variables {
+
+			// sourceValue is the value on which the variable points to.
+			// This is the value we need to replace the variable with
+			targetValue, err := class.Data().GetPath(variable.NameAsIdentifier()...)
+			if err != nil {
+				return err
+			}
+
+			// targetValue is the value where the variable is. It needs to be replaced with an actual value
+			sourceValue, err := class.Data().GetPath(variable.Identifier...)
+			if err != nil {
+				return err
+			}
+
+			// Replace the full variable name (${variable}) with the targetValue
+			sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), variable.FullName(), fmt.Sprint(targetValue))
+			class.Data().SetPath(sourceValue, variable.Identifier...)
+		}
+	}
+
 	return nil
 }
 

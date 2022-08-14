@@ -45,12 +45,12 @@ func NewClass(file *YamlFile, inventoryPath string) (*Class, error) {
 	}, nil
 }
 
-func (c *Class) Data() Data {
-	return c.File.Data
+func (c *Class) Data() *Data {
+	return &c.File.Data
 }
 
 // RootKey returns the root key name of the class.
 func (c *Class) RootKey() string {
-	val := reflect.ValueOf(c.Data())
+	val := reflect.ValueOf(c.Data()).Elem()
 	return val.MapKeys()[0].String()
 }
