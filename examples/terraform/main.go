@@ -72,7 +72,11 @@ func main() {
 	}
 
 	// render inventory data based on target ----------------------------------------------------------------------------------
-	data, err := inventory.Data(target)
+	predefinedVariables := map[string]interface{}{
+		"target_name": target,
+	}
+
+	data, err := inventory.Data(target, predefinedVariables)
 	if err != nil {
 		panic(err)
 	}

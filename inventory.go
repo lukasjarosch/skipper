@@ -59,7 +59,7 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 }
 
 // Data loads the required inventory data map given the target.
-func (inv *Inventory) Data(targetName string) (data Data, err error) {
+func (inv *Inventory) Data(targetName string, predefinedVariables map[string]interface{}) (data Data, err error) {
 	data = make(Data)
 
 	target, err := inv.Target(targetName)
@@ -111,10 +111,6 @@ func (inv *Inventory) Data(targetName string) (data Data, err error) {
 	// add 'leftover' keys from the target under the 'target' key
 	// TODO: what if a class defines the 'target' key?
 	data[targetKey] = targetData
-
-	predefinedVariables := map[string]interface{}{
-		"target_name": targetName,
-	}
 
 	err = inv.replaceVariables(data, predefinedVariables)
 	if err != nil {
