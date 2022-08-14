@@ -121,7 +121,6 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 }
 
 // replaceVariables iterates over the given Data map and replaces all variables with the required value.
-// TODO replace pre-defined variables (e.g. ${target_name})
 // TODO enable custom variable definition inside classes
 func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string]interface{}) (err error) {
 
