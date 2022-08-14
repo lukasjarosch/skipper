@@ -2,6 +2,8 @@
 
 # Readme for dev
 
+Path is `examples/terraform/compiled/dev`
+
 REPLACED
 rg-dev-terraform-example
 

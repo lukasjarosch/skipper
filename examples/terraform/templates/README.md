@@ -2,6 +2,8 @@
 
 # Readme for {{ $inv.target.name }}
 
+Path is `{{ $inv.target.output_path }}/{{ $inv.target.name }}`
+
 {{ $inv.gitlab.project_id }}
 {{ $inv.target.azure.resource_group}}
 

@@ -74,6 +74,7 @@ func main() {
 	// render inventory data based on target ----------------------------------------------------------------------------------
 	predefinedVariables := map[string]interface{}{
 		"target_name": target,
+		"output_path": outputPath,
 	}
 
 	data, err := inventory.Data(target, predefinedVariables)

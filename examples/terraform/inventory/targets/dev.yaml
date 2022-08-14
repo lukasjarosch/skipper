@@ -23,3 +23,5 @@ target:
   terraform:
     state_name: "dev-state"
     gitlab: ${gitlab:base_url}
+
+  output_path: ${output_path}
