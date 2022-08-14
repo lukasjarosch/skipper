@@ -82,10 +82,37 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	// We could attempt to perform a 'smart' merge or apply some precendende rules, but
 	// this will inevitably cause unexpected behaviour which is not what we want.
 	for _, class := range classes {
-		if _, exists := data[class.RootKey()]; exists {
-			return nil, fmt.Errorf("duplicate key '%s' registered by class '%s'", class.RootKey(), class.Name)
+
+		// If the class name has multiple segments (foo.bar.baz), we will need to
+		// add the keys do Data, so that Data[foo][bar][baz] is where the data of the class will be added.
+		classSegments := strings.Split(class.Name, ".")
+		if len(classSegments) > 1 {
+			tmp := data
+
+			for _, segment := range classSegments {
+
+				if !tmp.HasKey(segment) {
+					tmp[segment] = make(Data)
+				}
+
+				// as long as the current segment is not the RootKey, shift tmp by the segment
+				if segment != class.RootKey() {
+					tmp = tmp[segment].(Data)
+					continue
+				}
+
+				// add class data to RootKey. Since we're here, RootKey==segment, hence we can add it here.
+				tmp[class.RootKey()] = class.Data().Get(class.RootKey())
+
+			}
+		} else {
+			// class does not have a dot separator, hence we just check if the RootKey exists and add the data
+			if _, exists := data[class.RootKey()]; exists {
+				return nil, fmt.Errorf("duplicate key '%s' registered by class '%s'", class.RootKey(), class.Name)
+			}
+			data[class.RootKey()] = class.Data().Get(class.RootKey())
 		}
-		data[class.RootKey()] = class.Data().Get(class.RootKey())
+
 	}
 
 	// next we need to determine which keys are present in the target which are also defined by the classes

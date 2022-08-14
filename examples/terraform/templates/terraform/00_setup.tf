@@ -1,8 +1,10 @@
 {{ $inv := .Inventory -}}
 // This code is generated; DO NOT EDIT.
 
+// {{ $inv.terraform.azure.common.something }}
+
 terraform {
-  required_version = ">= 0.14"
+  required_version = "{{ $inv.terraform.common.required_version }}"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"

@@ -1,5 +1,7 @@
 // This code is generated; DO NOT EDIT.
 
+// 123
+
 terraform {
   required_version = ">= 0.14"
   required_providers {
@@ -9,9 +11,9 @@ terraform {
     }
   }
   backend "http" {
-    address        = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/dev-state"
-    lock_address   = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/dev-state/lock"
-    unlock_address = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/dev-state/lock"
+    address        = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/<no value>"
+    lock_address   = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/<no value>/lock"
+    unlock_address = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/<no value>/lock"
     lock_method    = "POST"
     unlock_method  = "DELETE"
     retry_wait_min = 5
