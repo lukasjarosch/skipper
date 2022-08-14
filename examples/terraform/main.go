@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/spf13/afero"
+	"gopkg.in/yaml.v3"
 
 	"github.com/lukasjarosch/skipper"
 )
@@ -75,6 +76,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	out, _ := yaml.Marshal(data)
+	log.Println(string(out))
 
 	// pretend that we've got some other data source
 	additional := map[string]any{

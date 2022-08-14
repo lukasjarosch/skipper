@@ -14,10 +14,12 @@ var variableRegex = regexp.MustCompile(`\$\{((\w*)(\:\w+)*)\}`)
 // Variable is a keyword which self-references the Data map it is defined in.
 // A Variable has the form ${key:key}.
 type Variable struct {
-	// Name is the ':' separated identifier which points to the value, we consider this the name of the variable.
-	// The reason we use ':' is to improve readability between curly braces.
+	// Name of the variable is whatever string is between ${}.
+	// + For dynamic variables, this can be a ':' separated string which points somewhere into the Data map.
+	// 	 The reason we use ':' is to improve readability between curly braces.
+	// + For predefined variables, this can be any string and must not be a path into the Data map.
 	Name string
-	// Identifier is the list of keys which point to the variable itself within the data set it is defined.
+	// Identifier is the list of keys which point to the variable itself within the data set in which it is used.
 	Identifier []interface{}
 }
 
