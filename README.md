@@ -16,12 +16,13 @@ control over the data-structures used inside the templates.
 
 ## Roadmap
 
-- [ ] Allow self referencing within classes
+- [x] Allow self referencing within classes
   - When writing classes one will very likely need to reference a valuie of the same class somewhere else. 
     Think about defining a docker image once and reusing it throughout the class, but with different tags.
   - Enable the notation `${object:key}` within classes and targets
-- [ ] Introduce a default set of `${variable}` variables to be used within targets and classes
+- [x] Introduce a default set of `${variable}` variables to be used within targets and classes
   - First candidade is to have `${target_name}` accessible everywhere
+- [ ] Allow definition of custom variables within classes
 - [ ] Class inheritance. Currently only targets can `use` classes but it would be nice if classes could also use different classes
   - This would introduce a higher level of inheritance which users can set-up for their inventory.
 - [ ] `<no value>` detection in rendered templates
