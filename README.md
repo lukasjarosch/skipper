@@ -14,7 +14,7 @@ Skipper is heavily inspired by the awesome [Kapitan](https://kapitan.dev/) proje
 is that skipper is primarily meant to be used as library. This allows you for example to have way more
 control over the data-structures used inside the templates. 
 
-Skipper is not meant to be a *one-size-fits-all* solution. Moreover the goal of Skipper is to enable
+Skipper is not meant to be a *one-size-fits-all* solution. The goal of Skipper is to enable
 companies to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
 
 
