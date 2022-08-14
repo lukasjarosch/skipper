@@ -45,8 +45,8 @@ func FindVariables(data any) (variables VariableList) {
 
 	// newPath is used to copy an existing []interface and hard-copy it.
 	// This is required because Go wants to optimize slice usage by reusing memory.
-	// Most of the time, this is totally find, but in this case it would mess up the slice
-	// by rewriting variables already stored in the slice.
+	// Most of the time, this is totally fine, but in this case it would mess up the slice
+	// by changing the path []interface of already found variables.
 	newPath := func(path []interface{}, appendValue interface{}) []interface{} {
 		tmp := make([]interface{}, len(path))
 		copy(tmp, path)

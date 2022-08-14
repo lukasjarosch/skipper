@@ -3,5 +3,5 @@ resources:
   default_location: "westeurope"
 
   resource_group:
-    location: "${target_name}"
+    location: "${terraform:resources:default_location}"
     name: "rg-${target_name}-terraform"
