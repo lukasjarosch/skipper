@@ -17,35 +17,31 @@ type Variable struct {
 	// Name is the ':' separated identifier which points to the value, we consider this the name of the variable.
 	// The reason we use ':' is to improve readability between curly braces.
 	Name string
-	// Identifier is the dot-notation which points to the variable itself (e.g. "classname.foo.bar")
-	Identifier string
+	// Identifier is the list of keys which point to the variable itself within the data set it is defined.
+	Identifier []interface{}
 }
 
-func (v Variable) NameAsIdentifier() string {
-	return strings.ReplaceAll(v.Name, ":", ".")
+func (v Variable) FullName() string {
+	return fmt.Sprintf("${%s}", v.Name)
+}
+
+func (v Variable) NameAsIdentifier() (id []interface{}) {
+	tmp := strings.Split(v.Name, ":")
+	id = make([]interface{}, len(tmp))
+
+	for i := 0; i < len(tmp); i++ {
+		id[i] = tmp[i]
+	}
+	return id
 }
 
 type VariableList []Variable
 
-func (vs VariableList) Deduplicate() VariableList {
-	found := make(map[string]bool)
-	newList := VariableList{}
-
-	for _, v := range vs {
-		if _, exists := found[v.Identifier]; !exists {
-			found[v.Identifier] = true
-			newList = append(newList, v)
-		}
-	}
-
-	return newList
-}
-
 // Variables recursively iterates over the data to find any leaf values which match the variableRegex.
 func FindVariables(data any) (variables VariableList) {
 
-	var walk func(reflect.Value, string)
-	walk = func(v reflect.Value, identifier string) {
+	var walk func(reflect.Value, []interface{})
+	walk = func(v reflect.Value, path []interface{}) {
 
 		// fix indirects through pointers and interfaces
 		for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
@@ -55,14 +51,14 @@ func FindVariables(data any) (variables VariableList) {
 		switch v.Kind() {
 		case reflect.Array, reflect.Slice:
 			for i := 0; i < v.Len(); i++ {
-				walk(v.Index(i), fmt.Sprintf("%s.%d", identifier, i))
+				walk(v.Index(i), append(path, i))
 			}
 		case reflect.Map:
 			for _, key := range v.MapKeys() {
 				if v.MapIndex(key).IsNil() {
 					break
 				}
-				walk(v.MapIndex(key), fmt.Sprintf("%s.%s", identifier, key))
+				walk(v.MapIndex(key), append(path, key.String()))
 			}
 		default:
 			// Here we've arrived at actual values, hence we can check whether the value is a variable
@@ -72,14 +68,14 @@ func FindVariables(data any) (variables VariableList) {
 					if len(variable) >= 2 {
 						variables = append(variables, Variable{
 							Name:       variable[1],
-							Identifier: strings.TrimLeft(identifier, "."),
+							Identifier: path,
 						})
 					}
 				}
 			}
 		}
 	}
-	walk(reflect.ValueOf(data), "")
+	walk(reflect.ValueOf(data), nil)
 
 	return variables
 }

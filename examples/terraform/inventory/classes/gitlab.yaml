@@ -5,10 +5,10 @@ gitlab:
   another: ${gitlab:base_url}/something/else
   evenMore: ${gitlab:project_id}
   foo:
-    - yay: ${gitlab:bar:2}
-    - baz: ${gitlab:foo:1}
-    - yay: baz
-    - this:
-      - is
-      - an
-      - value
+    - ${gitlab:pizza:3}
+    - baz
+  pizza:
+    - this
+    - is
+    - an
+    - array

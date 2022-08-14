@@ -3,7 +3,6 @@ package skipper
 import (
 	"fmt"
 	"io/fs"
-	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -56,13 +55,11 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 		}
 	}
 
-	// TODO: variable preprocessing for classes and targets
-
+	// replace all variables with the required value
 	for _, class := range inv.classFiles {
-		// Determine which variables exist in the Data struct and store them (remove duplicates from this)
 
+		// Determine which variables exist in the Data map
 		variables := FindVariables(class.Data())
-		log.Printf("class '%s' contains %d variables", class.Name, len(variables))
 
 		if len(variables) == 0 {
 			continue
@@ -70,37 +67,23 @@ func (inv *Inventory) Load(classPath, targetPath string) error {
 
 		for _, variable := range variables {
 
-			// If the variable points to something which could not be resolved, just skip it
-			if !class.Data().HasValueAtIdentifier(variable.NameAsIdentifier()) {
-				continue
+			// sourceValue is the value on which the variable points to.
+			// This is the value we need to replace the variable with
+			targetValue, err := class.Data().GetPath(variable.NameAsIdentifier()...)
+			if err != nil {
+				return err
 			}
 
-			log.Printf("Variable '%s' at position '%s' points to value '%v'",
-				variable.Name, variable.Identifier, class.Data().GetByIdentifier(variable.NameAsIdentifier()))
+			// targetValue is the value where the variable is. It needs to be replaced with an actual value
+			sourceValue, err := class.Data().GetPath(variable.Identifier...)
+			if err != nil {
+				return err
+			}
 
-			sourceValue := class.Data().GetByIdentifier(variable.Identifier)
-			targetValue := class.Data().GetByIdentifier(variable.NameAsIdentifier())
-
-			class.Data().SetByIdentifier(variable.Identifier, targetValue)
-
-			log.Println(sourceValue, targetValue, strings.ReplaceAll(fmt.Sprint(sourceValue), "${"+variable.Name+"}", fmt.Sprint(targetValue)))
+			// Replace the full variable name (${variable}) with the targetValue
+			sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), variable.FullName(), fmt.Sprint(targetValue))
+			class.Data().SetPath(sourceValue, variable.Identifier...)
 		}
-
-		/*
-			vars := FindVariables(class.Data()).Deduplicate()
-				for _, variable := range vars {
-					variable.FindIdentifiers(class.Data())
-				}
-
-				// Determine where all of the found variables are located inside the class/target (store duplicates here) and save the identifiers
-
-				// Find all the values to which the variables point to
-				// Replace all variable-identifiers with the discovered values
-
-				for _, variable := range vars {
-					log.Println(variable.Name)
-				}
-		*/
 	}
 
 	return nil

@@ -1,13 +1,11 @@
 package skipper
 
 import (
-	"log"
-	"strings"
+	"fmt"
+	"strconv"
 )
 
 type Data map[string]interface{}
-
-const IdentifierSeparator = "."
 
 func (d Data) HasKey(k string) bool {
 	if _, ok := d[k]; ok {
@@ -20,59 +18,94 @@ func (d Data) Get(k string) Data {
 	return d[k].(Data)
 }
 
-// HasValueAtIdentifier returns true if the given identifier path points to a value.
-func (d Data) HasValueAtIdentifier(path string) bool {
-	if d.GetByIdentifier(path) == nil {
-		return false
-	}
-	return true
-}
+func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
+	tree = d
 
-// GetByIdentifier returns a value given a dot-separated identifier.
-// TODO: add support for array indexing (e.g. 'foo.bar.3.baz')
-func (d Data) GetByIdentifier(path string) interface{} {
-	var segments = strings.Split(path, IdentifierSeparator)
-
-	obj := d
-
-	for i, v := range segments {
-
-		// we found the last segment of the identifier path
-		if i == len(segments)-1 {
-			return obj[v]
-		}
-
-		switch obj[v].(type) {
+	for i, el := range path {
+		switch node := tree.(type) {
 		case Data:
-			obj = Data(obj[v].(Data))
+			key, ok := el.(string)
+			if !ok {
+				return nil, fmt.Errorf("unexpected string key in map[string]interface '%T' at index %d", el, i)
+			}
+			tree, ok = node[key]
+			if !ok {
+				return nil, fmt.Errorf("key not found: %v", el)
+			}
+
+		case map[interface{}]interface{}:
+			var ok bool
+			tree, ok = node[el]
+			if !ok {
+				return nil, fmt.Errorf("key not found: %v", el)
+			}
+
+		case []interface{}:
+			index, ok := el.(int)
+			if !ok {
+				index, err = strconv.Atoi(fmt.Sprint(el))
+				if err != nil {
+					return nil, fmt.Errorf("unexpected integer path element '%v' (%T)", el, el)
+				}
+			}
+			if index < 0 || index >= len(node) {
+				return nil, fmt.Errorf("path index out of range: %d", index)
+			}
+			tree = node[index]
+
 		default:
-			return nil
+			return nil, fmt.Errorf("unexpected node type %T at index %d", node, i)
 		}
 	}
-
-	return obj
+	return tree, nil
 }
 
-func (d *Data) SetByIdentifier(path string, value interface{}) {
-	var segments = strings.Split(path, IdentifierSeparator)
+func (d *Data) SetPath(value interface{}, path ...interface{}) (err error) {
+	var tree interface{}
+	tree = (*d)
 
-	obj := (*d)
-
-	for i, v := range segments {
-
-		// we found the last segment of the identifier path
-		if i == len(segments)-1 {
-			log.Println("REPLACE HERE", obj[v])
-			obj[v] = value
-			(*d) = obj
-			return
-		}
-
-		switch obj[v].(type) {
-		case Data:
-			obj = Data(obj[v].(Data))
-		}
+	if len(path) == 0 {
+		return fmt.Errorf("path cannot be empty")
 	}
+
+	i := len(path) - 1
+	if len(path) > 1 {
+		var tmp interface{}
+		tmp, err = tree.(Data).GetPath(path[:i]...)
+		if err != nil {
+			return err
+		}
+		tree = tmp
+	}
+
+	element := path[i]
+
+	switch node := tree.(type) {
+	case Data:
+		key, ok := element.(string)
+		if !ok {
+			return fmt.Errorf("unexpected string key in map[string]interface '%T' at index %d", element, i)
+		}
+		node[key] = value
+
+	case []interface{}:
+		index, ok := element.(int)
+		if !ok {
+			index, err = strconv.Atoi(fmt.Sprint(element))
+			if err != nil {
+				return fmt.Errorf("unexpected integer path element '%v (%T)'", element, element)
+			}
+		}
+		if index < 0 || index >= len(node) {
+			return fmt.Errorf("path index out of range: %d", index)
+		}
+		node[index] = value
+
+	default:
+		return fmt.Errorf("unexpected node type %T at index %d", node, i)
+	}
+
+	return nil
 }
 
 // MergeReplace merges the existing Data with the given.
