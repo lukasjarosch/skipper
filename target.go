@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -12,13 +13,16 @@ const (
 	useKey    string = "use"
 )
 
+var wildcardUseRegex regexp.Regexp = *regexp.MustCompile(`^\w+\.\*$`)
+
 // Target defines which classes to use for the compilation.
 type Target struct {
 	File *YamlFile
 	// Name is the relative path of the file inside the inventory
 	// where '/' is replaced with '.' and without file extension.
-	Name        string
-	UsedClasses []string
+	Name                string
+	UsedClasses         []string
+	UsedWildcardClasses []string
 }
 
 type TargetConfig struct {
@@ -81,7 +85,16 @@ func (t *Target) loadUsedClasses() error {
 
 	// convert []interface to []string
 	for _, class := range useValue.([]interface{}) {
-		t.UsedClasses = append(t.UsedClasses, class.(string))
+		className := class.(string)
+
+		// load wildcard imports separately as they need to be resolved
+		if match := wildcardUseRegex.FindAllString(className, 1); len(match) == 1 {
+			wildcardUse := match[0]
+			t.UsedWildcardClasses = append(t.UsedWildcardClasses, wildcardUse)
+			continue
+		}
+
+		t.UsedClasses = append(t.UsedClasses, className)
 	}
 
 	return nil

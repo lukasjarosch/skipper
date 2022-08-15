@@ -103,6 +103,9 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 				}
 
 				// add class data to RootKey. Since we're here, RootKey==segment, hence we can add it here.
+				if class.Data().Get(class.RootKey()) == nil {
+					continue
+				}
 				tmp[class.RootKey()] = class.Data().Get(class.RootKey())
 
 			}
@@ -315,6 +318,7 @@ func (inv *Inventory) loadClassFiles(classPath string) error {
 }
 
 // loadTargetFiles
+// MUST be called after loadClassFiles as it depends on existing classes to handle wildcard imports
 func (inv *Inventory) loadTargetFiles(targetPath string) error {
 	targetFiles, err := inv.discoverFiles(targetPath)
 	if err != nil {
@@ -334,6 +338,22 @@ func (inv *Inventory) loadTargetFiles(targetPath string) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", target.Path, err)
 		}
+
+		if len(t.UsedWildcardClasses) > 0 {
+			for _, use := range t.UsedWildcardClasses {
+				for _, class := range inv.classFiles {
+
+					usePrefix := strings.TrimRight(use, "*")
+
+					if strings.HasPrefix(class.Name, usePrefix) {
+						log.Println("ADD", class.Name)
+						t.UsedClasses = append(t.UsedClasses, class.Name)
+					}
+
+				}
+			}
+		}
+
 		inv.targetFiles = append(inv.targetFiles, t)
 	}
 

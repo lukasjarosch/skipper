@@ -4,6 +4,7 @@ target:
     - gitlab
     - terraform.common
     - terraform.resources
+    - foo.*
 
   name: "dev"
 
