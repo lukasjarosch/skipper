@@ -27,6 +27,11 @@ companies to create the own - custom built - template and inventory engine, with
 - [x] Introduce a default set of `${variable}` variables to be used within targets and classes
   - First candidade is to have `${target_name}` accessible everywhere
 - [ ] Allow definition of custom variables within classes
+- [ ] Allow wildcard imports of classes `foo.bar.*`
+  - This might be useful if you want to define a directory with classes which are validated by your business-logic.
+  - You might want to define some sort of `GeneralizedResource` which you want customers to use.
+    - In order to maintain validity of your templates, you will need to enforce a specified struct of the class
+    - And you might want to import all defined classes inside that folder, without knowing in advance which classes it contains.
 - [ ] Class inheritance. Currently only targets can `use` classes but it would be nice if classes could also use different classes
   - This would introduce a higher level of inheritance which users can set-up for their inventory.
 - [ ] `<no value>` detection in rendered templates

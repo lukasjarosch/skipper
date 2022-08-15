@@ -15,6 +15,9 @@ func (d Data) HasKey(k string) bool {
 }
 
 func (d Data) Get(k string) Data {
+	if d[k] == nil {
+		return nil
+	}
 	return d[k].(Data)
 }
 

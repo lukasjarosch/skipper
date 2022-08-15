@@ -9,8 +9,8 @@ gitlab:
     - ${gitlab:pizza:0}
     - baz
   pizza:
+    - array
     - ${target_name}
     - this
     - is
     - an
-    - array
