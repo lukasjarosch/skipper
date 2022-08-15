@@ -49,6 +49,49 @@ companies to create the own - custom built - template and inventory engine, with
 # Documentation
 > This documentation is work in progress and will be moved to it's own place in the future. 
 
+## Classes
+A class is a yaml file which defines arbitrary information about your project.
+
+There is only one rule for classes:
+  - The filename of the class must be the root key of the yaml struct
+
+This means that if your class is called `pizza.yaml`, the class must look like this:
+
+```yaml
+pizza:
+  # any value
+```
+
+## Targets
+A target usually is a speparate environment in your infrastructure or a single namespace in your Kubernetes cluster.
+Targets `use` classes to pull in the required innventory data in order to produce the correct tree which is required in order to render the templates.
+
+On any given run, Skipper only allows to set **one** target. This is to ensure that the generated map of data is consistent.
+
+The way a target makes uses of the inventory is by using the `use` clause which tells Skipper which classes to include in the assembly of the target inventory.
+
+
+### Naming
+
+The name of the target is given by its filename. So if your target is called `development.yaml`, the target name will be `development`. 
+
+The structure of a target file is pretty simple, there are only two rules:
+
+- The top-level key of the target **must** be `target`
+- There must be a key `target.use` which *has to be* an array and tells Skipper which classes this particular target requires.
+
+Below you'll find the most basic example of a target.
+The target does not define values itself, it just uses values from a class `project.common`.
+The class must be located in the `classPath` passed into `Inventory.Load()`, where path separators are replaced by a dot.
+
+So if your classPath is `./inventory/classes`, referencing `foo.bar` will make Skipper attempt to load `./inventory/classes/foo/bar.yaml`.
+
+```yaml
+target:
+  use:
+    project.common
+```
+
 ## Variables
 Variables in Skipper always have the same format: `${variable_name}` 
 
