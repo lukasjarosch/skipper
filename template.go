@@ -1,6 +1,7 @@
 package skipper
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/fs"
@@ -70,7 +71,8 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 
 // Execute is responsible of parsing and executing the given template, using the passed data context.
 // If exection is successful, the template is written to it's desired target location.
-func (t *Templater) Execute(template *TemplateFile, data any) error {
+// If allowNoValue is true, the template is rendered even if it contains variables which are not defined.
+func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool) error {
 	err := template.Parse(t.templateFs)
 	if err != nil {
 		return err
@@ -82,7 +84,19 @@ func (t *Templater) Execute(template *TemplateFile, data any) error {
 		return err
 	}
 
-	// TODO: <no value> detection
+	// no value detection using scanner in order to give a rough estimate on where the original error is
+	if !allowNoValue {
+		scanner := bufio.NewScanner(strings.NewReader(out.String()))
+
+		line := 1
+
+		for scanner.Scan() {
+			if strings.Contains(scanner.Text(), "<no value>") {
+				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output, not the template, search in proximity)", template.Path, line)
+			}
+			line++
+		}
+	}
 
 	err = t.writeOutputFile(out.Bytes(), template.Path)
 	if err != nil {
@@ -93,9 +107,9 @@ func (t *Templater) Execute(template *TemplateFile, data any) error {
 }
 
 // ExecuteAll is just a convenience function to execute all templates in `Templater.Files`
-func (t *Templater) ExecuteAll(data any) error {
+func (t *Templater) ExecuteAll(data any, allowNoValue bool) error {
 	for _, template := range t.Files {
-		err := t.Execute(template, data)
+		err := t.Execute(template, data, allowNoValue)
 		if err != nil {
 			return err
 		}

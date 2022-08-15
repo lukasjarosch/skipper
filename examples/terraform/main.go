@@ -100,7 +100,7 @@ func main() {
 
 	// execute templates  ----------------------------------------------------------------------------------
 	for _, template := range templater.Files {
-		err := templater.Execute(template, templateData)
+		err := templater.Execute(template, templateData, false)
 		if err != nil {
 			panic(err)
 		}
