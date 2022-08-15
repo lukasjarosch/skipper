@@ -27,7 +27,7 @@ companies to create the own - custom built - template and inventory engine, with
 - [x] Introduce a default set of `${variable}` variables to be used within targets and classes
   - First candidade is to have `${target_name}` accessible everywhere
 - [ ] Allow definition of custom variables within classes
-- [ ] Allow wildcard imports of classes `foo.bar.*`
+- [x] Allow wildcard imports of classes `foo.bar.*`
   - This might be useful if you want to define a directory with classes which are validated by your business-logic.
   - You might want to define some sort of `GeneralizedResource` which you want customers to use.
     - In order to maintain validity of your templates, you will need to enforce a specified struct of the class
