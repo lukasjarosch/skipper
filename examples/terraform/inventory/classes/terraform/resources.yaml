@@ -5,3 +5,22 @@ resources:
   resource_group:
     location: "${terraform:resources:default_location}"
     name: "rg-${target_name}-terraform"
+
+  virtual_network:
+    name: "vnet-${target_name}-terraform-example"
+    location: ${terraform:resources:default_location}
+
+  aks_subnet:
+    name: "snet-${target_name}-aks"
+    location: ${terraform:resources:default_location}
+    service_endpoints: 
+      - Microsoft.KeyVault
+
+  aks:
+    name: "aks-${target_name}-terraform-example"
+    location: ${terraform:resources:default_location}
+    node_pool:
+      name: "pizzahut"
+      vm_size: "Standard_D2as_v4"
+      node_count: 3
+

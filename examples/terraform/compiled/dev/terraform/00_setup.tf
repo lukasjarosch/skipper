@@ -10,9 +10,9 @@ terraform {
   }
 
   backend "http" {
-    address        = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/dev.tfstate"
-    lock_address   = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/dev.tfstate/lock"
-    unlock_address = "https://gitlab.example.com/api/v4/projects/REPLACED/terraform/state/dev.tfstate/lock"
+    address        = "https://gitlab.example.com/api/v4/projects/1234/terraform/state/dev.tfstate"
+    lock_address   = "https://gitlab.example.com/api/v4/projects/1234/terraform/state/dev.tfstate/lock"
+    unlock_address = "https://gitlab.example.com/api/v4/projects/1234/terraform/state/dev.tfstate/lock"
     lock_method    = "POST"
     unlock_method  = "DELETE"
     retry_wait_min = 5

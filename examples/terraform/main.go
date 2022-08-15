@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"path"
+	"time"
 
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
@@ -73,8 +74,10 @@ func main() {
 
 	// render inventory data based on target ----------------------------------------------------------------------------------
 	predefinedVariables := map[string]interface{}{
-		"target_name": target,
-		"output_path": outputPath,
+		"target_name":  target,
+		"output_path":  outputPath,
+		"company_name": "AcmeCorp International",
+		"year":         time.Now().Year(),
 	}
 
 	data, err := inventory.Data(target, predefinedVariables)
