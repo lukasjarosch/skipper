@@ -36,7 +36,7 @@ companies to create the own - custom built - template and inventory engine, with
     - And you might want to import all defined classes inside that folder, without knowing in advance which classes it contains.
 - [ ] Class inheritance. Currently only targets can `use` classes but it would be nice if classes could also use different classes
   - This would introduce a higher level of inheritance which users can set-up for their inventory.
-- [ ] `<no value>` detection in rendered templates
+- [x] `<no value>` detection in rendered templates
   - If for some reason a template uses a value which is not set, the user should have the ability to detect that post generation.
   - Introduce a verify mechanism which ideally checks for missing values and maybe also extracts which template-key it originated from
   - This can be evaluated before the template files are written to disk
