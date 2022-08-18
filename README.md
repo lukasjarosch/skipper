@@ -29,6 +29,11 @@ companies to create the own - custom built - template and inventory engine, with
 - [ ] Allow definition of custom variables within classes
 - [ ] Enable variable usage across classes
   - This will introduce definition checks. If a class is not used by a target, but referenced by a variable, it is not defined
+- [ ] Allow adding external data (`map[string]any`) as classes
+  - Useful for data which is pre-processed somewhere else, outside of the skipper scope
+  - Add function something like `AddClass(data map[string]any, classPath string, adjustRootKey bool) error`
+    - data is the data to add as class, this will be written into the `classPath` as file - relative to the class path of skipper
+    - `adjustRootKey` addresses the issue that if the data has been loaded in a struct, the root key might not match the filename and thus break skipper rules 
 - [x] Allow wildcard imports of classes `foo.bar.*`
   - This might be useful if you want to define a directory with classes which are validated by your business-logic.
   - You might want to define some sort of `GeneralizedResource` which you want customers to use.
