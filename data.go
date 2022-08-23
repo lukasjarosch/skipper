@@ -7,31 +7,47 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Data is an arbitrary map of values which makes up the inventory.
 type Data map[string]interface{}
 
+// String returns the string result of `yaml.Marshal`.
+// Can be useful for debugging or just dumping the inventory.
 func (d Data) String() string {
 	out, _ := yaml.Marshal(d)
 	return string(out)
 }
 
+// Bytes returns a `[]byte` representation of Data
 func (d Data) Bytes() []byte {
 	return []byte(d.String())
 }
 
-func (d Data) HasKey(k string) bool {
-	if _, ok := d[k]; ok {
+// HasKey returns true if Data[key] exists.
+// Note that his function does not support paths like `HasKey("foo.bar.baz")`.
+// For that you can use [GetPath]
+func (d Data) HasKey(key string) bool {
+	if _, ok := d[key]; ok {
 		return true
 	}
 	return false
 }
 
-func (d Data) Get(k string) Data {
-	if d[k] == nil {
+// Get returns the value at `Data[key]` as [Data].
+// Note that his function does not support paths like `HasKey("foo.bar.baz")`.
+// For that you can use [GetPath]
+func (d Data) Get(key string) Data {
+	if d[key] == nil {
 		return nil
 	}
-	return d[k].(Data)
+	return d[key].(Data)
 }
 
+// GetPath allows path based indexing into Data.
+// A path is a slice of interfaces which are used as keys in order.
+// Supports array indexing (arrays start at 0)
+// Examples of valid paths:
+//	- ["foo", "bar"]
+//	- ["foo", "bar", 0]
 func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 	tree = d
 
@@ -74,6 +90,8 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 	return tree, nil
 }
 
+// SetPath uses the same path slices as [GetPath], only that it can set the value at the given path.
+// Supports array indexing (arrays start at 0)
 func (d *Data) SetPath(value interface{}, path ...interface{}) (err error) {
 	var tree interface{}
 	tree = (*d)

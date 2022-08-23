@@ -3,6 +3,7 @@ package skipper
 import (
 	"fmt"
 	"io/fs"
+	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -10,7 +11,9 @@ import (
 	"github.com/spf13/afero"
 )
 
-// Inventory is the collection of data files.
+// Inventory is the collection of classes and targets.
+// The inventory wraps everything together and is capable of producing a single, coherent [Data]
+// which can then be used inside the templates.
 type Inventory struct {
 	fs             afero.Fs
 	fileExtensions []string
@@ -43,6 +46,16 @@ func NewInventory(fs afero.Fs, classPath, targetPath string) (*Inventory, error)
 	return inv, nil
 }
 
+// AddExternalClass can be used to dynamically create class files.
+// The given data will be written into `classFilePath`, overwriting any existing file.
+//
+// The class path is first normalized to match the existing `Inventory.classPath`.
+//
+// After that, the root-key of the data is adjusted to match the fileName which is extracted from `classFilePath`.
+// This has to be done in order to comply Skipper rules where the class-filename must also be the root-key of any given class.
+//
+// A new file inside the Skipper class path is created which makes it available for loading.
+// In order to prevent confusion, a file header is added to indicate that the class was generated.
 func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string) error {
 	if data == nil {
 		return fmt.Errorf("cannot add external class without data")
@@ -75,6 +88,7 @@ func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string
 		return err
 	}
 
+	log.Println(classFilePath, classFile.Path)
 	newClass, err := NewClass(classFile, classFilePath)
 	if err != nil {
 		return err
@@ -191,7 +205,8 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	data = data.MergeReplace(targetMergeData)
 
 	// add 'leftover' keys from the target under the 'target' key
-	// TODO: what if a class defines the 'target' key?
+	// If - for any reason - a class `target` exists, it will be overwritten at this point.
+	// This is why we do not allow the use of that name for classes.
 	data[targetKey] = targetData
 
 	err = inv.replaceVariables(data, predefinedVariables)

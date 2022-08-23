@@ -5,6 +5,7 @@ target:
     - terraform.common
     - terraform.resources
     - foo.*
+    - target
 
   name: "dev"
 

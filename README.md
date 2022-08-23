@@ -72,8 +72,10 @@ companies to create the own - custom built - template and inventory engine, with
 ## Classes
 A class is a yaml file which defines arbitrary information about your project.
 
-There is only one rule for classes:
+There is only two rules for classes:
   - The filename of the class must be the root key of the yaml struct
+  - The filename **cannot** be `target.yaml`, resulting in a root key of `target`.
+    - Although this will not return an error, you simply will not be able to use the class as the actual target will overwrite it completely.
 
 This means that if your class is called `pizza.yaml`, the class must look like this:
 
