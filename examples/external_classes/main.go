@@ -14,13 +14,14 @@ import (
 )
 
 type NetworkConfiguration struct {
-	Name string `mapstructure:"name"`
+	Name    string `mapstructure:"name"`
+	IpRange string `mapstructure:"ip_range"`
 }
 
 var fileSystem = afero.NewOsFs()
 
 func main() {
-	_, rawNetworkConfigs, err := loadNetworkConfigurations("networks", "network")
+	networkConfigs, err := loadNetworkConfigurations("networks", "network")
 	if err != nil {
 		panic(err)
 	}
@@ -39,8 +40,12 @@ func main() {
 
 	// BEFORE we load the inventory of skipper, we can inject our own class data
 	// Skipper will then dynamically create these files in the inventory and make them available.
-	for fileName, networkConfig := range rawNetworkConfigs {
-		inventory.AddExternalClass(networkConfig, path.Join("network", fileName))
+	for fileName, networkConfig := range networkConfigs {
+		data, err := skipper.NewData(networkConfig)
+		if err != nil {
+			panic(err)
+		}
+		inventory.AddExternalClass(data, path.Join("network", fileName))
 	}
 
 	// Load the inventory
@@ -58,9 +63,8 @@ func main() {
 	log.Printf("\n%s", data.String())
 }
 
-func loadNetworkConfigurations(path, rootKey string) (map[string]NetworkConfiguration, map[string]map[string]any, error) {
+func loadNetworkConfigurations(path, rootKey string) (map[string]NetworkConfiguration, error) {
 	networkConfigurations := map[string]NetworkConfiguration{}
-	rawNetworkConfigs := map[string]map[string]any{}
 
 	externalDataFs := afero.NewBasePathFs(fileSystem, path)
 	err := afero.Walk(externalDataFs, "/", func(path string, info fs.FileInfo, err error) error {
@@ -77,7 +81,6 @@ func loadNetworkConfigurations(path, rootKey string) (map[string]NetworkConfigur
 
 			path = strings.TrimLeft(path, "/")
 			networkConfigurations[path] = tmp
-			rawNetworkConfigs[path] = raw
 			log.Println("loaded network configuration:", path)
 		}
 
@@ -85,10 +88,10 @@ func loadNetworkConfigurations(path, rootKey string) (map[string]NetworkConfigur
 	})
 
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return networkConfigurations, rawNetworkConfigs, nil
+	return networkConfigurations, nil
 }
 
 func loadConfigFile(fs afero.Fs, filePath, key string, target interface{}) error {

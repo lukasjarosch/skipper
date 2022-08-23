@@ -1,5 +1,5 @@
 ---
 network:
   name: SteakNetwork
-  taste: very-tasty
+  ip_range: "10.2.0.0/16"
 

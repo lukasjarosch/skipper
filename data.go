@@ -10,6 +10,24 @@ import (
 // Data is an arbitrary map of values which makes up the inventory.
 type Data map[string]interface{}
 
+// NewData attempts to convert any given interface{} into [Data].
+// This is done by first using `yaml.Marshal` and then `yaml.Unmarshal`.
+// If the given interface is compatible with [Data], these steps will succeed.
+func NewData(input interface{}) (Data, error) {
+	outBytes, err := yaml.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var data Data
+	err = yaml.Unmarshal(outBytes, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 // String returns the string result of `yaml.Marshal`.
 // Can be useful for debugging or just dumping the inventory.
 func (d Data) String() string {
