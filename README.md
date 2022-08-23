@@ -54,6 +54,7 @@ companies to create the own - custom built - template and inventory engine, with
   - Maybe you don't need/want to have all templates rendered in a particular target
   - There should be an option do configure which templates any given target is using
   - Maybe even with the option to rewrite target paths?
+- [ ] Add convenience func `Data.String()` which outputs the whole data as yaml encoded string.
 
 
 # Documentation
