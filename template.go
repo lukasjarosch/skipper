@@ -93,7 +93,7 @@ func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool)
 
 		for scanner.Scan() {
 			if strings.Contains(scanner.Text(), "<no value>") {
-				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output, not the template, search in proximity)", template.Path, line)
+				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be acurate)", template.Path, line)
 			}
 			line++
 		}

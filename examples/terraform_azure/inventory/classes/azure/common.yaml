@@ -1,0 +1,4 @@
+---
+common:
+  # upon inspection of the compiled templates you will quickly notice that you will have to overwrite this value in the target
+  subscription_id: "INVALID DEFAULT VALUE" 

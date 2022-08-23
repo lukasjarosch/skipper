@@ -1,8 +1,13 @@
 ---
 target:
   use: 
+    - azure.common
     - azure.resources
     - terraform.identifiers
+
+  azure:
+    common:
+      subscription_id: "45e4fca6-f05b-4354-951a-3ea194d2da85" # random uuid
 
   # Refactoring terraform identifiers has never been easier. 
   # Just change one variable from the imported class and you're done :)

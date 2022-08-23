@@ -1,5 +1,6 @@
 # Skipper Terraform Azure
 > Target: **develop**
+> Subscription: **45e4fca6-f05b-4354-951a-3ea194d2da85**
 
 ## Created resources in location `westeurope`
 
@@ -16,6 +17,9 @@
 {
   "Inventory": {
     "azure": {
+      "common": {
+        "subscription_id": "45e4fca6-f05b-4354-951a-3ea194d2da85"
+      },
       "resources": {
         "location": "westeurope",
         "resource_group": {
@@ -41,6 +45,7 @@
     "target": {
       "use": [
         "azure.resources",
+        "azure.common",
         "terraform.identifiers"
       ]
     },

@@ -1,5 +1,6 @@
 # Skipper Terraform Azure
 > Target: **{{ .TargetName }}**
+> Subscription: **{{ .Inventory.azure.common.subscription_id }}**
 
 ## Created resources in location `{{ .Inventory.azure.resources.location }}`
 
