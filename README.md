@@ -29,7 +29,7 @@ companies to create the own - custom built - template and inventory engine, with
 - [ ] Allow definition of custom variables within classes
 - [ ] Enable variable usage across classes
   - This will introduce definition checks. If a class is not used by a target, but referenced by a variable, it is not defined
-- [ ] Allow adding external data (`map[string]any`) as classes
+- [x] Allow adding external data (`map[string]any`) as classes
   - Useful for data which is pre-processed somewhere else, outside of the skipper scope
   - Add function something like `AddClass(data map[string]any, classPath string, adjustRootKey bool) error`
     - data is the data to add as class, this will be written into the `classPath` as file - relative to the class path of skipper
@@ -54,7 +54,7 @@ companies to create the own - custom built - template and inventory engine, with
   - Maybe you don't need/want to have all templates rendered in a particular target
   - There should be an option do configure which templates any given target is using
   - Maybe even with the option to rewrite target paths?
-- [ ] Add convenience func `Data.String()` which outputs the whole data as yaml encoded string.
+- [x] Add convenience func `Data.String()` which outputs the whole data as yaml encoded string.
 
 
 # Documentation

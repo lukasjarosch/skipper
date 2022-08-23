@@ -14,6 +14,10 @@ func (d Data) String() string {
 	return string(out)
 }
 
+func (d Data) Bytes() []byte {
+	return []byte(d.String())
+}
+
 func (d Data) HasKey(k string) bool {
 	if _, ok := d[k]; ok {
 		return true

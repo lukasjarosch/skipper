@@ -3,6 +3,7 @@ package skipper
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"text/template"
 
 	"github.com/spf13/afero"
@@ -35,7 +36,6 @@ type YamlFile struct {
 	Data Data
 }
 
-// TODO: change name to NewYamlFile
 func NewFile(path string) (*YamlFile, error) {
 	f, err := newFile(path)
 	if err != nil {
@@ -48,7 +48,12 @@ func NewFile(path string) (*YamlFile, error) {
 }
 
 func CreateNewFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
-	err := afero.WriteFile(fs, path, data, 0644)
+	err := fs.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	err = afero.WriteFile(fs, path, data, 0644)
 	if err != nil {
 		return nil, err
 	}

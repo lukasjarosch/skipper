@@ -6,7 +6,6 @@ require (
 	github.com/lukasjarosch/skipper v0.0.0-20220818140946-00699bd04a3d
 	github.com/spf13/afero v1.9.2
 	github.com/spf13/viper v1.12.0
-	gopkg.in/yaml.v3 v3.0.0
 )
 
 replace github.com/lukasjarosch/skipper => ../../
@@ -36,4 +35,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0 // indirect
 )

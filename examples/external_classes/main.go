@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -38,8 +39,8 @@ func main() {
 
 	// BEFORE we load the inventory of skipper, we can inject our own class data
 	// Skipper will then dynamically create these files in the inventory and make them available.
-	for path, networkConfig := range rawNetworkConfigs {
-		inventory.AddExternalClass(networkConfig, path, true)
+	for fileName, networkConfig := range rawNetworkConfigs {
+		inventory.AddExternalClass(networkConfig, path.Join("network", fileName))
 	}
 
 	// Load the inventory

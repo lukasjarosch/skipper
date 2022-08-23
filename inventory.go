@@ -3,7 +3,6 @@ package skipper
 import (
 	"fmt"
 	"io/fs"
-	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -44,7 +43,7 @@ func NewInventory(fs afero.Fs, classPath, targetPath string) (*Inventory, error)
 	return inv, nil
 }
 
-func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string, adjustRootKey bool) error {
+func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string) error {
 	if data == nil {
 		return fmt.Errorf("cannot add external class without data")
 	}
@@ -58,19 +57,25 @@ func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string
 		classFilePath = filepath.Join(inv.classPath, classFilePath)
 	}
 
-	var rootKey string
-	if adjustRootKey {
-		fileName := filepath.Base(classFilePath)
-		rootKey = strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	// adjust the root key to match the filename because this is what Skipper expects
+	fileName := filepath.Base(classFilePath)
+	rootKey := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 
-	} else {
-		val := reflect.ValueOf(data).Elem()
-		rootKey = val.MapKeys()[0].String()
+	// create new data and set the root key
+	classData := make(Data)
+	classData[rootKey] = data
+
+	// warn the user that this class is generated and should not be edited manually
+	classBytes := []byte("---\n# This is a dynamically generated class file. DO NOT EDIT!\n")
+	classBytes = append(classBytes, classData.Bytes()...)
+
+	// write the class into the inventory filesystem
+	classFile, err := CreateNewFile(inv.fs, classFilePath, classBytes)
+	if err != nil {
+		return err
 	}
 
-	classFile, err := CreateNewFile(inv.fs, classFilePath, data)
-
-	newClass, err := NewClassFromData(data, classFilePath, rootKey)
+	newClass, err := NewClass(classFile, classFilePath)
 	if err != nil {
 		return err
 	}
@@ -218,9 +223,6 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 	}
 
 	for _, variable := range variables {
-
-		log.Println("replacing variable", variable.FullName(), "at", variable.Identifier)
-
 		var targetValue interface{}
 
 		if isPredefinedVariable(variable) {
@@ -392,7 +394,6 @@ func (inv *Inventory) loadTargetFiles(targetPath string) error {
 					usePrefix := strings.TrimRight(use, "*")
 
 					if strings.HasPrefix(class.Name, usePrefix) {
-						log.Println("ADD", class.Name)
 						t.UsedClasses = append(t.UsedClasses, class.Name)
 					}
 

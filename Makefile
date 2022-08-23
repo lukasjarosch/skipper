@@ -21,6 +21,8 @@ example-terraform-dev:
 		-output examples/terraform/compiled \
 		-target dev
 
+example-external-classes:
+	cd examples/external_classes && go run main.go
 
 ## Help
 

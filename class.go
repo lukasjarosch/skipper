@@ -45,10 +45,6 @@ func NewClass(file *YamlFile, inventoryPath string) (*Class, error) {
 	}, nil
 }
 
-func NewClassFromData(data map[string]any, classPath string, rotKey string) (*Class, error) {
-	return nil, nil
-}
-
 func (c *Class) Data() *Data {
 	return &c.File.Data
 }
