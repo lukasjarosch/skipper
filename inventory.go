@@ -3,7 +3,6 @@ package skipper
 import (
 	"fmt"
 	"io/fs"
-	"log"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -15,34 +14,86 @@ import (
 type Inventory struct {
 	fs             afero.Fs
 	fileExtensions []string
+	classPath      string
+	targetPath     string
 	classFiles     []*Class
 	targetFiles    []*Target
 }
 
 // NewInventory creates a new Inventory with the given afero.Fs.
 // At least one extension must be provided, otherwise an error is returned.
-func NewInventory(fs afero.Fs) (*Inventory, error) {
+func NewInventory(fs afero.Fs, classPath, targetPath string) (*Inventory, error) {
 	if fs == nil {
 		return nil, fmt.Errorf("fs cannot be nil")
+	}
+	if classPath == "" {
+		return nil, fmt.Errorf("classPath cannot be empty")
+	}
+	if targetPath == "" {
+		return nil, fmt.Errorf("targetPath cannot be empty")
 	}
 
 	inv := &Inventory{
 		fs:             fs,
+		classPath:      classPath,
+		targetPath:     targetPath,
 		fileExtensions: []string{".yml", ".yaml"},
 	}
 
 	return inv, nil
 }
 
+func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string) error {
+	if data == nil {
+		return fmt.Errorf("cannot add external class without data")
+	}
+	if classFilePath == "" {
+		return fmt.Errorf("classFilePath cannot be empty")
+	}
+
+	// normalize classFilePath
+	classFilePath = strings.TrimLeft(classFilePath, "./")
+	if !strings.HasPrefix(classFilePath, inv.classPath) {
+		classFilePath = filepath.Join(inv.classPath, classFilePath)
+	}
+
+	// adjust the root key to match the filename because this is what Skipper expects
+	fileName := filepath.Base(classFilePath)
+	rootKey := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+
+	// create new data and set the root key
+	classData := make(Data)
+	classData[rootKey] = data
+
+	// warn the user that this class is generated and should not be edited manually
+	classBytes := []byte("---\n# This is a dynamically generated class file. DO NOT EDIT!\n")
+	classBytes = append(classBytes, classData.Bytes()...)
+
+	// write the class into the inventory filesystem
+	classFile, err := CreateNewFile(inv.fs, classFilePath, classBytes)
+	if err != nil {
+		return err
+	}
+
+	newClass, err := NewClass(classFile, classFilePath)
+	if err != nil {
+		return err
+	}
+
+	inv.classFiles = append(inv.classFiles, newClass)
+
+	return nil
+}
+
 // Load will discover and load all classes and targets given the paths.
 // It will also ensure that all targets only use classes which are actually defined.
-func (inv *Inventory) Load(classPath, targetPath string) error {
-	err := inv.loadClassFiles(classPath)
+func (inv *Inventory) Load() error {
+	err := inv.loadClassFiles(inv.classPath)
 	if err != nil {
 		return fmt.Errorf("unable to load class files: %w", err)
 	}
 
-	err = inv.loadTargetFiles(targetPath)
+	err = inv.loadTargetFiles(inv.targetPath)
 	if err != nil {
 		return fmt.Errorf("unable to load target files: %w", err)
 	}
@@ -172,9 +223,6 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 	}
 
 	for _, variable := range variables {
-
-		log.Println("replacing variable", variable.FullName(), "at", variable.Identifier)
-
 		var targetValue interface{}
 
 		if isPredefinedVariable(variable) {
@@ -346,7 +394,6 @@ func (inv *Inventory) loadTargetFiles(targetPath string) error {
 					usePrefix := strings.TrimRight(use, "*")
 
 					if strings.HasPrefix(class.Name, usePrefix) {
-						log.Println("ADD", class.Name)
 						t.UsedClasses = append(t.UsedClasses, class.Name)
 					}
 

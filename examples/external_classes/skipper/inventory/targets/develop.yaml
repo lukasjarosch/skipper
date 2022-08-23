@@ -1,0 +1,5 @@
+target:
+  # In the example we are dynamically adding class data, which are then written as files.
+  # Hence they can be loaded just as any other class.
+  use: 
+    - network.*
