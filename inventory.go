@@ -247,7 +247,7 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 			// This is the value we need to replace the variable with
 			targetValue, err = data.GetPath(variable.NameAsIdentifier()...)
 			if err != nil {
-				return err
+				return fmt.Errorf("reference to undefined variable '%s'", variable.FullName())
 			}
 		}
 
