@@ -2,11 +2,11 @@ resources:
   location: "westeurope"
 
   resource_group:
-    identifier: "example"
+    tf_identifier: "example"
     name: "rg-${target_name}-terraform-example-${azure:resources:location}"
 
   vnet:
-    identifier: "example"
+    tf_identifier: "example"
     name: "vnet-${target_name}-terraform-example"
     address_space:
       - "10.1.0.0/16"
@@ -14,7 +14,7 @@ resources:
 
     subnets:
       virtual_machines:
-        identifier: "virtual_machines"
+        tf_identifier: "virtual_machines"
         name: "virtual_machines"
         address_prefixes:
           - "10.1.1.0/24"

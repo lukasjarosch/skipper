@@ -8,4 +8,4 @@ target:
   azure:
     resources:
       resource_group:
-        identifier: "pizza"
+        tf_identifier: "pizza"
