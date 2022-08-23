@@ -36,7 +36,7 @@ companies to create the own - custom built - template and inventory engine, with
 - [x] Introduce a default set of `${variable}` variables to be used within targets and classes
   - First candidade is to have `${target_name}` accessible everywhere
 - [ ] Allow definition of custom variables within classes
-- [ ] Enable variable usage across classes
+- [x] Enable variable usage across classes
   - This will introduce definition checks. If a class is not used by a target, but referenced by a variable, it is not defined
 - [x] Allow adding external data (`map[string]any`) as classes
   - Useful for data which is pre-processed somewhere else, outside of the skipper scope
