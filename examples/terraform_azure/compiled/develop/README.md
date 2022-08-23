@@ -19,8 +19,7 @@
       "resources": {
         "location": "westeurope",
         "resource_group": {
-          "name": "rg-develop-terraform-example-westeurope",
-          "tf_identifier": "pizza"
+          "name": "rg-develop-terraform-example-westeurope"
         },
         "vnet": {
           "address_space": [
@@ -33,18 +32,26 @@
               "address_prefixes": [
                 "10.1.1.0/24"
               ],
-              "name": "virtual_machines",
-              "tf_identifier": "virtual_machines"
+              "name": "virtual_machines"
             }
-          },
-          "tf_identifier": "example"
+          }
         }
       }
     },
     "target": {
       "use": [
-        "azure.resources"
+        "azure.resources",
+        "terraform.identifiers"
       ]
+    },
+    "terraform": {
+      "identifiers": {
+        "resource_group": "changed_identifier",
+        "subnets": {
+          "virtual_machines": "vms"
+        },
+        "vnet": "vnet"
+      }
     }
   },
   "TargetName": "develop"

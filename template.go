@@ -13,6 +13,7 @@ import (
 )
 
 var customFuncs map[string]any = map[string]any{
+
 	"tfStringArray": func(input []interface{}) string {
 		var s []string
 		for _, v := range input {

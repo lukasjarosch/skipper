@@ -2,10 +2,10 @@
 target:
   use: 
     - azure.resources
+    - terraform.identifiers
 
   # Refactoring terraform identifiers has never been easier. 
   # Just change one variable from the imported class and you're done :)
-  azure:
-    resources:
-      resource_group:
-        tf_identifier: "pizza"
+  terraform:
+    identifiers:
+      resource_group: "changed_identifier"
