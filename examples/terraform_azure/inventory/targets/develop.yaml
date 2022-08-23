@@ -1,0 +1,11 @@
+---
+target:
+  use: 
+    - azure.resources
+
+  # Refactoring terraform identifiers has never been easier. 
+  # Just change one variable from the imported class and you're done :)
+  azure:
+    resources:
+      resource_group:
+        identifier: "pizza"
