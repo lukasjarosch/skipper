@@ -15,34 +15,80 @@ import (
 type Inventory struct {
 	fs             afero.Fs
 	fileExtensions []string
+	classPath      string
+	targetPath     string
 	classFiles     []*Class
 	targetFiles    []*Target
 }
 
 // NewInventory creates a new Inventory with the given afero.Fs.
 // At least one extension must be provided, otherwise an error is returned.
-func NewInventory(fs afero.Fs) (*Inventory, error) {
+func NewInventory(fs afero.Fs, classPath, targetPath string) (*Inventory, error) {
 	if fs == nil {
 		return nil, fmt.Errorf("fs cannot be nil")
+	}
+	if classPath == "" {
+		return nil, fmt.Errorf("classPath cannot be empty")
+	}
+	if targetPath == "" {
+		return nil, fmt.Errorf("targetPath cannot be empty")
 	}
 
 	inv := &Inventory{
 		fs:             fs,
+		classPath:      classPath,
+		targetPath:     targetPath,
 		fileExtensions: []string{".yml", ".yaml"},
 	}
 
 	return inv, nil
 }
 
+func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string, adjustRootKey bool) error {
+	if data == nil {
+		return fmt.Errorf("cannot add external class without data")
+	}
+	if classFilePath == "" {
+		return fmt.Errorf("classFilePath cannot be empty")
+	}
+
+	// normalize classFilePath
+	classFilePath = strings.TrimLeft(classFilePath, "./")
+	if !strings.HasPrefix(classFilePath, inv.classPath) {
+		classFilePath = filepath.Join(inv.classPath, classFilePath)
+	}
+
+	var rootKey string
+	if adjustRootKey {
+		fileName := filepath.Base(classFilePath)
+		rootKey = strings.TrimSuffix(fileName, filepath.Ext(fileName))
+
+	} else {
+		val := reflect.ValueOf(data).Elem()
+		rootKey = val.MapKeys()[0].String()
+	}
+
+	classFile, err := CreateNewFile(inv.fs, classFilePath, data)
+
+	newClass, err := NewClassFromData(data, classFilePath, rootKey)
+	if err != nil {
+		return err
+	}
+
+	inv.classFiles = append(inv.classFiles, newClass)
+
+	return nil
+}
+
 // Load will discover and load all classes and targets given the paths.
 // It will also ensure that all targets only use classes which are actually defined.
-func (inv *Inventory) Load(classPath, targetPath string) error {
-	err := inv.loadClassFiles(classPath)
+func (inv *Inventory) Load() error {
+	err := inv.loadClassFiles(inv.classPath)
 	if err != nil {
 		return fmt.Errorf("unable to load class files: %w", err)
 	}
 
-	err = inv.loadTargetFiles(targetPath)
+	err = inv.loadTargetFiles(inv.targetPath)
 	if err != nil {
 		return fmt.Errorf("unable to load target files: %w", err)
 	}

@@ -47,6 +47,14 @@ func NewFile(path string) (*YamlFile, error) {
 	}, nil
 }
 
+func CreateNewFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
+	err := afero.WriteFile(fs, path, data, 0644)
+	if err != nil {
+		return nil, err
+	}
+	return NewFile(path)
+}
+
 func (f *YamlFile) Load(fs afero.Fs) error {
 	err := f.file.Load(fs)
 	if err != nil {

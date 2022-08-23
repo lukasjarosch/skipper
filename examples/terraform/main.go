@@ -45,12 +45,12 @@ func main() {
 	log.Printf("desired target is '%s'", target)
 
 	// initialize and load inventory ----------------------------------------------------------------------------------
-	inventory, err := skipper.NewInventory(afero.NewOsFs())
+	inventory, err := skipper.NewInventory(afero.NewOsFs(), classPath, targetPath)
 	if err != nil {
 		panic(err)
 	}
 
-	err = inventory.Load(classPath, targetPath)
+	err = inventory.Load()
 	if err != nil {
 		panic(err)
 	}

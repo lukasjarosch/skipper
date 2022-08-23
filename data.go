@@ -3,9 +3,16 @@ package skipper
 import (
 	"fmt"
 	"strconv"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Data map[string]interface{}
+
+func (d Data) String() string {
+	out, _ := yaml.Marshal(d)
+	return string(out)
+}
 
 func (d Data) HasKey(k string) bool {
 	if _, ok := d[k]; ok {
