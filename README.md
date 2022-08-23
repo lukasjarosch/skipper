@@ -1,11 +1,20 @@
 <div align="center">
+  <!-- BADGES -->
+  <p>
+    <a href="https://pkg.go.dev/github.com/lukasjarosch/skipper"><img src="https://pkg.go.dev/badge/github.com/lukasjarosch/skipper.svg" alt="Go Reference"></a>
+    <a href="https://goreportcard.com/report/github.com/lukasjarosch/skipper"><img src="https://goreportcard.com/badge/github.com/lukasjarosch/skipper"></a>
+  </p>
+  <br/>
+
+  <!-- LOGO -->
   <a href="https://github.com/lukasjarosch/skipper">
     <img src="./assets/logo.png" alt="Logo" width="128" height="128">
   </a>
 
-<h1 align="center">Skipper</h3>
-<p>Inventory based templated configuration library based on the kapitan project</p>
-</br>
+  <!-- SKIPPER TLDR -->
+  <h1 align="center">Skipper</h3>
+  <p>Inventory based templated configuration library based on the kapitan project</p>
+  </br>
 </div>
 
 # What is skipper?
@@ -63,8 +72,10 @@ companies to create the own - custom built - template and inventory engine, with
 ## Classes
 A class is a yaml file which defines arbitrary information about your project.
 
-There is only one rule for classes:
+There is only two rules for classes:
   - The filename of the class must be the root key of the yaml struct
+  - The filename **cannot** be `target.yaml`, resulting in a root key of `target`.
+    - Although this will not return an error, you simply will not be able to use the class as the actual target will overwrite it completely.
 
 This means that if your class is called `pizza.yaml`, the class must look like this:
 

@@ -70,7 +70,7 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 }
 
 // Execute is responsible of parsing and executing the given template, using the passed data context.
-// If exection is successful, the template is written to it's desired target location.
+// If execution is successful, the template is written to it's desired target location.
 // If allowNoValue is true, the template is rendered even if it contains variables which are not defined.
 func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool) error {
 	err := template.Parse(t.templateFs)
