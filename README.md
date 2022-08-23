@@ -1,11 +1,20 @@
 <div align="center">
+  <!-- BADGES -->
+  <p>
+    <a href="https://pkg.go.dev/github.com/lukasjarosch/skipper"><img src="https://pkg.go.dev/badge/github.com/lukasjarosch/skipper.svg" alt="Go Reference"></a>
+    <a href="https://goreportcard.com/report/github.com/lukasjarosch/skipper"><img src="https://goreportcard.com/badge/github.com/lukasjarosch/skipper"></a>
+  </p>
+  <br/>
+
+  <!-- LOGO -->
   <a href="https://github.com/lukasjarosch/skipper">
     <img src="./assets/logo.png" alt="Logo" width="128" height="128">
   </a>
 
-<h1 align="center">Skipper</h3>
-<p>Inventory based templated configuration library based on the kapitan project</p>
-</br>
+  <!-- SKIPPER TLDR -->
+  <h1 align="center">Skipper</h3>
+  <p>Inventory based templated configuration library based on the kapitan project</p>
+  </br>
 </div>
 
 # What is skipper?
