@@ -3,6 +3,7 @@
   <p>
     <a href="https://pkg.go.dev/github.com/lukasjarosch/skipper"><img src="https://pkg.go.dev/badge/github.com/lukasjarosch/skipper.svg" alt="Go Reference"></a>
     <a href="https://goreportcard.com/report/github.com/lukasjarosch/skipper"><img src="https://goreportcard.com/badge/github.com/lukasjarosch/skipper"></a>
+    <a href="https://github.com/lukasjarosch/skipper/actions/workflows/test.yml"><img src="https://github.com/lukasjarosch/skipper/actions/workflows/test.yml/badge.svg"></a>
   </p>
   <br/>
 
