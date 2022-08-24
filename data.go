@@ -13,7 +13,41 @@ type Data map[string]interface{}
 // NewData attempts to convert any given interface{} into [Data].
 // This is done by first using `yaml.Marshal` and then `yaml.Unmarshal`.
 // If the given interface is compatible with [Data], these steps will succeed.
+//
+// Note that the process of marshalling will convert struct fields (which become keys in the Data map) to lowercase.
+// Given the following type:
+//
+//	type MyStruct struct {
+//		Name string
+//	}
+//
+// 	example := MyStruct{ Name: "HelloWorld" }
+//	data := NewData(example)
+//
+// The above data will look as follows:
+//
+//	Data {
+//		"name": "HelloWorld"
+//	}
+//
+// For the most part, this is something which will not have a big impact.
+// But if you wish to change the keys, you can use the yaml structtags.
+// The above example:
+//
+//	type MyStruct struct {
+//		Name string `yaml:"Name"`
+//	}
+//
+// Will result in the following data, just as expected:
+//
+//	Data {
+//		"Name": "HelloWorld"
+//	}
 func NewData(input interface{}) (Data, error) {
+	if input == nil {
+		return make(Data), nil
+	}
+
 	outBytes, err := yaml.Marshal(input)
 	if err != nil {
 		return nil, err
