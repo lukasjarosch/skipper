@@ -122,13 +122,6 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 				return nil, fmt.Errorf("key not found: %v", el)
 			}
 
-		case map[interface{}]interface{}:
-			var ok bool
-			tree, ok = node[el]
-			if !ok {
-				return nil, fmt.Errorf("key not found: %v", el)
-			}
-
 		case []interface{}:
 			index, ok := el.(int)
 			if !ok {
