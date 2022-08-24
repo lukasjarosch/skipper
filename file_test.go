@@ -73,7 +73,7 @@ func (suite *YamlFileTestSuite) SetupTest() {
 	afero.WriteFile(suite.fileSystem, "/empty", []byte{}, 0644)
 }
 
-func (suite *YamlFileTestSuite) TestNewFile() {
+func (suite *YamlFileTestSuite) TestNewYamlFile() {
 	table := []struct {
 		TestName      string
 		ErrorExpected bool
@@ -89,7 +89,7 @@ func (suite *YamlFileTestSuite) TestNewFile() {
 	for _, tt := range table {
 		suite.Run(tt.TestName, func() {
 
-			file, err := skipper.NewFile(tt.Path)
+			file, err := skipper.NewYamlFile(tt.Path)
 
 			if tt.ErrorExpected {
 				suite.Assert().Error(err, "Expected an error, but no error was returned")
@@ -161,7 +161,7 @@ foo:
 		suite.Run(tt.TestName, func() {
 
 			// create proper YamlFile
-			file, err := skipper.CreateNewFile(suite.fileSystem, tt.Path, tt.FileData)
+			file, err := skipper.CreateNewYamlFile(suite.fileSystem, tt.Path, tt.FileData)
 			suite.Assert().NotNil(file)
 			suite.Assert().NoError(err)
 
@@ -235,7 +235,7 @@ func (suite *YamlFileTestSuite) TestCreateFile() {
 	for _, tt := range table {
 		suite.Run(tt.TestName, func() {
 
-			file, err := skipper.CreateNewFile(tt.FileSystem, tt.Path, tt.Data)
+			file, err := skipper.CreateNewYamlFile(tt.FileSystem, tt.Path, tt.Data)
 
 			if tt.ErrorExpected {
 				suite.Assert().Error(err, "Expected an error, but no error was returned")

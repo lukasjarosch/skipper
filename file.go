@@ -47,8 +47,8 @@ type YamlFile struct {
 	Data Data
 }
 
-// NewFile returns a newly initialized `YamlFile`.
-func NewFile(path string) (*YamlFile, error) {
+// NewYamlFile returns a newly initialized `YamlFile`.
+func NewYamlFile(path string) (*YamlFile, error) {
 	f, err := newFile(path)
 	if err != nil {
 		return nil, err
@@ -59,11 +59,11 @@ func NewFile(path string) (*YamlFile, error) {
 	}, nil
 }
 
-// CreateNewFile can be used to manually create a file inside the given filesystem.
+// CreateNewYamlFile can be used to manually create a file inside the given filesystem.
 // This is useful for dynamically creating classes or targets.
 //
 // The given path is attempted to be created and a file written.
-func CreateNewFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
+func CreateNewYamlFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
 	if fs == nil {
 		return nil, fmt.Errorf("fs cannot be nil")
 	}
@@ -77,7 +77,7 @@ func CreateNewFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewFile(path)
+	return NewYamlFile(path)
 }
 
 // Load will first load the underlying raw file-data and then attempt to `yaml.Unmarshal` it into `Data`
