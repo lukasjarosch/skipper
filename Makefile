@@ -22,12 +22,9 @@ all: help
 test: ## Run all tests
 	$(GOTEST) -race -v $(GOLIST)
 
-coverage: ## Run tests with coverage and export it into 'profile.cov'. If 'COVERAGE_EXPORT' is true, 'COVERAGE_FILE' is written
+coverage: ## Run tests with coverage and export it into 'profile.cov'. 
 	$(GOTEST) -cover -covermode=count -coverprofile=$(COVERAGE_FILE) ./...
 	$(GO) tool cover -func $(COVERAGE_FILE)
-ifeq ($(COVERAGE_EXPORT), false)
-	@rm $(COVERAGE_FILE)
-endif
 
 ## Lint
 
