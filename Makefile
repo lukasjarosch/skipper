@@ -6,12 +6,40 @@ DOCKER := $(shell which docker)
 GOTEST = $(GO) test
 GOLIST := $(shell $(GO) list ./... | grep -v /vendor/)
 PWD := $(shell pwd)
+COVERAGE_FILE = profile.cov
+
 
 # Fancy colors
 GREEN  := $(shell tput -Txterm setaf 2)
 WHITE  := $(shell tput -Txterm setaf 7)
 CYAN   := $(shell tput -Txterm setaf 6)
 RESET  := $(shell tput -Txterm sgr0)
+
+all: help
+
+## Testing
+
+test: ## Run all tests
+	$(GOTEST) -race -v $(GOLIST)
+
+coverage: ## Run tests with coverage and export it into 'profile.cov'. If 'COVERAGE_EXPORT' is true, 'COVERAGE_FILE' is written
+	$(GOTEST) -cover -covermode=count -coverprofile=$(COVERAGE_FILE) ./...
+	$(GO) tool cover -func $(COVERAGE_FILE)
+ifeq ($(COVERAGE_EXPORT), false)
+	@rm $(COVERAGE_FILE)
+endif
+
+## Lint
+
+lint: lint-go lint-yaml ## Run all linters
+
+lint-go: ## Lint all GO files
+	$(DOCKER) run --rm -it -v $(PWD):/app -w /app $(GOLANGCI_LINT_IMAGE) golangci-lint run --deadline=65s
+
+lint-yaml: ## Lint all YAML files
+	$(DOCKER) run --rm -it -v $(PWD):/data $(YAMLLINT_IMAGE) -f parsable $(YAMLFILES)
+
+
 
 ## Examples
 example-terraform-dev:
