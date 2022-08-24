@@ -115,7 +115,7 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 		case Data:
 			key, ok := el.(string)
 			if !ok {
-				return nil, fmt.Errorf("unexpected string key in map[string]interface '%T' at index %d", el, i)
+				return nil, fmt.Errorf("unexpected key type (%T) for Data at index %d", el, i)
 			}
 			tree, ok = node[key]
 			if !ok {
@@ -134,11 +134,11 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 			if !ok {
 				index, err = strconv.Atoi(fmt.Sprint(el))
 				if err != nil {
-					return nil, fmt.Errorf("unexpected integer path element '%v' (%T)", el, el)
+					return nil, fmt.Errorf("unexpected key type (%T) for []interface{} at index %d", el, i)
 				}
 			}
 			if index < 0 || index >= len(node) {
-				return nil, fmt.Errorf("path index out of range: %d", index)
+				return nil, fmt.Errorf("index out of range: %d", index)
 			}
 			tree = node[index]
 
