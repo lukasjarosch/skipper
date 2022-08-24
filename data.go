@@ -87,11 +87,18 @@ func (d Data) HasKey(key string) bool {
 // Get returns the value at `Data[key]` as [Data].
 // Note that his function does not support paths like `HasKey("foo.bar.baz")`.
 // For that you can use [GetPath]
+//
+// Note that if the value key points to cannot be converted to [Data], nil is returned
 func (d Data) Get(key string) Data {
 	if d[key] == nil {
 		return nil
 	}
-	return d[key].(Data)
+
+	if ret, ok := d[key].(Data); ok {
+		return ret
+	}
+
+	return nil
 }
 
 // GetPath allows path based indexing into Data.
