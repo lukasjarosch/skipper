@@ -15,11 +15,27 @@ hide:
 
 Whoa, TODO
 
+## The problem
+
+## Our solution
+
+## What Skipper is *not*
+
+- A solution to all your problems, but it might just solve a few :wink:
+- A 'one-size-fits-all' project which allows you to think of something else.
+    - Sorry to tell you that, but you will need to have to put some effort into solving your problems.
+    - **But**, it's great to be able to solve problems the way *you* think they should be solved.  
+        Without having to solve basic stuff (that's what Skipper does).
+- It won't cook dinner or bring you a beer. We'll inform you once we've figured that out, tho.
+
 ## I've seen this before...
-Skipper is heavily inspired by the awesome [Kapitan](https://kapitan.dev/) project. The major difference
-is that skipper is primarily meant to be used as library. This allows you for example to have way more
+Skipper is heavily inspired by the awesome [Kapitan](https://kapitan.dev/) project.  
+The major difference is that skipper is meant to be used as library. This allows you for example to have way more
 control over the data-structures used inside the templates. 
 
-Skipper is not meant to be a *one-size-fits-all* solution. The goal of Skipper is to enable
-companies to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
+Additionaly we think that being able to provide a single binary without any dependencies will make thinks a lot easier.  
+This is what you can do with Skipper. Build *your own* templating sytem, without having to do the heavy lifting.
+
+Skipper is not meant to be a *one-size-fits-all* solution.   
+The goal of Skipper is to enable companies to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
 
