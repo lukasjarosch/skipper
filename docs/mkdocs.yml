@@ -6,7 +6,20 @@ repo_url: https://github.com/lukasjarosch/skipper
 
 nav:
   - Home: index.md
-  - Concepts: concepts.md
+  - Concepts: 
+      - Big Picture: concepts.md
+      - Inventory: 
+        - Overview: concepts/inventory/overview.md
+        - Classes: concepts/inventory/classes.md
+        - Targets: concepts/inventory/targets.md
+        - Variables:
+            - Overview: concepts/inventory/variables/overview.md
+            - Static Variables: concepts/inventory/variables/overview.md
+            - Dynamic Variables: concepts/inventory/variables/overview.md
+            - User-defined Variables: concepts/inventory/variables/overview.md
+      - Templates:
+        - Overview: concepts/templates/overview.md
+          
   - Getting Started: getting_started.md
   - Examples: examples.md
   - Changelog: changelog.md
@@ -22,6 +35,7 @@ theme:
     - navigation.tracking
     - navigation.tabs
     - navigation.top
+    - navigation.sections
 
   palette: 
     # Palette toggle for light mode
@@ -43,6 +57,9 @@ markdown_extensions:
   - admonition
   - attr_list
   - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
 
 extra:
   social:
