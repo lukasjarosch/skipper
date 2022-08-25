@@ -34,7 +34,7 @@ The major difference is that skipper is meant to be used as library. This allows
 control over the data-structures used inside the templates. 
 
 Additionaly we think that being able to provide a single binary without any dependencies will make thinks a lot easier.  
-This is what you can do with Skipper. Build *your own* templating sytem, without having to do the heavy lifting.
+This is what you can do with Skipper. Build *your own* templating sytem, which is nice.
 
 Skipper is not meant to be a *one-size-fits-all* solution.   
 The goal of Skipper is to enable companies to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
