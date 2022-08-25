@@ -4,17 +4,14 @@ on:
   push:
     branches:
       - main
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 
-        uses: actions/checkout@master
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          submodules: recursive
-      - name: Deploy docs
-        uses: mhausenblas/mkdocs-deploy-gh-pages@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CONFIG_FILE: ../../docs/mkdocs.yml
-          REQUIREMENTS: ../../docs/requirements.txt
+          python-version: 3.x
+      - run: pip install mkdocs-material 
+      - run: mkdocs gh-deploy --force
