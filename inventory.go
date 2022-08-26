@@ -402,17 +402,15 @@ func (inv *Inventory) loadTargetFiles(targetPath string) error {
 			return fmt.Errorf("%s: %w", target.Path, err)
 		}
 
-		if len(t.UsedWildcardClasses) > 0 {
-			for _, use := range t.UsedWildcardClasses {
-				for _, class := range inv.classFiles {
+		for _, use := range t.UsedWildcardClasses {
+			for _, class := range inv.classFiles {
 
-					usePrefix := strings.TrimRight(use, "*")
+				usePrefix := strings.TrimRight(use, "*")
 
-					if strings.HasPrefix(class.Name, usePrefix) {
-						t.UsedClasses = append(t.UsedClasses, class.Name)
-					}
-
+				if strings.HasPrefix(class.Name, usePrefix) {
+					t.UsedClasses = append(t.UsedClasses, class.Name)
 				}
+
 			}
 		}
 
