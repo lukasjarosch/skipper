@@ -53,8 +53,8 @@
     "terraform": {
       "common": {
         "foo": "bar",
-        "secret": "?{driver:targets/develop/someSecret|alternative}",
-        "secret2": "?{driver:nonExistingSecret}"
+        "secret": "?{plain:targets/develop/someSecret}",
+        "secret2": "?{driver:nonExistingSecret|alternative}"
       },
       "identifiers": {
         "resource_group": "changed_identifier",
