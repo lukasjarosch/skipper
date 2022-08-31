@@ -2,7 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strings"
@@ -85,17 +84,12 @@ func FindVariables(data any) (variables VariableList) {
 							Name:       variable[1],
 							Identifier: path,
 						})
-						log.Println("found variable", variable[0], "at", path)
 					}
 				}
 			}
 		}
 	}
 	walk(reflect.ValueOf(data), nil)
-
-	for _, v := range variables {
-		log.Println("loaded variable", v.FullName(), "at", v.Identifier)
-	}
 
 	return variables
 }
