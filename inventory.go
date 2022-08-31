@@ -19,13 +19,14 @@ type Inventory struct {
 	fileExtensions []string
 	classPath      string
 	targetPath     string
+	secretPath     string
 	classFiles     []*Class
 	targetFiles    []*Target
 }
 
 // NewInventory creates a new Inventory with the given afero.Fs.
 // At least one extension must be provided, otherwise an error is returned.
-func NewInventory(fs afero.Fs, classPath, targetPath string) (*Inventory, error) {
+func NewInventory(fs afero.Fs, classPath, targetPath, secretPath string) (*Inventory, error) {
 	if fs == nil {
 		return nil, fmt.Errorf("fs cannot be nil")
 	}
@@ -35,11 +36,25 @@ func NewInventory(fs afero.Fs, classPath, targetPath string) (*Inventory, error)
 	if targetPath == "" {
 		return nil, fmt.Errorf("targetPath cannot be empty")
 	}
+	if secretPath == "" {
+		return nil, fmt.Errorf("secretPath cannot be empty")
+	}
+
+	if strings.EqualFold(classPath, targetPath) {
+		return nil, fmt.Errorf("classPath cannot be the same as targetPath")
+	}
+	if strings.EqualFold(classPath, secretPath) {
+		return nil, fmt.Errorf("classPath cannot be the same as secretPath")
+	}
+	if strings.EqualFold(targetPath, secretPath) {
+		return nil, fmt.Errorf("targetPath cannot be the same as secretPath")
+	}
 
 	inv := &Inventory{
 		fs:             fs,
 		classPath:      classPath,
 		targetPath:     targetPath,
+		secretPath:     secretPath,
 		fileExtensions: []string{".yml", ".yaml"},
 	}
 
@@ -214,6 +229,27 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		return nil, err
 	}
 
+	// WIP: secret management
+	secrets := FindSecrets(inv.secretPath, data)
+	for _, secret := range secrets {
+		log.Println("found secret", secret.FullName())
+		if secret.Exists(inv.fs) {
+			err = secret.Load(inv.fs)
+			if err != nil {
+				log.Fatalln(fmt.Errorf("failed to load secret: %w", err))
+			}
+
+			err = secret.Parse()
+			if err != nil {
+				log.Fatalln(fmt.Errorf("failed to parse secret: %w", err))
+			}
+
+			log.Println("loaded and parsed secret", secret.FullName())
+		} else {
+			log.Println("SECRET FILE MISSING", secret.Path)
+		}
+	}
+
 	return data, nil
 }
 
@@ -223,6 +259,11 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 
 	// Determine which variables exist in the Data map
 	variables := FindVariables(data)
+
+	// TODO: remove
+	for _, variable := range variables {
+		log.Println("found variable", variable.FullName())
+	}
 
 	if len(variables) == 0 {
 		return nil
