@@ -45,6 +45,8 @@ func NewSecret(driver, file, alternative string) (*Secret, error) {
 	return s, nil
 }
 
+// Load is used to initialize the driver and use it to check the secret.
+// Load does NOT load the actual value, it just ensures that it could be loaded using the driver.Value() call.
 func (s *Secret) Load(fs afero.Fs, factory SecretDriverFactory) error {
 	if err := s.YamlFile.Load(fs); err != nil {
 		return fmt.Errorf("failed to load secret file: %w", err)
@@ -81,6 +83,7 @@ func (s *Secret) Load(fs afero.Fs, factory SecretDriverFactory) error {
 	return nil
 }
 
+// Value returns the actual secret value.
 func (s *Secret) Value() (string, error) {
 	return s.Driver.Value(s.Data)
 }
