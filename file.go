@@ -26,6 +26,15 @@ func newFile(path string) (*file, error) {
 	return &file{Path: path}, nil
 }
 
+// Exists returns true if the file exists in the given filesystem, false otherwise.
+func (f *file) Exists(fs afero.Fs) bool {
+	exists, err := afero.Exists(fs, f.Path)
+	if err != nil {
+		return false
+	}
+	return exists
+}
+
 // Load will attempt to read the file from the given filesystem implementation.
 // The loaded data is stored in `file.Bytes`
 func (f *file) Load(fs afero.Fs) (err error) {
