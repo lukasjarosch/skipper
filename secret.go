@@ -28,10 +28,12 @@ type Secret struct {
 	Driver            SecretDriver
 	DriverName        string
 	AlternativeAction string
+	Identifier        []interface{}
+	basePath          string
 }
 
-func NewSecret(driver, file, alternative string) (*Secret, error) {
-	f, err := NewFile(file)
+func NewSecret(driver, file, alternative string, path []interface{}, secretPath string) (*Secret, error) {
+	f, err := NewFile(filepath.Join(secretPath, file))
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +42,8 @@ func NewSecret(driver, file, alternative string) (*Secret, error) {
 		DriverName:        driver,
 		AlternativeAction: alternative,
 		YamlFile:          f,
+		Identifier:        path,
+		basePath:          secretPath,
 	}
 
 	return s, nil
@@ -90,17 +94,20 @@ func (s *Secret) Value() (string, error) {
 
 // FullName returns the full secret name as it would be expected to ocurr in a class/target.
 func (s Secret) FullName() string {
+	// FIXME: this is just hacky. the path handling needs to be properly made...
+	path := strings.Trim(strings.ReplaceAll(s.Path, s.basePath, ""), "/")
+
 	if len(s.AlternativeAction) > 0 {
-		return fmt.Sprintf("?{%s:%s|%s}", s.DriverName, s.Path, s.AlternativeAction)
+		return fmt.Sprintf("?{%s:%s|%s}", s.DriverName, path, s.AlternativeAction)
 	} else {
-		return fmt.Sprintf("?{%s:%s}", s.DriverName, s.Path)
+		return fmt.Sprintf("?{%s:%s}", s.DriverName, path)
 	}
 }
 
 type SecretList []*Secret
 
 // TODO eventually combine FindVariables and FindSecrets
-func FindSecrets(secretPath string, data any) (secrets SecretList) {
+func FindSecrets(data any, secretPath string) (secrets SecretList) {
 
 	// newPath is used to copy an existing []interface and hard-copy it.
 	// This is required because Go wants to optimize slice usage by reusing memory.
@@ -141,7 +148,7 @@ func FindSecrets(secretPath string, data any) (secrets SecretList) {
 				for _, secret := range matches {
 					if len(secret) >= 3 {
 						// based on the regex, we're interested in capture group 1 (driver), 2 (file) and 4 (alternative)
-						newSecret, err := NewSecret(secret[1], filepath.Join(secretPath, secret[2]), secret[4])
+						newSecret, err := NewSecret(secret[1], secret[2], secret[4], path, secretPath)
 						if err != nil {
 							log.Fatalln(fmt.Errorf("invalid secret detected: %w", err)) // this error is not recoverable, user error
 						}
