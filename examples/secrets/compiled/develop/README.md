@@ -42,19 +42,29 @@
         }
       }
     },
+    "gitlab": {
+      "common": {
+        "base_url": "https://mygitlab.example.com",
+        "project_id": 12345
+      }
+    },
     "target": {
       "use": [
         "azure.common",
         "azure.resources",
+        "gitlab.common",
         "terraform.identifiers",
         "terraform.common"
       ]
     },
     "terraform": {
       "common": {
-        "foo": "bar",
-        "secret": "?{plain:targets/develop/someSecret}",
-        "secret2": "?{driver:nonExistingSecret|alternative}"
+        "backend": {
+          "address": "https://mygitlab.example.com",
+          "password": "?{plain:targets/develop/someSecret}",
+          "state_name": "develop.tfstate"
+        },
+        "version": "\u003e= 0.14"
       },
       "identifiers": {
         "resource_group": "changed_identifier",
