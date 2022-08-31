@@ -15,7 +15,7 @@ terraform {
     retry_wait_min = 5
     retry_wait_max = 15
     username       = "terraform"
-    password       = "?{plain:targets/develop/someSecret}"
+    password       = "ThisIsMySecret"
   }
 }
 

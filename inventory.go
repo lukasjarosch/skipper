@@ -141,7 +141,7 @@ func (inv *Inventory) Load() error {
 }
 
 // Data loads the required inventory data map given the target.
-func (inv *Inventory) Data(targetName string, predefinedVariables map[string]interface{}) (data Data, err error) {
+func (inv *Inventory) Data(targetName string, predefinedVariables map[string]interface{}, revealSecrets bool) (data Data, err error) {
 	data = make(Data)
 
 	target, err := inv.Target(targetName)
@@ -231,7 +231,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	}
 
 	// load and validate secrets, but do NOT actually use the drivers to load the values and replace them
-	secrets := FindSecrets(inv.secretPath, data)
+	secrets := FindSecrets(data, inv.secretPath)
 	for _, secret := range secrets {
 		log.Println("found secret", secret.FullName())
 
@@ -246,6 +246,23 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 			if err != nil {
 				log.Fatalln(fmt.Errorf("failed to load secret: %w", err))
 			}
+
+			if revealSecrets {
+				// sourceValue is the value where the variable is. It needs to be replaced with an actual value
+				sourceValue, err := data.GetPath(secret.Identifier...)
+				if err != nil {
+					return nil, err
+				}
+
+				// Replace the full variable name (${variable}) with the targetValue
+				secretValue, err := secret.Value()
+				if err != nil {
+					return nil, err
+				}
+				sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), secret.FullName(), secretValue)
+				data.SetPath(sourceValue, secret.Identifier...)
+			}
+
 		} else {
 			return nil, fmt.Errorf("referenced non-existing secret file '%s' in secret variable %s", secret.Path, secret.FullName())
 		}

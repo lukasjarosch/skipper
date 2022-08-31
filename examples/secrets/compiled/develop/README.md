@@ -61,7 +61,7 @@
       "common": {
         "backend": {
           "address": "https://mygitlab.example.com",
-          "password": "?{plain:targets/develop/someSecret}",
+          "password": "ThisIsMySecret",
           "state_name": "develop.tfstate"
         },
         "version": "\u003e= 0.14"
