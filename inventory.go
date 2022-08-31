@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	driver "github.com/lukasjarosch/skipper/internal/secret"
 	"github.com/spf13/afero"
 )
 
@@ -234,18 +235,26 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	for _, secret := range secrets {
 		log.Println("found secret", secret.FullName())
 		if secret.Exists(inv.fs) {
-			err = secret.Load(inv.fs)
+			err = secret.Load(inv.fs, func(driverName string) (SecretDriver, error) {
+				switch strings.ToLower(driverName) {
+				case "plain":
+					return driver.NewPlain()
+				}
+				return nil, fmt.Errorf("not implemented")
+			})
 			if err != nil {
 				log.Fatalln(fmt.Errorf("failed to load secret: %w", err))
 			}
 
-			err = secret.Parse()
+			val, err := secret.Value()
 			if err != nil {
-				log.Fatalln(fmt.Errorf("failed to parse secret: %w", err))
+				return nil, fmt.Errorf("failed to get value of secret '%s': %w", secret.FullName(), err)
 			}
 
-			log.Println("loaded and parsed secret", secret.FullName())
+			log.Println("loaded and parsed secret", secret.FullName(), "VALUE:", val)
+
 		} else {
+			// TODO: handle
 			log.Println("SECRET FILE MISSING", secret.Path)
 		}
 	}
