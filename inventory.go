@@ -230,10 +230,11 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		return nil, err
 	}
 
-	// WIP: secret management
+	// load and validate secrets, but do NOT actually use the drivers to load the values and replace them
 	secrets := FindSecrets(inv.secretPath, data)
 	for _, secret := range secrets {
 		log.Println("found secret", secret.FullName())
+
 		if secret.Exists(inv.fs) {
 			err = secret.Load(inv.fs, func(driverName string) (SecretDriver, error) {
 				switch strings.ToLower(driverName) {
@@ -245,17 +246,8 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 			if err != nil {
 				log.Fatalln(fmt.Errorf("failed to load secret: %w", err))
 			}
-
-			val, err := secret.Value()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get value of secret '%s': %w", secret.FullName(), err)
-			}
-
-			log.Println("loaded and parsed secret", secret.FullName(), "VALUE:", val)
-
 		} else {
-			// TODO: handle
-			log.Println("SECRET FILE MISSING", secret.Path)
+			return nil, fmt.Errorf("referenced non-existing secret file '%s' in secret variable %s", secret.Path, secret.FullName())
 		}
 	}
 
