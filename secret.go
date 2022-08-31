@@ -6,25 +6,37 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
+
+	"github.com/spf13/afero"
 )
 
 // secretRegex match pattern
 // ?{driver:path/to/file|ifNotExistsAction}
 var secretRegex = regexp.MustCompile(`\?\{(\w*)\:([\w\/\-\.\_]+)(\|([\w\-\_\.]+))?\}`)
 
+type SecretDriver interface {
+	Type() string
+	Value(data map[string]interface{}) (string, error)
+}
+
+// SecretDriverFactory is any function which is capable of returning a driver, given the type.
+type SecretDriverFactory func(driverName string) (SecretDriver, error)
+
 type Secret struct {
 	*YamlFile
+	Driver            SecretDriver
 	DriverName        string
 	AlternativeAction string
 }
 
-func NewSecret(driver, file, alternative string) (Secret, error) {
+func NewSecret(driver, file, alternative string) (*Secret, error) {
 	f, err := NewFile(file)
 	if err != nil {
-		return Secret{}, err
+		return nil, err
 	}
 
-	s := Secret{
+	s := &Secret{
 		DriverName:        driver,
 		AlternativeAction: alternative,
 		YamlFile:          f,
@@ -33,26 +45,47 @@ func NewSecret(driver, file, alternative string) (Secret, error) {
 	return s, nil
 }
 
-func (s Secret) Parse() error {
-	if len(s.Bytes) == 0 {
-		return fmt.Errorf("cannot parse empty secret")
+func (s *Secret) Load(fs afero.Fs, factory SecretDriverFactory) error {
+	if err := s.YamlFile.Load(fs); err != nil {
+		return fmt.Errorf("failed to load secret file: %w", err)
 	}
-
-	// at this point, secret.Load() must have been called, thus we will have secret.Data
 
 	// every secret needs to have a 'data' key in which the actual secret is stored (encrypted on in plaintext depends on the type)
 	if _, exists := s.Data["data"]; !exists {
 		return fmt.Errorf("missing 'data' key in secret file: %s", s.Path)
 	}
 
-	// the type key also needs to exist as it tells us which driver we have to use
-	if _, exists := s.Data["type"]; !exists {
+	// the 'type' key also needs to exist and it must be a string. It tells us which driver to load.
+	typ, exists := s.Data["type"]
+	if !exists {
 		return fmt.Errorf("missing 'type' key in secret file: %s", s.Path)
+	}
+	driverType, ok := typ.(string)
+	if !ok {
+		return fmt.Errorf("secret field 'type' must be of type string, got %T", typ)
+	}
+
+	// attempt to load the driver with the given factory
+	// FIXME: currently we're loading the driver for every secret. This will become ineffective once we're using actual clients and needs to be addressed.
+	driver, err := factory(s.DriverName)
+	if err != nil {
+		return fmt.Errorf("cannot initialize driver '%s': %w", s.DriverName, err)
+	}
+	s.Driver = driver
+
+	// driverType in the secret file must match the type of the loaded driver
+	if !strings.EqualFold(driverType, driver.Type()) {
+		return fmt.Errorf("secret driver mismatch, data uses dirver '%s', was loaded with driver '%s'", typ, driver.Type())
 	}
 
 	return nil
 }
 
+func (s *Secret) Value() (string, error) {
+	return s.Driver.Value(s.Data)
+}
+
+// FullName returns the full secret name as it would be expected to ocurr in a class/target.
 func (s Secret) FullName() string {
 	if len(s.AlternativeAction) > 0 {
 		return fmt.Sprintf("?{%s:%s|%s}", s.DriverName, s.Path, s.AlternativeAction)
@@ -61,7 +94,7 @@ func (s Secret) FullName() string {
 	}
 }
 
-type SecretList []Secret
+type SecretList []*Secret
 
 // TODO eventually combine FindVariables and FindSecrets
 func FindSecrets(secretPath string, data any) (secrets SecretList) {
