@@ -61,6 +61,7 @@
       "common": {
         "backend": {
           "address": "https://mygitlab.example.com",
+          "multipleSecrets": "ThisIsMySecret---AnotherSecretValueYay",
           "password": "ThisIsMySecret",
           "state_name": "develop.tfstate"
         },
