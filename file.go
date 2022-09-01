@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -11,24 +12,28 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// file is just an arbitrary description of a path and the data of the file to which Path points to.
+// File is just an arbitrary description of a path and the data of the file to which Path points to.
 // Note that the used filesystem is not relevant, only at the time of loading a file.
-type file struct {
+type File struct {
 	Path  string
 	Bytes []byte
 }
 
-func newFile(path string) (*file, error) {
+func newFile(path string) (*File, error) {
 	if path == "" {
 		return nil, fmt.Errorf("path cannot be empty")
 	}
 
-	return &file{Path: path}, nil
+	return &File{Path: path}, nil
 }
 
 // Load will attempt to read the file from the given filesystem implementation.
-// The loaded data is stored in `file.Bytes`
-func (f *file) Load(fs afero.Fs) (err error) {
+// The loaded data is stored in `File.Bytes`
+func (f *File) Load(fs afero.Fs) (err error) {
+	if fs == nil {
+		return fmt.Errorf("fs cannot be nil")
+	}
+
 	f.Bytes, err = afero.ReadFile(fs, f.Path)
 	if err != nil {
 		return fmt.Errorf("failed to Load %s: %w", f.Path, err)
@@ -38,27 +43,31 @@ func (f *file) Load(fs afero.Fs) (err error) {
 
 // YamlFile is what is used for all inventory-relevant files (classes and targets).
 type YamlFile struct {
-	file
+	File
 	Data Data
 }
 
-// NewFile returns a newly initialized `YamlFile`.
-func NewFile(path string) (*YamlFile, error) {
+// NewYamlFile returns a newly initialized `YamlFile`.
+func NewYamlFile(path string) (*YamlFile, error) {
 	f, err := newFile(path)
 	if err != nil {
 		return nil, err
 	}
 
 	return &YamlFile{
-		file: *f,
+		File: *f,
 	}, nil
 }
 
-// CreateNewFile can be used to manually create a file inside the given filesystem.
+// CreateNewYamlFile can be used to manually create a file inside the given filesystem.
 // This is useful for dynamically creating classes or targets.
 //
 // The given path is attempted to be created and a file written.
-func CreateNewFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
+func CreateNewYamlFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
+	if fs == nil {
+		return nil, fmt.Errorf("fs cannot be nil")
+	}
+
 	err := fs.MkdirAll(filepath.Dir(path), 0755)
 	if err != nil {
 		return nil, err
@@ -68,13 +77,13 @@ func CreateNewFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewFile(path)
+	return NewYamlFile(path)
 }
 
 // Load will first load the underlying raw file-data and then attempt to `yaml.Unmarshal` it into `Data`
 // The resulting Data is stored in `YamlFile.Data`.
 func (f *YamlFile) Load(fs afero.Fs) error {
-	err := f.file.Load(fs)
+	err := f.File.Load(fs)
 	if err != nil {
 		return err
 	}
@@ -89,7 +98,7 @@ func (f *YamlFile) Load(fs afero.Fs) error {
 
 // TemplateFile represents a file which is used as Template.
 type TemplateFile struct {
-	file
+	File
 	tpl *template.Template
 }
 
@@ -102,15 +111,25 @@ func NewTemplateFile(path string, funcs map[string]any) (*TemplateFile, error) {
 		return nil, err
 	}
 
+	// If funcs are passed, we need to ensure that all values are functions otherwise text/template will panic
+	// There is an additional limitation: The function must return either a single (string) or two (string, error) values.
+	// We are not going to validate this as one just needs to read the docs.
+	for k, v := range funcs {
+		typ := reflect.TypeOf(v).Kind()
+		if typ != reflect.Func {
+			return nil, fmt.Errorf("funcs[%s] is not a function", k)
+		}
+	}
+
 	return &TemplateFile{
-		file: *f,
+		File: *f,
 		tpl:  template.New(path).Funcs(sprig.TxtFuncMap()).Funcs(funcs),
 	}, nil
 }
 
 // Parse will attempt to Load and parse the template from the given filesystem.
 func (tmpl *TemplateFile) Parse(fs afero.Fs) (err error) {
-	err = tmpl.file.Load(fs)
+	err = tmpl.File.Load(fs)
 	if err != nil {
 		return err
 	}

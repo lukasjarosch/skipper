@@ -13,7 +13,41 @@ type Data map[string]interface{}
 // NewData attempts to convert any given interface{} into [Data].
 // This is done by first using `yaml.Marshal` and then `yaml.Unmarshal`.
 // If the given interface is compatible with [Data], these steps will succeed.
+//
+// Note that the process of marshalling will convert struct fields (which become keys in the Data map) to lowercase.
+// Given the following type:
+//
+//	type MyStruct struct {
+//		Name string
+//	}
+//
+// 	example := MyStruct{ Name: "HelloWorld" }
+//	data := NewData(example)
+//
+// The above data will look as follows:
+//
+//	Data {
+//		"name": "HelloWorld"
+//	}
+//
+// For the most part, this is something which will not have a big impact.
+// But if you wish to change the keys, you can use the yaml structtags.
+// The above example:
+//
+//	type MyStruct struct {
+//		Name string `yaml:"Name"`
+//	}
+//
+// Will result in the following data, just as expected:
+//
+//	Data {
+//		"Name": "HelloWorld"
+//	}
 func NewData(input interface{}) (Data, error) {
+	if input == nil {
+		return make(Data), nil
+	}
+
 	outBytes, err := yaml.Marshal(input)
 	if err != nil {
 		return nil, err
@@ -53,11 +87,18 @@ func (d Data) HasKey(key string) bool {
 // Get returns the value at `Data[key]` as [Data].
 // Note that his function does not support paths like `HasKey("foo.bar.baz")`.
 // For that you can use [GetPath]
+//
+// Note that if the value key points to cannot be converted to [Data], nil is returned
 func (d Data) Get(key string) Data {
 	if d[key] == nil {
 		return nil
 	}
-	return d[key].(Data)
+
+	if ret, ok := d[key].(Data); ok {
+		return ret
+	}
+
+	return nil
 }
 
 // GetPath allows path based indexing into Data.
@@ -74,16 +115,9 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 		case Data:
 			key, ok := el.(string)
 			if !ok {
-				return nil, fmt.Errorf("unexpected string key in map[string]interface '%T' at index %d", el, i)
+				return nil, fmt.Errorf("unexpected key type (%T) for Data at index %d", el, i)
 			}
 			tree, ok = node[key]
-			if !ok {
-				return nil, fmt.Errorf("key not found: %v", el)
-			}
-
-		case map[interface{}]interface{}:
-			var ok bool
-			tree, ok = node[el]
 			if !ok {
 				return nil, fmt.Errorf("key not found: %v", el)
 			}
@@ -93,11 +127,11 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 			if !ok {
 				index, err = strconv.Atoi(fmt.Sprint(el))
 				if err != nil {
-					return nil, fmt.Errorf("unexpected integer path element '%v' (%T)", el, el)
+					return nil, fmt.Errorf("unexpected key type (%T) for []interface{} at index %d", el, i)
 				}
 			}
 			if index < 0 || index >= len(node) {
-				return nil, fmt.Errorf("path index out of range: %d", index)
+				return nil, fmt.Errorf("index out of range: %d", index)
 			}
 			tree = node[index]
 

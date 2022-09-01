@@ -36,9 +36,6 @@ func NewClass(file *YamlFile, relativeClassPath string) (*Class, error) {
 
 	// class file cannot be empty, there must be exactly one yaml root-key which must define a map
 	val := reflect.ValueOf(file.Data)
-	if val.Kind() != reflect.Map {
-		return nil, fmt.Errorf("class '%s' root key does not define a map", name)
-	}
 	if len(val.MapKeys()) == 0 {
 		return nil, fmt.Errorf("class '%s' does not have a root-key", name)
 	}
@@ -60,6 +57,9 @@ func (c *Class) Data() *Data {
 // RootKey returns the root key name of the class.
 func (c *Class) RootKey() string {
 	val := reflect.ValueOf(c.Data()).Elem()
+	if len(val.MapKeys()) == 0 {
+		return ""
+	}
 	return val.MapKeys()[0].String()
 }
 
