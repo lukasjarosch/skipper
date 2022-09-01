@@ -2,9 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"log"
-	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -23,27 +20,43 @@ type SecretDriver interface {
 // SecretDriverFactory is any function which is capable of returning a driver, given the type.
 type SecretDriverFactory func(driverName string) (SecretDriver, error)
 
-type Secret struct {
+type SecretFile struct {
 	*YamlFile
+	RelativePath string
+}
+
+type SecretFileList []*SecretFile
+
+func NewSecretFile(file *YamlFile, relativeSecretPath string) (*SecretFile, error) {
+	return &SecretFile{
+		YamlFile:     file,
+		RelativePath: relativeSecretPath,
+	}, nil
+}
+
+func (sfl SecretFileList) GetSecretFile(path string) (*SecretFile, error) {
+	for _, secretFile := range sfl {
+		if strings.EqualFold(secretFile.RelativePath, path) {
+			return secretFile, nil
+		}
+	}
+	return nil, fmt.Errorf("no secret with path '%s'", path)
+}
+
+type Secret struct {
+	*SecretFile
 	Driver            SecretDriver
 	DriverName        string
 	AlternativeAction string
 	Identifier        []interface{}
-	basePath          string
 }
 
-func NewSecret(driver, file, alternative string, path []interface{}, secretPath string) (*Secret, error) {
-	f, err := NewFile(filepath.Join(secretPath, file))
-	if err != nil {
-		return nil, err
-	}
-
+func NewSecret(secretFile *SecretFile, driver, alternative string, path []interface{}) (*Secret, error) {
 	s := &Secret{
+		SecretFile:        secretFile,
 		DriverName:        driver,
 		AlternativeAction: alternative,
-		YamlFile:          f,
 		Identifier:        path,
-		basePath:          secretPath,
 	}
 
 	return s, nil
@@ -94,71 +107,67 @@ func (s *Secret) Value() (string, error) {
 
 // FullName returns the full secret name as it would be expected to ocurr in a class/target.
 func (s Secret) FullName() string {
-	// FIXME: this is just hacky. the path handling needs to be properly made...
-	path := strings.Trim(strings.ReplaceAll(s.Path, s.basePath, ""), "/")
-
 	if len(s.AlternativeAction) > 0 {
-		return fmt.Sprintf("?{%s:%s|%s}", s.DriverName, path, s.AlternativeAction)
+		return fmt.Sprintf("?{%s:%s|%s}", s.DriverName, s.SecretFile.RelativePath, s.AlternativeAction)
 	} else {
-		return fmt.Sprintf("?{%s:%s}", s.DriverName, path)
+		return fmt.Sprintf("?{%s:%s}", s.DriverName, s.SecretFile.RelativePath)
 	}
 }
 
-type SecretList []*Secret
-
-// TODO eventually combine FindVariables and FindSecrets
-func FindSecrets(data any, secretPath string) (secrets SecretList) {
-
-	// newPath is used to copy an existing []interface and hard-copy it.
-	// This is required because Go wants to optimize slice usage by reusing memory.
-	// Most of the time, this is totally fine, but in this case it would mess up the slice
-	// by changing the path []interface of already found secrets.
-	newPath := func(path []interface{}, appendValue interface{}) []interface{} {
-		tmp := make([]interface{}, len(path))
-		copy(tmp, path)
-		tmp = append(tmp, appendValue)
-		return tmp
+// FindSecrets will leverage the `FindValues` function of [Data] to recursively search for secrets.
+// All returned values are converted to *Secret and then returned as []*Secret.
+func FindSecrets(data Data, secretFiles SecretFileList) ([]*Secret, error) {
+	var foundValues []interface{}
+	err := data.FindValues(secretFindValueFunc(secretFiles), &foundValues)
+	if err != nil {
+		return nil, err
 	}
 
-	var walk func(reflect.Value, []interface{})
-	walk = func(v reflect.Value, path []interface{}) {
-
-		// fix indirects through pointers and interfaces
-		for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
-			v = v.Elem()
+	var foundSecrets []*Secret
+	for _, val := range foundValues {
+		// secretFindValueFunc returns []*Variable so we need to ensure that matches
+		vars, ok := val.([]*Secret)
+		if !ok {
+			return nil, fmt.Errorf("unexpected error during variable detection, file a bug report")
 		}
 
-		switch v.Kind() {
-		case reflect.Array, reflect.Slice:
-			for i := 0; i < v.Len(); i++ {
-				walk(v.Index(i), newPath(path, i))
-			}
-		case reflect.Map:
-			for _, key := range v.MapKeys() {
-				if v.MapIndex(key).IsNil() {
-					break
-				}
+		foundSecrets = append(foundSecrets, vars...)
+	}
 
-				walk(v.MapIndex(key), newPath(path, key.String()))
-			}
-		default:
-			// Here we've arrived at actual values, hence we can check whether the value is a secret
-			matches := secretRegex.FindAllStringSubmatch(v.String(), -1)
-			if len(matches) > 0 {
-				for _, secret := range matches {
-					if len(secret) >= 3 {
-						// based on the regex, we're interested in capture group 1 (driver), 2 (file) and 4 (alternative)
-						newSecret, err := NewSecret(secret[1], secret[2], secret[4], path, secretPath)
-						if err != nil {
-							log.Fatalln(fmt.Errorf("invalid secret detected: %w", err)) // this error is not recoverable, user error
-						}
-						secrets = append(secrets, newSecret)
+	return foundSecrets, nil
+}
+
+// secretFindValueFunc implements the [FindValueFunc] and searches for secrets inside [Data].
+// Secrets can be found by matching any value to the [secretRegex].
+// All found secrets are initialized and matched agains the SecretFileList to ensure they exist.
+// The function returns `[]*String` which needs to be restored afterwards.
+func secretFindValueFunc(secretFiles SecretFileList) FindValueFunc {
+	return func(value string, path []interface{}) (val interface{}, err error) {
+		var secrets []*Secret
+
+		matches := secretRegex.FindAllStringSubmatch(value, -1)
+		if len(matches) > 0 {
+			for _, secret := range matches {
+				if len(secret) >= 3 {
+
+					secretDriver := secret[1]
+					secretRelativePath := secret[2]
+					secretAlternativeAction := secret[4]
+
+					secretFile, err := secretFiles.GetSecretFile(secretRelativePath)
+					if err != nil {
+						return nil, err
 					}
+
+					newSecret, err := NewSecret(secretFile, secretDriver, secretAlternativeAction, path)
+					if err != nil {
+						return nil, fmt.Errorf("invalid secret detected: %w", err)
+					}
+
+					secrets = append(secrets, newSecret)
 				}
 			}
 		}
+		return secrets, nil
 	}
-	walk(reflect.ValueOf(data), nil)
-
-	return secrets
 }

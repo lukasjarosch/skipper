@@ -21,6 +21,7 @@ type Inventory struct {
 	classPath      string
 	targetPath     string
 	secretPath     string
+	secretFiles    []*SecretFile
 	classFiles     []*Class
 	targetFiles    []*Target
 }
@@ -56,7 +57,7 @@ func NewInventory(fs afero.Fs, classPath, targetPath, secretPath string) (*Inven
 		classPath:      classPath,
 		targetPath:     targetPath,
 		secretPath:     secretPath,
-		fileExtensions: []string{".yml", ".yaml"},
+		fileExtensions: []string{".yml", ".yaml", ""},
 	}
 
 	return inv, nil
@@ -104,7 +105,6 @@ func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string
 		return err
 	}
 
-	log.Println(classFilePath, classFile.Path)
 	newClass, err := NewClass(classFile, classFilePath)
 	if err != nil {
 		return err
@@ -135,6 +135,12 @@ func (inv *Inventory) Load() error {
 				return fmt.Errorf("target '%s' uses class '%s' which does not exist", target.Name, class)
 			}
 		}
+	}
+
+	// load all secret files which exist in the inventory
+	err = inv.loadSecretFiles(inv.secretPath)
+	if err != nil {
+		return fmt.Errorf("unable to load secret files: %w", err)
 	}
 
 	return nil
@@ -231,7 +237,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	}
 
 	// load and validate secrets, but do NOT actually use the drivers to load the values and replace them
-	secrets := FindSecrets(data, inv.secretPath)
+	secrets, err := FindSecrets(data, inv.secretFiles)
 	for _, secret := range secrets {
 		log.Println("found secret", secret.FullName())
 
@@ -244,7 +250,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 				return nil, fmt.Errorf("not implemented")
 			})
 			if err != nil {
-				log.Fatalln(fmt.Errorf("failed to load secret: %w", err))
+				return nil, fmt.Errorf("failed to load secret: %w", err)
 			}
 
 			if revealSecrets {
@@ -276,7 +282,10 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string]interface{}) (err error) {
 
 	// Determine which variables exist in the Data map
-	variables := FindVariables(data)
+	variables, err := FindVariables(data)
+	if err != nil {
+		return err
+	}
 
 	// TODO: remove
 	for _, variable := range variables {
@@ -435,6 +444,36 @@ func (inv *Inventory) loadClassFiles(classPath string) error {
 			return fmt.Errorf("%s: %w", class.Path, err)
 		}
 		inv.classFiles = append(inv.classFiles, c)
+	}
+	return nil
+}
+
+func (inv *Inventory) loadSecretFiles(secretPath string) error {
+	secretFiles, err := inv.discoverFiles(secretPath)
+	if err != nil {
+		return err
+	}
+
+	// load all secret files
+	for _, secret := range secretFiles {
+		err = secret.Load(inv.fs)
+		if err != nil {
+			return err
+		}
+
+		// skip empty files
+		if len(secret.Data) == 0 {
+			continue
+		}
+
+		relativePath := strings.ReplaceAll(secret.Path, secretPath, "")
+		relativePath = strings.TrimLeft(relativePath, "/")
+
+		c, err := NewSecretFile(secret, relativePath)
+		if err != nil {
+			return fmt.Errorf("%s: %w", secret.Path, err)
+		}
+		inv.secretFiles = append(inv.secretFiles, c)
 	}
 	return nil
 }
