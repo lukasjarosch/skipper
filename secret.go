@@ -128,7 +128,7 @@ func FindSecrets(data Data, secretFiles SecretFileList) ([]*Secret, error) {
 		// secretFindValueFunc returns []*Variable so we need to ensure that matches
 		vars, ok := val.([]*Secret)
 		if !ok {
-			return nil, fmt.Errorf("unexpected error during variable detection, file a bug report")
+			return nil, fmt.Errorf("unexpected error during secret detection, file a bug report")
 		}
 
 		foundSecrets = append(foundSecrets, vars...)
@@ -139,7 +139,7 @@ func FindSecrets(data Data, secretFiles SecretFileList) ([]*Secret, error) {
 
 // secretFindValueFunc implements the [FindValueFunc] and searches for secrets inside [Data].
 // Secrets can be found by matching any value to the [secretRegex].
-// All found secrets are initialized and matched agains the SecretFileList to ensure they exist.
+// All found secrets are initialized, matched agains the SecretFileList to ensure they exist and added to the output.
 // The function returns `[]*String` which needs to be restored afterwards.
 func secretFindValueFunc(secretFiles SecretFileList) FindValueFunc {
 	return func(value string, path []interface{}) (val interface{}, err error) {
