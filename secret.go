@@ -114,6 +114,14 @@ func (s Secret) FullName() string {
 	}
 }
 
+func (s Secret) Path() string {
+	var segments []string
+	for _, seg := range s.Identifier {
+		segments = append(segments, fmt.Sprint(seg))
+	}
+	return strings.Join(segments, ".")
+}
+
 // FindSecrets will leverage the `FindValues` function of [Data] to recursively search for secrets.
 // All returned values are converted to *Secret and then returned as []*Secret.
 func FindSecrets(data Data, secretFiles SecretFileList) ([]*Secret, error) {
