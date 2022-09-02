@@ -3,14 +3,14 @@ package skipper
 import (
 	"fmt"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 )
 
 const (
-	targetKey string = "target"
-	useKey    string = "use"
+	targetKey  string = "target"
+	useKey     string = "use"
+	skipperKey string = "skipper"
 )
 
 var wildcardUseRegex regexp.Regexp = *regexp.MustCompile(`^\w+\.\*$`)
@@ -20,13 +20,23 @@ type Target struct {
 	File *YamlFile
 	// Name is the relative path of the file inside the inventory
 	// where '/' is replaced with '.' and without file extension.
-	Name                string
-	UsedClasses         []string
+	Name string
+	// UsedClasses holds the resolved class names which are specified in the `target.skipper.use` key.
+	UsedClasses []string
+	// UsedWildcardClasses holds all resolved wildcard class imports as specified in the `targets.skipper.use` key.
 	UsedWildcardClasses []string
+	// Configuration is the skipper-internal configuration which needs to be present on every target.
+	Configuration TargetConfig
 }
 
 type TargetConfig struct {
-	Use []string `mapstructure:"use"`
+	Use     []string           `mapstructure:"use"`
+	Secrets TargetSecretConfig `mapstructure:"secrets,omitempty"`
+}
+
+type TargetSecretConfig struct {
+	Drivers map[string]interface{} `mapstructure:"drivers"`
+	Keys    map[string]string      `mapstructure:"keys"`
 }
 
 func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
@@ -46,12 +56,20 @@ func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 		return nil, fmt.Errorf("target must have valid top-level key")
 	}
 
-	target := &Target{
-		File: file,
-		Name: name,
+	// every target must have the 'skipper' key, which is used to load the Skipper-internal target configuration
+	var config TargetConfig
+	err := file.UnmarshalPath(&config, targetKey, skipperKey)
+	if err != nil {
+		return nil, fmt.Errorf("missing skipper key in target: %w", err)
 	}
 
-	err := target.loadUsedClasses()
+	target := &Target{
+		File:          file,
+		Name:          name,
+		Configuration: config,
+	}
+
+	err = target.loadUsedClasses()
 	if err != nil {
 		return nil, err
 	}
@@ -70,31 +88,21 @@ func (t *Target) Data() Data {
 // with a value of kind []string which is not empty. At least one class must be used by every target.
 // If these preconditions are met, the values are loaded into 'UsedClasses'.
 func (t *Target) loadUsedClasses() error {
-	if !t.File.Data.Get(targetKey).HasKey(useKey) {
-		return fmt.Errorf("target does not have a '%s.%s' key", targetKey, useKey)
-	}
 
-	useValue := t.File.Data.Get(targetKey)[useKey]
-	if useValue == nil {
+	if len(t.Configuration.Use) <= 1 {
 		return fmt.Errorf("target must use at least one class")
 	}
 
-	if reflect.TypeOf(useValue).Kind() != reflect.Slice {
-		return fmt.Errorf("%s.%s must be a string array", targetKey, useKey)
-	}
-
 	// convert []interface to []string
-	for _, class := range useValue.([]interface{}) {
-		className := class.(string)
-
+	for _, class := range t.Configuration.Use {
 		// load wildcard imports separately as they need to be resolved
-		if match := wildcardUseRegex.FindAllString(className, 1); len(match) == 1 {
+		if match := wildcardUseRegex.FindAllString(class, 1); len(match) == 1 {
 			wildcardUse := match[0]
 			t.UsedWildcardClasses = append(t.UsedWildcardClasses, wildcardUse)
 			continue
 		}
 
-		t.UsedClasses = append(t.UsedClasses, className)
+		t.UsedClasses = append(t.UsedClasses, class)
 	}
 
 	return nil
