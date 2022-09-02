@@ -96,6 +96,25 @@ func (f *YamlFile) Load(fs afero.Fs) error {
 	return nil
 }
 
+// UnmarshalPath can be used to unmarshall only a sub-map of the Data inside [YamlFile].
+// The function errors if the file has not been loaded.
+func (f *YamlFile) UnmarshalPath(target interface{}, path ...interface{}) error {
+	if f.Data == nil {
+		return fmt.Errorf("yaml file not loaded, no data exists")
+	}
+	data, err := f.Data.GetPath(path...)
+	if err != nil {
+		return err
+	}
+
+	bytes, err := yaml.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(bytes, target)
+}
+
 // TemplateFile represents a file which is used as Template.
 type TemplateFile struct {
 	file
