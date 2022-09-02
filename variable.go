@@ -26,6 +26,14 @@ func (v Variable) FullName() string {
 	return fmt.Sprintf("${%s}", v.Name)
 }
 
+func (v Variable) Path() string {
+	var segments []string
+	for _, seg := range v.Identifier {
+		segments = append(segments, fmt.Sprint(seg))
+	}
+	return strings.Join(segments, ".")
+}
+
 func (v Variable) NameAsIdentifier() (id []interface{}) {
 	tmp := strings.Split(v.Name, ":")
 	id = make([]interface{}, len(tmp))
