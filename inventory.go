@@ -236,19 +236,27 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		return nil, err
 	}
 
-	// load and validate secrets, but do NOT actually use the drivers to load the values and replace them
-	secrets, err := FindSecrets(data, inv.secretFiles)
+	// TODO: move elsewhere and provide is as default (e.g. DefaultSecretDriverFactory) or allow the user to provide their own.
+	secretDriverFactory := func(driverName string) (SecretDriver, error) {
+		switch strings.ToLower(driverName) {
+		case "plain":
+			return driver.NewPlain()
+		}
+		return nil, fmt.Errorf("not implemented")
+	}
+
+	// find all secrets or attempt to create them if an alternative action is set
+	secrets, err := FindOrCreateSecrets(data, inv.secretFiles, inv.secretPath, inv.fs, secretDriverFactory)
+	if err != nil {
+		return nil, err
+	}
+
+	// load all secrets
 	for _, secret := range secrets {
-		log.Println("found secret", secret.FullName())
+		log.Println("found secret", secret.FullName(), "at", secret.Path())
 
 		if secret.Exists(inv.fs) {
-			err = secret.Load(inv.fs, func(driverName string) (SecretDriver, error) {
-				switch strings.ToLower(driverName) {
-				case "plain":
-					return driver.NewPlain()
-				}
-				return nil, fmt.Errorf("not implemented")
-			})
+			err = secret.Load(inv.fs, secretDriverFactory)
 			if err != nil {
 				return nil, fmt.Errorf("failed to load secret: %w", err)
 			}
@@ -270,7 +278,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 			}
 
 		} else {
-			return nil, fmt.Errorf("referenced non-existing secret file '%s' in secret variable %s", secret.Path, secret.FullName())
+			return nil, fmt.Errorf("referenced non-existing secret file '%s' in secret variable %s", secret.Path(), secret.FullName())
 		}
 	}
 
@@ -289,7 +297,7 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 
 	// TODO: remove
 	for _, variable := range variables {
-		log.Println("found variable", variable.FullName())
+		log.Println("found variable", variable.FullName(), "at", variable.Path())
 	}
 
 	if len(variables) == 0 {
