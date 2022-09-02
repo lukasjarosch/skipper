@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 
 // secretRegex match pattern
 // ?{driver:path/to/file|ifNotExistsAction}
-var secretRegex = regexp.MustCompile(`\?\{(\w*)\:([\w\/\-\.\_]+)(\|([\w\-\_\.]+))?\}`)
+var secretRegex = regexp.MustCompile(`\?\{(\w+)\:([\w\/\-\.\_]+)(\|\|([\w\-\_\.\:]+))?\}`)
 
 type SecretDriver interface {
 	Type() string
@@ -34,13 +35,13 @@ func NewSecretFile(file *YamlFile, relativeSecretPath string) (*SecretFile, erro
 	}, nil
 }
 
-func (sfl SecretFileList) GetSecretFile(path string) (*SecretFile, error) {
+func (sfl SecretFileList) GetSecretFile(path string) *SecretFile {
 	for _, secretFile := range sfl {
 		if strings.EqualFold(secretFile.RelativePath, path) {
-			return secretFile, nil
+			return secretFile
 		}
 	}
-	return nil, fmt.Errorf("no secret with path '%s'", path)
+	return nil
 }
 
 type Secret struct {
@@ -71,13 +72,13 @@ func (s *Secret) Load(fs afero.Fs, factory SecretDriverFactory) error {
 
 	// every secret needs to have a 'data' key in which the actual secret is stored (encrypted on in plaintext depends on the type)
 	if _, exists := s.Data["data"]; !exists {
-		return fmt.Errorf("missing 'data' key in secret file: %s", s.Path)
+		return fmt.Errorf("missing 'data' key in secret file: %s", s.Path())
 	}
 
 	// the 'type' key also needs to exist and it must be a string. It tells us which driver to load.
 	typ, exists := s.Data["type"]
 	if !exists {
-		return fmt.Errorf("missing 'type' key in secret file: %s", s.Path)
+		return fmt.Errorf("missing 'type' key in secret file: %s", s.Path())
 	}
 	driverType, ok := typ.(string)
 	if !ok {
@@ -86,6 +87,7 @@ func (s *Secret) Load(fs afero.Fs, factory SecretDriverFactory) error {
 
 	// attempt to load the driver with the given factory
 	// FIXME: currently we're loading the driver for every secret. This will become ineffective once we're using actual clients and needs to be addressed.
+	// FIXME: if the secret was created dynamically, the driver is alredy set
 	driver, err := factory(s.DriverName)
 	if err != nil {
 		return fmt.Errorf("cannot initialize driver '%s': %w", s.DriverName, err)
@@ -108,7 +110,7 @@ func (s *Secret) Value() (string, error) {
 // FullName returns the full secret name as it would be expected to ocurr in a class/target.
 func (s Secret) FullName() string {
 	if len(s.AlternativeAction) > 0 {
-		return fmt.Sprintf("?{%s:%s|%s}", s.DriverName, s.SecretFile.RelativePath, s.AlternativeAction)
+		return fmt.Sprintf("?{%s:%s||%s}", s.DriverName, s.SecretFile.RelativePath, s.AlternativeAction)
 	} else {
 		return fmt.Sprintf("?{%s:%s}", s.DriverName, s.SecretFile.RelativePath)
 	}
@@ -124,7 +126,7 @@ func (s Secret) Path() string {
 
 // FindSecrets will leverage the `FindValues` function of [Data] to recursively search for secrets.
 // All returned values are converted to *Secret and then returned as []*Secret.
-func FindSecrets(data Data, secretFiles SecretFileList) ([]*Secret, error) {
+func FindOrCreateSecrets(data Data, secretFiles SecretFileList, secretPath string, fs afero.Fs, driverFactory SecretDriverFactory) ([]*Secret, error) {
 	var foundValues []interface{}
 	err := data.FindValues(secretFindValueFunc(secretFiles), &foundValues)
 	if err != nil {
@@ -137,6 +139,37 @@ func FindSecrets(data Data, secretFiles SecretFileList) ([]*Secret, error) {
 		vars, ok := val.([]*Secret)
 		if !ok {
 			return nil, fmt.Errorf("unexpected error during secret detection, file a bug report")
+		}
+
+		// find all secrets which do not have a file associated, these are candidates for automatic creation
+		for _, secret := range vars {
+			if secret.SecretFile.YamlFile == nil {
+
+				// TODO: create actual file (if possible)
+				// TODO: add file to SecretFileList
+
+				// if the secret does not have an alternative action, it is considered invalid and we cannot continue
+				if secret.AlternativeAction == "" {
+					return nil, fmt.Errorf("found secret without secret file and no alternative action: %s in '%s'", secret.FullName(), secret.Path())
+				}
+
+				// attempt to auto-create the secret using the AlternativeAction
+				secretFile, err := NewFile(secretPath)
+				if err != nil {
+					return nil, err
+				}
+				secret.YamlFile = secretFile
+
+				// load driver
+				// FIXME: load drivers globally?
+				driver, err := driverFactory(secret.DriverName)
+				if err != nil {
+					return nil, fmt.Errorf("cannot initialize driver '%s': %w", secret.DriverName, err)
+				}
+				secret.Driver = driver
+
+				log.Println("CREATE SECRET", secret.Path())
+			}
 		}
 
 		foundSecrets = append(foundSecrets, vars...)
@@ -162,16 +195,22 @@ func secretFindValueFunc(secretFiles SecretFileList) FindValueFunc {
 					secretRelativePath := secret[2]
 					secretAlternativeAction := secret[4]
 
-					secretFile, err := secretFiles.GetSecretFile(secretRelativePath)
-					if err != nil {
-						return nil, err
+					// in case the secret file does not (yet) exist, the secretFile will be nil
+					secretFile := secretFiles.GetSecretFile(secretRelativePath)
+
+					// if the secretFile is nil, the secret does not (yet) exist.
+					// we will need to create it further on, but store the relative path by creating an empty [SecretFile]
+					if secretFile == nil {
+						secretFile, err = NewSecretFile(nil, secretRelativePath)
+						if err != nil {
+							return nil, err
+						}
 					}
 
 					newSecret, err := NewSecret(secretFile, secretDriver, secretAlternativeAction, path)
 					if err != nil {
 						return nil, fmt.Errorf("invalid secret detected: %w", err)
 					}
-
 					secrets = append(secrets, newSecret)
 				}
 			}
