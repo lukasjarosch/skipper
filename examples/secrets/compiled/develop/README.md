@@ -49,19 +49,29 @@
       }
     },
     "target": {
-      "use": [
-        "azure.common",
-        "azure.resources",
-        "gitlab.common",
-        "terraform.identifiers",
-        "terraform.common"
-      ]
+      "skipper": {
+        "secrets": {
+          "keys": {
+            "aes": "some-hardcoded-aes-key",
+            "azurekv": "https://...."
+          }
+        },
+        "use": [
+          "azure.common",
+          "azure.resources",
+          "gitlab.common",
+          "terraform.identifiers",
+          "terraform.common"
+        ]
+      }
     },
     "terraform": {
       "common": {
         "backend": {
           "address": "https://mygitlab.example.com",
           "multipleSecrets": "ThisIsMySecret---AnotherSecretValueYay",
+          "newDriver": "RANDOM",
+          "nonExistingSecretWithAlternativeAction": "YYowXUlOmc0vsbEI9twsa1f6FeI9wTLfRtf9XzrChslW9exqfPqXZoLEk3RVlgYG",
           "password": "ThisIsMySecret",
           "state_name": "develop.tfstate"
         },
