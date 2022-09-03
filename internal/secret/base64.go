@@ -1,19 +1,20 @@
 package secret
 
 import (
+	"encoding/base64"
 	"fmt"
 )
 
-// Plain is the most basic secret driver.
+// Base64 is the most basic secret driver.
 // It does not expect any encryption and will just return any data which exists in the secret files.
-type Plain struct {
+type Base64 struct {
 	initialized bool
 	data        map[string]interface{}
 }
 
-// NewPlain returns a newly initialized Plain driver.
-func NewPlain() (*Plain, error) {
-	driver := Plain{
+// NewBase64 returns a newly initialized Plain driver.
+func NewBase64() (*Base64, error) {
+	driver := Base64{
 		initialized: true, // the driver does not require initialization
 	}
 
@@ -23,7 +24,7 @@ func NewPlain() (*Plain, error) {
 // Value returns the secret value for the plaintext driver.
 // The value is whatever is given in the 'data' field of the secret file.
 // As long as the key exists and is a string, it is returned. Otherwise an error is returned.
-func (p *Plain) Value(data map[string]interface{}) (string, error) {
+func (p *Base64) Value(data map[string]interface{}) (string, error) {
 	if !p.initialized {
 		return "", fmt.Errorf("driver not initialized: %s", p.Type())
 	}
@@ -39,29 +40,31 @@ func (p *Plain) Value(data map[string]interface{}) (string, error) {
 	return secretValue, nil
 }
 
-func (p *Plain) Decrypt(encrypted string) (string, error) {
+func (p *Base64) Decrypt(encrypted string) (string, error) {
 	if !p.initialized {
 		return "", fmt.Errorf("driver not initialized: %s", p.Type())
 	}
 
-	// the plain driver does not do anything
-	return encrypted, nil
+	out, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }
 
-func (p *Plain) Encrypt(input string) (string, error) {
+func (p *Base64) Encrypt(input string) (string, error) {
 	if !p.initialized {
 		return "", fmt.Errorf("driver not initialized: %s", p.Type())
 	}
 
-	// the plain driver does not do anything
-	return input, nil
+	return base64.StdEncoding.EncodeToString([]byte(input)), nil
 }
 
-func (p *Plain) Initialize(config map[string]interface{}) error {
+func (p *Base64) Initialize(config map[string]interface{}) error {
 	p.initialized = true
 	return nil
 }
 
-func (p *Plain) Type() string {
-	return "plain"
+func (p *Base64) Type() string {
+	return "base64"
 }
