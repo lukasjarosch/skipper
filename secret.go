@@ -11,7 +11,7 @@ import (
 )
 
 // secretRegex match pattern
-// ?{driver:path/to/file|ifNotExistsAction}
+// ?{driver:path/to/file||ifNotExistsAction:actionParam}
 var secretRegex = regexp.MustCompile(`\?\{(\w+)\:([\w\/\-\.\_]+)(\|\|([\w\-\_\.\:]+))?\}`)
 
 type Secret struct {
