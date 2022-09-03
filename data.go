@@ -256,7 +256,10 @@ func (d Data) FindValues(valueFunc FindValueFunc, target *[]interface{}) (err er
 		switch v.Kind() {
 		case reflect.Array, reflect.Slice:
 			for i := 0; i < v.Len(); i++ {
-				walk(v.Index(i), newPath(path, i))
+				err := walk(v.Index(i), newPath(path, i))
+				if err != nil {
+					return err
+				}
 			}
 		case reflect.Map:
 			for _, key := range v.MapKeys() {
@@ -264,7 +267,10 @@ func (d Data) FindValues(valueFunc FindValueFunc, target *[]interface{}) (err er
 					break
 				}
 
-				walk(v.MapIndex(key), newPath(path, key.String()))
+				err := walk(v.MapIndex(key), newPath(path, key.String()))
+				if err != nil {
+					return err
+				}
 			}
 		default:
 			// at this point we have found a value and give off control to the given valueFunc
