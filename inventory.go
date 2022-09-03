@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	driver "github.com/lukasjarosch/skipper/internal/secret"
 	"github.com/spf13/afero"
 )
 
@@ -147,6 +146,8 @@ func (inv *Inventory) Load() error {
 }
 
 // Data loads the required inventory data map given the target.
+// This is where variables and secrets are handled and eventually replaced.
+// The resulting Data is what can be passed to the templates.
 func (inv *Inventory) Data(targetName string, predefinedVariables map[string]interface{}, revealSecrets bool) (data Data, err error) {
 	data = make(Data)
 
@@ -165,124 +166,151 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		classes = append(classes, class)
 	}
 
-	// ensure that the loaded class-data does not conflict
-	// If two classes with the same root-key are selected, we cannot continue.
-	// We could attempt to perform a 'smart' merge or apply some precendende rules, but
-	// this will inevitably cause unexpected behaviour which is not what we want.
-	for _, class := range classes {
+	// merge data from all classes into Data, preserving the class path.
+	// A class with path "foo.bar.class" will be added like: Data["foo"]["bar"]["baz"] = classData
+	{
+		// ensure that the loaded class-data does not conflict
+		// If two classes with the same root-key are selected, we cannot continue.
+		// We could attempt to perform a 'smart' merge or apply some precendende rules, but
+		// this will inevitably cause unexpected behaviour which is not what we want.
+		for _, class := range classes {
 
-		// If the class name has multiple segments (foo.bar.baz), we will need to
-		// add the keys do Data, so that Data[foo][bar][baz] is where the data of the class will be added.
-		classSegments := strings.Split(class.Name, ".")
-		if len(classSegments) > 1 {
-			tmp := data
+			// If the class name has multiple segments (foo.bar.baz), we will need to
+			// add the keys do Data, so that Data[foo][bar][baz] is where the data of the class will be added.
+			classSegments := strings.Split(class.Name, ".")
+			if len(classSegments) > 1 {
+				tmp := data
 
-			for _, segment := range classSegments {
+				for _, segment := range classSegments {
 
-				if !tmp.HasKey(segment) {
-					tmp[segment] = make(Data)
+					if !tmp.HasKey(segment) {
+						tmp[segment] = make(Data)
+					}
+
+					// as long as the current segment is not the RootKey, shift tmp by the segment
+					if segment != class.RootKey() {
+						tmp = tmp[segment].(Data)
+						continue
+					}
+
+					// add class data to RootKey. Since we're here, RootKey==segment, hence we can add it here.
+					if class.Data().Get(class.RootKey()) == nil {
+						continue
+					}
+					tmp[class.RootKey()] = class.Data().Get(class.RootKey())
+
 				}
-
-				// as long as the current segment is not the RootKey, shift tmp by the segment
-				if segment != class.RootKey() {
-					tmp = tmp[segment].(Data)
-					continue
+			} else {
+				// class does not have a dot separator, hence we just check if the RootKey exists and add the data
+				if _, exists := data[class.RootKey()]; exists {
+					return nil, fmt.Errorf("duplicate key '%s' registered by class '%s'", class.RootKey(), class.Name)
 				}
-
-				// add class data to RootKey. Since we're here, RootKey==segment, hence we can add it here.
-				if class.Data().Get(class.RootKey()) == nil {
-					continue
-				}
-				tmp[class.RootKey()] = class.Data().Get(class.RootKey())
-
+				data[class.RootKey()] = class.Data().Get(class.RootKey())
 			}
-		} else {
-			// class does not have a dot separator, hence we just check if the RootKey exists and add the data
-			if _, exists := data[class.RootKey()]; exists {
-				return nil, fmt.Errorf("duplicate key '%s' registered by class '%s'", class.RootKey(), class.Name)
-			}
-			data[class.RootKey()] = class.Data().Get(class.RootKey())
-		}
 
-	}
-
-	// next we need to determine which keys are present in the target which are also defined by the classes
-	// these keys need to be merged into the existing data, eventually overwriting values since the target always has precendende over classes.
-	dataKeys := reflect.ValueOf(data).MapKeys()            // we know that it's a map so we skip some checks
-	targetKeys := reflect.ValueOf(target.Data()).MapKeys() // we know that it's a map so we skip some checks
-
-	targetData := target.Data()   // copy target data since we're going to delete keys and like to preserve the original
-	targetMergeData := make(Data) // target data which needs to be merged into the main data
-
-	// copy existing keys in target data into targetMergeData and remove the key from targetData.
-	for _, dataKey := range dataKeys {
-		for _, targetKey := range targetKeys {
-			if dataKey.String() == targetKey.String() {
-				targetMergeData[targetKey.String()] = targetData[targetKey.String()]
-				delete(targetData, targetKey.String())
-				break
-			}
 		}
 	}
-	data = data.MergeReplace(targetMergeData)
 
-	// add 'leftover' keys from the target under the 'target' key
-	// If - for any reason - a class `target` exists, it will be overwritten at this point.
-	// This is why we do not allow the use of that name for classes.
-	data[targetKey] = targetData
+	// Determine which keys are present in the target which are also defined by the classes.
+	// Merge target into Data, overwriting any existing values which were defined in classes because target data has precedence over class data.
+	// Any key which is not added to the main Data (because the keys did not already exist), will be added under the 'target' key.
+	{
+		dataKeys := reflect.ValueOf(data).MapKeys()            // we know that it's a map so we skip some checks
+		targetKeys := reflect.ValueOf(target.Data()).MapKeys() // we know that it's a map so we skip some checks
 
+		targetData := target.Data()   // copy target data since we're going to delete keys and want to preserve the original
+		targetMergeData := make(Data) // target data which needs to be merged into the main data
+
+		// copy existing keys in target data into targetMergeData and remove the key from targetData.
+		for _, dataKey := range dataKeys {
+			for _, targetKey := range targetKeys {
+				if dataKey.String() == targetKey.String() {
+					targetMergeData[targetKey.String()] = targetData[targetKey.String()]
+					delete(targetData, targetKey.String())
+					break
+				}
+			}
+		}
+		data = data.MergeReplace(targetMergeData)
+
+		// add all 'leftover' keys - which were not already merged with the data provided by the classes - into the 'target' key
+		data[targetKey] = targetData
+	}
+
+	// replace all ordinary variables (`${...}`) inside the data
 	err = inv.replaceVariables(data, predefinedVariables)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: move elsewhere and provide is as default (e.g. DefaultSecretDriverFactory) or allow the user to provide their own.
-	secretDriverFactory := func(driverName string) (SecretDriver, error) {
-		switch strings.ToLower(driverName) {
-		case "plain":
-			return driver.NewPlain()
+	// secret management
+	// initialize drivers, load or create secrets and eventually replace them if `revealSecrets` is true.
+	{
+		// initialize secret drivers configured by the target
+		// Note: Not all drivers require initialization, this depends on the driver (e.g. plain or base64)
+		for driverName, driverConfig := range target.Configuration.Secrets.Drivers {
+			driver, err := SecretDriverFactory(driverName)
+			if err != nil {
+				return nil, fmt.Errorf("target contains invalid secret driver configuration: %w", err)
+			}
+
+			err = driver.Initialize(driverConfig.(map[string]interface{}))
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize driver '%s': %w", driverName, err)
+			}
 		}
-		return nil, fmt.Errorf("not implemented")
-	}
 
-	// find all secrets or attempt to create them if an alternative action is set
-	secrets, err := FindOrCreateSecrets(data, inv.secretFiles, inv.secretPath, inv.fs, secretDriverFactory)
-	if err != nil {
-		return nil, err
-	}
+		// find all secrets or attempt to create them if an alternative action is set
+		secrets, err := FindOrCreateSecrets(data, inv.secretFiles, inv.secretPath, inv.fs)
+		if err != nil {
+			return nil, err
+		}
 
-	// load all secrets
-	for _, secret := range secrets {
-		log.Println("found secret", secret.FullName(), "at", secret.Path())
+		// attempt load all secret files and replace the variables with the actual values if revealSecrets is true
+		for _, secret := range secrets {
+			log.Println("found secret", secret.FullName(), "at", secret.Path())
 
-		if secret.Exists(inv.fs) {
-			err = secret.Load(inv.fs, secretDriverFactory)
+			if !secret.Exists(inv.fs) {
+				return nil, fmt.Errorf("undefined secret '%s': file does not exist: %s", secret.FullName(), secret.SecretFile.Path)
+			}
+
+			err = secret.Load(inv.fs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to load secret: %w", err)
 			}
 
+			// if the flag is true, all secret variables will be replaced by their actual value.
+			// CAUTION: This is not something you want to do during local development, only inside your CI pipeline when the compiled output is ephemeral.
 			if revealSecrets {
-				// sourceValue is the value where the variable is. It needs to be replaced with an actual value
-				sourceValue, err := data.GetPath(secret.Identifier...)
+				err = inv.replaceSecret(data, secret)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("failed to replace secret value: %w", err)
 				}
-
-				// Replace the full variable name (${variable}) with the targetValue
-				secretValue, err := secret.Value()
-				if err != nil {
-					return nil, err
-				}
-				sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), secret.FullName(), secretValue)
-				data.SetPath(sourceValue, secret.Identifier...)
 			}
-
-		} else {
-			return nil, fmt.Errorf("referenced non-existing secret file '%s' in secret variable %s", secret.Path(), secret.FullName())
 		}
 	}
 
 	return data, nil
+}
+
+// replaceSecret will replace the given secret inside Data.
+func (inv *Inventory) replaceSecret(data Data, secret *Secret) error {
+	// sourceValue is the value where the variable is. It needs to be replaced with an actual value
+	sourceValue, err := data.GetPath(secret.Identifier...)
+	if err != nil {
+		return err
+	}
+
+	// Replace the full variable name (${variable}) with the actual secret value which will be fetched by the underlying driver.
+	secretValue, err := secret.Value()
+	if err != nil {
+		return err
+	}
+
+	sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), secret.FullName(), secretValue)
+	data.SetPath(sourceValue, secret.Identifier...)
+
+	return nil
 }
 
 // replaceVariables iterates over the given Data map and replaces all variables with the required value.
