@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
@@ -186,4 +187,68 @@ func (d Data) MergeReplace(data Data) Data {
 	}
 
 	return out
+}
+
+// FindValueFunc is a callback used to find values inside a Data map.
+// `value` is the actual found value; `path` are the path segments which point to that value
+// The function returns the extracted value and an error (if any).
+type FindValueFunc func(value string, path []interface{}) (interface{}, error)
+
+// FindValues can be used to find specific 'leaf' nodes, aka values.
+// The Data is iterated recursively and once a plain value is found, the given FindValueFunc is called.
+// It's the responsibility of the FindValueFunc to determine if the value is what is searched for.
+// The FindValueFunc can return any data, which is aggregated and written into the passed `*[]interface{}`.
+// The callee is then responsible of handling the returned value and ensuring the correct types were returned.
+func (d Data) FindValues(valueFunc FindValueFunc, target *[]interface{}) (err error) {
+	// newPath is used to copy an existing []interface and hard-copy it.
+	// This is required because Go wants to optimize slice usage by reusing memory.
+	// Most of the time, this is totally fine, but in this case it would mess up the slice
+	// by changing the path []interface of already found secrets.
+	newPath := func(path []interface{}, appendValue interface{}) []interface{} {
+		tmp := make([]interface{}, len(path))
+		copy(tmp, path)
+		tmp = append(tmp, appendValue)
+		return tmp
+	}
+
+	var walk func(reflect.Value, []interface{}) error
+	walk = func(v reflect.Value, path []interface{}) error {
+
+		// fix indirects through pointers and interfaces
+		for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+			v = v.Elem()
+		}
+
+		switch v.Kind() {
+		case reflect.Array, reflect.Slice:
+			for i := 0; i < v.Len(); i++ {
+				err := walk(v.Index(i), newPath(path, i))
+				if err != nil {
+					return err
+				}
+			}
+		case reflect.Map:
+			for _, key := range v.MapKeys() {
+				if v.MapIndex(key).IsNil() {
+					break
+				}
+
+				err := walk(v.MapIndex(key), newPath(path, key.String()))
+				if err != nil {
+					return err
+				}
+			}
+		default:
+			// at this point we have found a value and give off control to the given valueFunc
+			value, err := valueFunc(v.String(), path)
+			if err != nil {
+				return err
+			}
+			(*target) = append(*target, value)
+		}
+		return nil
+	}
+	err = walk(reflect.ValueOf(d), nil)
+
+	return err
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -24,6 +25,15 @@ func newFile(path string) (*file, error) {
 	}
 
 	return &file{Path: path}, nil
+}
+
+// Exists returns true if the file exists in the given filesystem, false otherwise.
+func (f *file) Exists(fs afero.Fs) bool {
+	exists, err := afero.Exists(fs, f.Path)
+	if err != nil {
+		return false
+	}
+	return exists
 }
 
 // Load will attempt to read the file from the given filesystem implementation.
@@ -87,6 +97,25 @@ func (f *YamlFile) Load(fs afero.Fs) error {
 	return nil
 }
 
+// UnmarshalPath can be used to unmarshall only a sub-map of the Data inside [YamlFile].
+// The function errors if the file has not been loaded.
+func (f *YamlFile) UnmarshalPath(target interface{}, path ...interface{}) error {
+	if f.Data == nil {
+		return fmt.Errorf("yaml file not loaded, no data exists")
+	}
+	data, err := f.Data.GetPath(path...)
+	if err != nil {
+		return err
+	}
+
+	bytes, err := yaml.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(bytes, target)
+}
+
 // TemplateFile represents a file which is used as Template.
 type TemplateFile struct {
 	file
@@ -127,4 +156,42 @@ func (tmpl *TemplateFile) Parse(fs afero.Fs) (err error) {
 // The passed contexData is what will be available inside the template.
 func (tmpl *TemplateFile) Execute(out io.Writer, contextData any) (err error) {
 	return tmpl.tpl.Execute(out, contextData)
+}
+
+type SecretFile struct {
+	*YamlFile
+	Data         SecretFileData
+	RelativePath string
+}
+
+func (sf *SecretFile) LoadSecretFileData(fs afero.Fs) error {
+	err := sf.file.Load(fs)
+	if err != nil {
+		return err
+	}
+
+	var d SecretFileData
+	if err := yaml.Unmarshal(sf.Bytes, &d); err != nil {
+		return err
+	}
+	sf.Data = d
+	return nil
+}
+
+type SecretFileList []*SecretFile
+
+func NewSecretFile(file *YamlFile, relativeSecretPath string) (*SecretFile, error) {
+	return &SecretFile{
+		YamlFile:     file,
+		RelativePath: relativeSecretPath,
+	}, nil
+}
+
+func (sfl SecretFileList) GetSecretFile(path string) *SecretFile {
+	for _, secretFile := range sfl {
+		if strings.EqualFold(secretFile.RelativePath, path) {
+			return secretFile
+		}
+	}
+	return nil
 }

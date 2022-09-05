@@ -2,8 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"log"
-	"reflect"
 	"regexp"
 	"strings"
 )
@@ -28,6 +26,14 @@ func (v Variable) FullName() string {
 	return fmt.Sprintf("${%s}", v.Name)
 }
 
+func (v Variable) Path() string {
+	var segments []string
+	for _, seg := range v.Identifier {
+		segments = append(segments, fmt.Sprint(seg))
+	}
+	return strings.Join(segments, ".")
+}
+
 func (v Variable) NameAsIdentifier() (id []interface{}) {
 	tmp := strings.Split(v.Name, ":")
 	id = make([]interface{}, len(tmp))
@@ -38,64 +44,49 @@ func (v Variable) NameAsIdentifier() (id []interface{}) {
 	return id
 }
 
-type VariableList []Variable
-
-// FindVariables recursively iterates over the data to find any leaf values which match the variableRegex.
-func FindVariables(data any) (variables VariableList) {
-
-	// newPath is used to copy an existing []interface and hard-copy it.
-	// This is required because Go wants to optimize slice usage by reusing memory.
-	// Most of the time, this is totally fine, but in this case it would mess up the slice
-	// by changing the path []interface of already found variables.
-	newPath := func(path []interface{}, appendValue interface{}) []interface{} {
-		tmp := make([]interface{}, len(path))
-		copy(tmp, path)
-		tmp = append(tmp, appendValue)
-		return tmp
+// FindVariables leverages the [FindValues] function of the given Data to extract
+// all variables by using the [variableFindValueFunc] as callback.
+func FindVariables(data Data) ([]Variable, error) {
+	var foundValues []interface{}
+	err := data.FindValues(variableFindValueFunc(), &foundValues)
+	if err != nil {
+		return nil, err
 	}
 
-	var walk func(reflect.Value, []interface{})
-	walk = func(v reflect.Value, path []interface{}) {
+	var foundVariables []Variable
+	for _, val := range foundValues {
 
-		// fix indirects through pointers and interfaces
-		for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
-			v = v.Elem()
+		// variableFindValueFunc returns []Variable so we need to ensure that matches
+		vars, ok := val.([]Variable)
+		if !ok {
+			return nil, fmt.Errorf("unexpected error during variable detection, file a bug report")
 		}
 
-		switch v.Kind() {
-		case reflect.Array, reflect.Slice:
-			for i := 0; i < v.Len(); i++ {
-				walk(v.Index(i), newPath(path, i))
-			}
-		case reflect.Map:
-			for _, key := range v.MapKeys() {
-				if v.MapIndex(key).IsNil() {
-					break
-				}
+		foundVariables = append(foundVariables, vars...)
+	}
 
-				walk(v.MapIndex(key), newPath(path, key.String()))
-			}
-		default:
-			// Here we've arrived at actual values, hence we can check whether the value is a variable
-			matches := variableRegex.FindAllStringSubmatch(v.String(), -1)
-			if len(matches) > 0 {
-				for _, variable := range matches {
-					if len(variable) >= 2 {
-						variables = append(variables, Variable{
-							Name:       variable[1],
-							Identifier: path,
-						})
-						log.Println("found variable", variable[0], "at", path)
-					}
+	return foundVariables, nil
+}
+
+// variableFindValueFunc implements the [FindValueFunc] and searches for variables inside [Data].
+// Variables are extracted by matching the values to the [variableRegex].
+// All found variables are initialized and added to the output.
+// The function returns `[]Variable`.
+func variableFindValueFunc() FindValueFunc {
+	return func(value string, path []interface{}) (interface{}, error) {
+		var variables []Variable
+
+		matches := variableRegex.FindAllStringSubmatch(value, -1)
+		if len(matches) > 0 {
+			for _, variable := range matches {
+				if len(variable) >= 2 {
+					variables = append(variables, Variable{
+						Name:       variable[1],
+						Identifier: path,
+					})
 				}
 			}
 		}
+		return variables, nil
 	}
-	walk(reflect.ValueOf(data), nil)
-
-	for _, v := range variables {
-		log.Println("loaded variable", v.FullName(), "at", v.Identifier)
-	}
-
-	return variables
 }
