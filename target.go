@@ -80,6 +80,13 @@ func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 	return target, nil
 }
 
+func (t *Target) ReloadConfiguration() {
+	// every target must have the 'skipper' key, which is used to load the Skipper-internal target configuration
+	var config TargetConfig
+	t.File.UnmarshalPath(&config, targetKey, skipperKey)
+	t.Configuration = config
+}
+
 func (t *Target) Data() Data {
 	return t.File.Data.Get(targetKey)
 }

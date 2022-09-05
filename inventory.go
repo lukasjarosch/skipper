@@ -251,9 +251,26 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		}
 
 		for _, call := range calls {
-			log.Println("found call at", call.Path(), ":", call)
+			log.Println("found call", call.FullName(), "at", call.Path(), "value", call.Execute())
+
+			// replace call with function result
+			// sourceValue is the value where the variable is. It needs to be replaced with an actual value
+			sourceValue, err := data.GetPath(call.Identifier...)
+			if err != nil {
+				return nil, err
+			}
+
+			// Replace the full variable name (${variable}) with the targetValue
+			sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), call.FullName(), call.Execute())
+			data.SetPath(sourceValue, call.Identifier...)
 		}
 	}
+
+	log.Println(data.String())
+
+	// we need to reload the target configuration as it will derive it's configuration from the Data
+	// of a previous state. Since the calls can modify the target configuration as well, we have to reload it.
+	target.ReloadConfiguration()
 
 	// secret management
 	// initialize drivers, load or create secrets and eventually replace them if `revealSecrets` is true.
@@ -281,7 +298,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 
 			err = driver.SetKey(key)
 			if err != nil {
-				return nil, fmt.Errorf("failed to secret driver key '%s': %w", driverName, err)
+				return nil, fmt.Errorf("failed to set secret driver key '%s': %w", driverName, err)
 			}
 		}
 
