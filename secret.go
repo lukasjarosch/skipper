@@ -15,24 +15,19 @@ var secretRegex = regexp.MustCompile(`\?\{(\w+)\:([\w\/\-\.\_]+)(\|\|([\w\-\_\.\
 
 type Secret struct {
 	*SecretFile
-	Driver            SecretDriver
-	DriverName        string
-	AlternativeAction AlternativeAction
-	Identifier        []interface{}
+	Driver          SecretDriver
+	DriverName      string
+	AlternativeCall *Call
+	Identifier      []interface{}
 }
 
-func NewSecret(secretFile *SecretFile, driver, alternative string, path []interface{}) (*Secret, error) {
-	action, err := NewAlternativeAction(alternative)
-	if err != nil {
-		return nil, err
-	}
-
+func NewSecret(secretFile *SecretFile, driver string, alternative *Call, path []interface{}) (*Secret, error) {
 	return &Secret{
-		SecretFile:        secretFile,
-		Driver:            nil,
-		DriverName:        driver,
-		AlternativeAction: action,
-		Identifier:        path,
+		SecretFile:      secretFile,
+		Driver:          nil,
+		DriverName:      driver,
+		Identifier:      path,
+		AlternativeCall: alternative,
 	}, nil
 }
 
@@ -110,16 +105,13 @@ func (s *Secret) Load(fs afero.Fs) error {
 
 // attemptCreate will attempt to use the AlternativeAction of a secret to create it and write the required secret file to the filesystem.
 func (secret *Secret) attemptCreate(fs afero.Fs, secretPath string) error {
-	// if the secret does not have an alternative action, it is considered invalid and we cannot continue because we require the secret file to exist
-	if !secret.AlternativeAction.IsSet() {
-		return fmt.Errorf("secret does not have an alternative action: %s in '%s'", secret.FullName(), secret.Path())
+	// if the secret does not have an alternative call, it is considered invalid and we cannot continue because we require the secret file to exist
+	if secret.AlternativeCall == nil {
+		return fmt.Errorf("secret does not have an alternative cwll: %s in '%s'", secret.FullName(), secret.Path())
 	}
 
-	// call the given alternative action function to get the target output
-	output, err := secret.AlternativeAction.Call()
-	if err != nil {
-		return fmt.Errorf("failed to call alternative action: %w", err)
-	}
+	// call the given alternative call function to get the target output
+	output := secret.AlternativeCall.Execute()
 
 	// use the driver implementation to encrypt the secret data
 	encryptedData, err := secret.Driver.Encrypt(output)
@@ -177,7 +169,17 @@ func secretFindValueFunc(secretFiles SecretFileList) FindValueFunc {
 						}
 					}
 
-					newSecret, err := NewSecret(secretFile, secretDriver, secretAlternativeAction, path)
+					alternativeCall, valid, err := NewStandaloneCall(secretAlternativeAction)
+					if err != nil {
+						return nil, err
+					}
+
+					// the call is not going to be executed if it is nil, thus we nil it here
+					if !valid {
+						alternativeCall = nil
+					}
+
+					newSecret, err := NewSecret(secretFile, secretDriver, alternativeCall, path)
 					if err != nil {
 						return nil, fmt.Errorf("invalid secret %s: %w", secret[0], err)
 					}
@@ -196,8 +198,8 @@ func (s *Secret) Value() (string, error) {
 
 // FullName returns the full secret name as it would be expected to ocurr in a class/target.
 func (s Secret) FullName() string {
-	if s.AlternativeAction.IsSet() {
-		return fmt.Sprintf("?{%s:%s||%s}", s.DriverName, s.SecretFile.RelativePath, s.AlternativeAction.String())
+	if s.AlternativeCall != nil {
+		return fmt.Sprintf("?{%s:%s||%s}", s.DriverName, s.SecretFile.RelativePath, s.AlternativeCall.RawString())
 	} else {
 		return fmt.Sprintf("?{%s:%s}", s.DriverName, s.SecretFile.RelativePath)
 	}
