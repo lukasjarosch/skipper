@@ -243,6 +243,18 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		return nil, err
 	}
 
+	// WIP: call managment
+	{
+		calls, err := FindCalls(data)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, call := range calls {
+			log.Println("found call at", call.Path(), ":", call)
+		}
+	}
+
 	// secret management
 	// initialize drivers, load or create secrets and eventually replace them if `revealSecrets` is true.
 	{
@@ -267,7 +279,6 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 				return nil, fmt.Errorf("target contains invalid secret driver configuration: %w", err)
 			}
 
-			log.Println(driverName, key)
 			err = driver.SetKey(key)
 			if err != nil {
 				return nil, fmt.Errorf("failed to secret driver key '%s': %w", driverName, err)
