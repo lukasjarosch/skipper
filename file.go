@@ -179,7 +179,22 @@ func (tmpl *TemplateFile) Execute(out io.Writer, contextData any) (err error) {
 
 type SecretFile struct {
 	*YamlFile
+	Data         SecretFileData
 	RelativePath string
+}
+
+func (sf *SecretFile) LoadSecretFileData(fs afero.Fs) error {
+	err := sf.file.Load(fs)
+	if err != nil {
+		return err
+	}
+
+	var d SecretFileData
+	if err := yaml.Unmarshal(sf.Bytes, &d); err != nil {
+		return err
+	}
+	sf.Data = d
+	return nil
 }
 
 type SecretFileList []*SecretFile

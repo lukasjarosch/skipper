@@ -2,7 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -37,63 +36,25 @@ func NewSecret(secretFile *SecretFile, driver, alternative string, path []interf
 	}, nil
 }
 
-// Load is used to initialize the driver and use it to check the secret.
-// Load does NOT load the actual value, it just ensures that it could be loaded using the driver.Value() call.
-func (s *Secret) Load(fs afero.Fs) error {
-	if err := s.YamlFile.Load(fs); err != nil {
-		return fmt.Errorf("failed to load secret file: %w", err)
-	}
-
-	// every secret needs to have a 'data' key in which the actual secret is stored (encrypted on in plaintext depends on the type)
-	if _, exists := s.Data["data"]; !exists {
-		return fmt.Errorf("missing 'data' key in secret file: %s", s.Path())
-	}
-
-	// the 'type' key also needs to exist and it must be a string. It tells us which driver to load.
-	typ, exists := s.Data["type"]
-	if !exists {
-		return fmt.Errorf("missing 'type' key in secret file: %s", s.Path())
-	}
-	driverType, ok := typ.(string)
-	if !ok {
-		return fmt.Errorf("secret field 'type' must be of type string, got %T", typ)
-	}
-
-	// attempt to load the secret driver
-	driver, err := SecretDriverFactory(s.DriverName)
-	if err != nil {
-		return fmt.Errorf("cannot initialize driver '%s': %w", s.DriverName, err)
-	}
-	s.Driver = driver
-
-	// driverType in the secret file must match the type of the loaded driver
-	if !strings.EqualFold(driverType, driver.Type()) {
-		return fmt.Errorf("secret driver mismatch, data uses dirver '%s', was loaded with driver '%s'", typ, driver.Type())
-	}
-
-	return nil
+// SecretFileData describes the generic structure of secret files.
+type SecretFileData struct {
+	Data string `yaml:"data"`
+	Type string `yaml:"type"`
 }
 
-// Value returns the actual secret value.
-func (s *Secret) Value() (string, error) {
-	return s.Driver.Decrypt(s.Data["data"].(string))
-}
-
-// FullName returns the full secret name as it would be expected to ocurr in a class/target.
-func (s Secret) FullName() string {
-	if s.AlternativeAction.IsSet() {
-		return fmt.Sprintf("?{%s:%s||%s}", s.DriverName, s.SecretFile.RelativePath, s.AlternativeAction.String())
-	} else {
-		return fmt.Sprintf("?{%s:%s}", s.DriverName, s.SecretFile.RelativePath)
+// NewSecretData constructs a [Data] map as it is required for secrets.
+func NewSecretData(data string, driver string) (*SecretFileData, error) {
+	if data == "" {
+		return nil, fmt.Errorf("secret data cannot be empty")
 	}
-}
-
-func (s Secret) Path() string {
-	var segments []string
-	for _, seg := range s.Identifier {
-		segments = append(segments, fmt.Sprint(seg))
+	if driver == "" {
+		return nil, fmt.Errorf("secret file cannot have an empty type")
 	}
-	return strings.Join(segments, ".")
+
+	return &SecretFileData{
+		Data: data,
+		Type: driver,
+	}, nil
 }
 
 // FindSecrets will leverage the `FindValues` function of [Data] to recursively search for secrets.
@@ -115,58 +76,19 @@ func FindOrCreateSecrets(data Data, secretFiles SecretFileList, secretPath strin
 
 		for _, secret := range vars {
 
-			// make sure every secret has a reference to its driver
+			// ensure that the driver is loaded and assigned to every secret
 			driver, err := SecretDriverFactory(secret.DriverName)
 			if err != nil {
-				return nil, fmt.Errorf("cannot initialize driver '%s' on secret '%s': %w", secret.DriverName, secret.FullName(), err)
+				return nil, fmt.Errorf("cannot get secret driver '%s': %w", secret.DriverName, err)
 			}
 			secret.Driver = driver
 
 			// secrets which do not have a file associated are candidates for automatic creation
 			if secret.SecretFile.YamlFile == nil {
-
-				// TODO: create actual file (if possible)
-				// TODO: add file to SecretFileList
-
-				// if the secret does not have an alternative action, it is considered invalid and we cannot continue because we require the secret file to exist
-				if !secret.AlternativeAction.IsSet() {
-					return nil, fmt.Errorf("found secret without secret file and no alternative action: %s in '%s'", secret.FullName(), secret.Path())
-				}
-
-				// call the given alternative action function to get the target output
-				output, err := secret.AlternativeAction.Call()
+				err = secret.attemptCreate(fs, secretPath)
 				if err != nil {
-					return nil, fmt.Errorf("failed to call alternative action: %w", err)
+					return nil, fmt.Errorf("failed to auto-create secret: %w", err)
 				}
-
-				encryptedData, err := secret.Driver.Encrypt(output)
-				if err != nil {
-					return nil, fmt.Errorf("data encryption failed: %w", err)
-				}
-
-				// TODO: ugly
-				type secretFileData struct {
-					Data string `yaml:"data"`
-					Type string `yaml:"type"`
-				}
-				secretData := secretFileData{
-					Data: encryptedData,
-					Type: secret.Driver.Type(),
-				}
-
-				tmp, err := NewData(secretData)
-				if err != nil {
-					return nil, err
-				}
-
-				// create the secret file with the data from the alternative action
-				secretFile, err := CreateNewFile(fs, filepath.Join(secretPath, secret.RelativePath), tmp.Bytes())
-				if err != nil {
-					return nil, err
-				}
-				secret.YamlFile = secretFile
-
-				log.Println("CREATED SECRET", secret.SecretFile.Path)
 			}
 		}
 
@@ -174,6 +96,56 @@ func FindOrCreateSecrets(data Data, secretFiles SecretFileList, secretPath strin
 	}
 
 	return foundSecrets, nil
+}
+
+// Load is used to load the actual secret files and ensure that they are correctly formatted.
+// Load does NOT load the actual value, it just ensures that it could be loaded using the secret.Value() call.
+func (s *Secret) Load(fs afero.Fs) error {
+	if err := s.LoadSecretFileData(fs); err != nil {
+		return fmt.Errorf("failed to load secret file: %w", err)
+	}
+
+	return nil
+}
+
+// attemptCreate will attempt to use the AlternativeAction of a secret to create it and write the required secret file to the filesystem.
+func (secret *Secret) attemptCreate(fs afero.Fs, secretPath string) error {
+	// if the secret does not have an alternative action, it is considered invalid and we cannot continue because we require the secret file to exist
+	if !secret.AlternativeAction.IsSet() {
+		return fmt.Errorf("secret does not have an alternative action: %s in '%s'", secret.FullName(), secret.Path())
+	}
+
+	// call the given alternative action function to get the target output
+	output, err := secret.AlternativeAction.Call()
+	if err != nil {
+		return fmt.Errorf("failed to call alternative action: %w", err)
+	}
+
+	// use the driver implementation to encrypt the secret data
+	encryptedData, err := secret.Driver.Encrypt(output)
+	if err != nil {
+		return fmt.Errorf("data encryption failed: %w", err)
+	}
+
+	// create new Data map which can then be written into the secret file
+	secretFileData, err := NewSecretData(encryptedData, secret.Driver.Type())
+	if err != nil {
+		return fmt.Errorf("could not create NewSecretData: %w", err)
+	}
+
+	fileData, err := NewData(secretFileData)
+	if err != nil {
+		return fmt.Errorf("malformed SecretFileData cannot be converted to Data: %w", err)
+	}
+
+	// create the secret file with the data from the alternative action
+	secretFile, err := CreateNewFile(fs, filepath.Join(secretPath, secret.RelativePath), fileData.Bytes())
+	if err != nil {
+		return err
+	}
+	secret.YamlFile = secretFile
+
+	return nil
 }
 
 // secretFindValueFunc implements the [FindValueFunc] and searches for secrets inside [Data].
@@ -215,4 +187,26 @@ func secretFindValueFunc(secretFiles SecretFileList) FindValueFunc {
 		}
 		return secrets, nil
 	}
+}
+
+// Value returns the actual secret value.
+func (s *Secret) Value() (string, error) {
+	return s.Driver.Decrypt(s.Data.Data)
+}
+
+// FullName returns the full secret name as it would be expected to ocurr in a class/target.
+func (s Secret) FullName() string {
+	if s.AlternativeAction.IsSet() {
+		return fmt.Sprintf("?{%s:%s||%s}", s.DriverName, s.SecretFile.RelativePath, s.AlternativeAction.String())
+	} else {
+		return fmt.Sprintf("?{%s:%s}", s.DriverName, s.SecretFile.RelativePath)
+	}
+}
+
+func (s Secret) Path() string {
+	var segments []string
+	for _, seg := range s.Identifier {
+		segments = append(segments, fmt.Sprint(seg))
+	}
+	return strings.Join(segments, ".")
 }
