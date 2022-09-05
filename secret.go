@@ -169,7 +169,7 @@ func secretFindValueFunc(secretFiles SecretFileList) FindValueFunc {
 						}
 					}
 
-					alternativeCall, valid, err := NewStandaloneCall(secretAlternativeAction)
+					alternativeCall, valid, err := NewRawCall(secretAlternativeAction)
 					if err != nil {
 						return nil, err
 					}
