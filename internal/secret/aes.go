@@ -34,6 +34,7 @@ func (driver *Aes) Decrypt(encrypted string) (string, error) {
 }
 
 func (driver *Aes) Encrypt(input string) (string, error) {
+
 	if !driver.initialized {
 		return "", fmt.Errorf("%s: %w", driver.Type(), ErrDriverNotInitialized)
 	}
@@ -97,6 +98,16 @@ func (driver *Aes) decrypt(key []byte, secure string) (decoded string, err error
 	stream.XORKeyStream(cipherText, cipherText)
 
 	return string(cipherText), err
+}
+
+func (driver *Aes) SetKey(key string) error {
+	if len(key) != 32 {
+		return fmt.Errorf("AES key must be exactly 32 Byte long")
+	}
+
+	driver.key = key
+
+	return nil
 }
 
 func (driver *Aes) Initialize(config map[string]interface{}) error {
