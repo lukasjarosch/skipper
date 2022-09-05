@@ -76,7 +76,7 @@
           "state_name": "develop.tfstate"
         },
         "calls": {
-          "callNoParam": "e2OyyFaQMVlyMvb9O4OYEKiBfNZwjESy",
+          "callNoParam": "VKAEMSv0BzTz5YNEK4pF-ffyfTNrekJx",
           "callWithParam": "UNDEFINED"
         },
         "version": "\u003e= 0.14"
