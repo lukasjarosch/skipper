@@ -52,7 +52,7 @@
       "skipper": {
         "secrets": {
           "keys": {
-            "aes": "thisis32bitlongpassphraseimusing"
+            "aes": "U2CX2Yj8LOPh1KNKq1rW15ckyUcz1340"
           }
         },
         "use": [
@@ -68,12 +68,16 @@
       "common": {
         "backend": {
           "address": "https://mygitlab.example.com",
-          "aesTest": "Zw4SlFiRrWnTz1kTZO65q7gkEpkqy7YE",
+          "aesTest": "rqLzOw-BxzWZVHOyo0JDm-0jGpkpyLib",
           "multipleSecrets": "ThisIsMySecret---AnotherSecretValueYay",
           "newDriver": "tfAzKMiqzGFf2Rg8agjPw_ie6A6DSCn_",
           "nonExistingSecretWithAlternativeAction": "YYowXUlOmc0vsbEI9twsa1f6FeI9wTLfRtf9XzrChslW9exqfPqXZoLEk3RVlgYG",
           "password": "ThisIsMySecret",
           "state_name": "develop.tfstate"
+        },
+        "calls": {
+          "callNoParam": "e2OyyFaQMVlyMvb9O4OYEKiBfNZwjESy",
+          "callWithParam": "UNDEFINED"
         },
         "version": "\u003e= 0.14"
       },
