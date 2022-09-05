@@ -82,7 +82,7 @@ func NewCall(functionName string, param string, path []interface{}) (*Call, erro
 	}, nil
 }
 
-func NewStandaloneCall(callString string) (*Call, bool, error) {
+func NewRawCall(callString string) (*Call, bool, error) {
 	// now we can use the second regex to extract the desired parts of the call
 	segments := callActionRegex.FindAllStringSubmatch(callString, -1)
 
