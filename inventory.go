@@ -260,6 +260,20 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 			}
 		}
 
+		// set driver secret keys
+		for driverName, key := range target.Configuration.Secrets.Keys {
+			driver, err := SecretDriverFactory(driverName)
+			if err != nil {
+				return nil, fmt.Errorf("target contains invalid secret driver configuration: %w", err)
+			}
+
+			log.Println(driverName, key)
+			err = driver.SetKey(key)
+			if err != nil {
+				return nil, fmt.Errorf("failed to secret driver key '%s': %w", driverName, err)
+			}
+		}
+
 		// find all secrets or attempt to create them if an alternative action is set
 		secrets, err := FindOrCreateSecrets(data, inv.secretFiles, inv.secretPath, inv.fs)
 		if err != nil {
