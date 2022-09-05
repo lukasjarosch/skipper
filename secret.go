@@ -68,7 +68,7 @@ func FindOrCreateSecrets(data Data, secretFiles SecretFileList, secretPath strin
 
 	var foundSecrets []*Secret
 	for _, val := range foundValues {
-		// secretFindValueFunc returns []*Variable so we need to ensure that matches
+		// secretFindValueFunc returns []*Secret so we need to ensure that matches
 		vars, ok := val.([]*Secret)
 		if !ok {
 			return nil, fmt.Errorf("unexpected error during secret detection, file a bug report")
