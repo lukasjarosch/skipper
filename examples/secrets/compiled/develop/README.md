@@ -52,8 +52,7 @@
       "skipper": {
         "secrets": {
           "keys": {
-            "aes": "some-hardcoded-aes-key",
-            "azurekv": "https://...."
+            "aes": "thisis32bitlongpassphraseimusing"
           }
         },
         "use": [
@@ -69,8 +68,9 @@
       "common": {
         "backend": {
           "address": "https://mygitlab.example.com",
+          "aesTest": "Zw4SlFiRrWnTz1kTZO65q7gkEpkqy7YE",
           "multipleSecrets": "ThisIsMySecret---AnotherSecretValueYay",
-          "newDriver": "RANDOM",
+          "newDriver": "tfAzKMiqzGFf2Rg8agjPw_ie6A6DSCn_",
           "nonExistingSecretWithAlternativeAction": "YYowXUlOmc0vsbEI9twsa1f6FeI9wTLfRtf9XzrChslW9exqfPqXZoLEk3RVlgYG",
           "password": "ThisIsMySecret",
           "state_name": "develop.tfstate"
