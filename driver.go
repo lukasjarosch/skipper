@@ -9,10 +9,10 @@ import (
 
 type SecretDriver interface {
 	Type() string
-	Value(data map[string]interface{}) (string, error)
 	Encrypt(data string) (string, error)
 	Decrypt(encrypted string) (string, error)
 	Initialize(config map[string]interface{}) error
+	SetKey(key string) error
 }
 
 var driverCache = map[string]SecretDriver{}
@@ -31,6 +31,8 @@ func SecretDriverFactory(name string) (secretDriver SecretDriver, err error) {
 		secretDriver, err = driver.NewPlain()
 	case "base64":
 		secretDriver, err = driver.NewBase64()
+	case "aes":
+		secretDriver, err = driver.NewAes()
 	default:
 		return nil, fmt.Errorf("driver '%s' cannot be loaded: not implemented", name)
 	}
