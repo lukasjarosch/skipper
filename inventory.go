@@ -395,7 +395,7 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 
 				// for any other error than a 'key not found' there is nothing we can do
 				if !strings.Contains(err.Error(), "key not found") {
-					return fmt.Errorf("reference to undefined variable '%s'", variable.FullName())
+					return fmt.Errorf("reference to invalid variable '%s': %w", variable.FullName(), err)
 				}
 
 				// Local variable handling
@@ -413,14 +413,16 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 
 					targetValue, err = data.GetPath(fullPath...)
 
-					// as long as not all classes have been checked, we cannot be sure that the variable is undefined
-					if targetValue == nil && i < len(inv.classFiles) {
+					// as long as not all classes have been checked, we cannot be sure that the variable is undefined (aka. key not found error)
+					if targetValue == nil &&
+						i < len(inv.classFiles) &&
+						!strings.Contains(err.Error(), "key not found") {
 						continue
 					}
 
 					// the local variable is really not defined at this point
 					if err != nil {
-						return fmt.Errorf("reference to undefined variable '%s'", variable.FullName())
+						return fmt.Errorf("reference to invalid variable '%s': %w", variable.FullName(), err)
 					}
 
 					break
