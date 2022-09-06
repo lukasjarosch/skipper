@@ -385,7 +385,6 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 
 	for _, variable := range variables {
 		var targetValue interface{}
-
 		if isPredefinedVariable(variable) {
 			targetValue = predefinedVariables[variable.Name]
 		} else {
@@ -393,11 +392,38 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 			// This is the value we need to replace the variable with
 			targetValue, err = data.GetPath(variable.NameAsIdentifier()...)
 			if err != nil {
-				return fmt.Errorf("reference to undefined variable '%s'", variable.FullName())
+
+				// for any other error than a 'key not found' there is nothing we can do
+				if !strings.Contains(err.Error(), "key not found") {
+					return fmt.Errorf("reference to undefined variable '%s'", variable.FullName())
+				}
+
+				// Local variable handling
+				//
+				// at this point we have failed to resolve the variable using 'absolute' paths
+				// but the variable may be only locally defined which means we need to change the lookup path.
+				// We iterate over all classes and attempt to resolve the variable within that limited scope.
+				for _, class := range inv.classFiles {
+
+					// if the value to which the variable points is valid inside the class scope, we just need to add the class identifier
+					// if the combination works this means we have found ourselves a local variable and we can set the targetValue
+					fullPath := []interface{}{}
+					fullPath = append(fullPath, class.NameAsIdentifier()...)
+					fullPath = append(fullPath, variable.NameAsIdentifier()...)
+
+					targetValue, err = data.GetPath(fullPath...)
+
+					// the local variable is really not defined at this point
+					if err != nil {
+						return fmt.Errorf("reference to undefined variable '%s'", variable.FullName())
+					}
+
+					break
+				}
 			}
 		}
 
-		// sourceValue is the value where the variable is. It needs to be replaced with an actual value
+		// sourceValue is the value where the variable is located. It needs to be replaced with the 'targetValue'
 		sourceValue, err := data.GetPath(variable.Identifier...)
 		if err != nil {
 			return err
