@@ -1,10 +1,10 @@
 # Skipper Terraform Azure
 > Target: **develop**
-> Subscription: **45e4fca6-f05b-4354-951a-3ea194d2da85**
+> Subscription: **59efa773-ee54-47d6-a95a-eac3fca3bc24**
 
 ## Created resources in location `westeurope`
 
-- ResourceGroup: `rg-develop-terraform-example-westeurope`
+- ResourceGroup: `rg-develop-terraform_example-westeurope`
 
 - Virtual Network: `vnet-develop-terraform-example`
   - AddressSpace: `["10.1.0.0/16", "10.2.0.0/16"]`
@@ -18,14 +18,23 @@
   "Inventory": {
     "azure": {
       "common": {
-        "absolute_variable": "45e4fca6-f05b-4354-951a-3ea194d2da85",
-        "local_variable": "45e4fca6-f05b-4354-951a-3ea194d2da85",
-        "subscription_id": "45e4fca6-f05b-4354-951a-3ea194d2da85"
+        "absolute_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
+        "local_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
+        "subscription_id": "59efa773-ee54-47d6-a95a-eac3fca3bc24"
       },
       "resources": {
         "location": "westeurope",
         "resource_group": {
-          "name": "rg-develop-terraform-example-westeurope"
+          "name": "rg-develop-terraform_example-westeurope"
+        },
+        "terraform_resource_group": {
+          "name": "rg-develop-terraform_example-terraform-westeurope"
+        },
+        "terraform_storage_account": {
+          "name": "storagedevelopterraform",
+          "state_container": {
+            "name": "develop_tfstate"
+          }
         },
         "vnet": {
           "address_space": [
@@ -44,6 +53,9 @@
         }
       }
     },
+    "common": {
+      "project_name": "terraform_example"
+    },
     "target": {
       "skipper": {
         "components": [
@@ -55,7 +67,9 @@
           },
           {
             "input_paths": [
-              "scripts/echo.sh"
+              "scripts/bootstrap.sh",
+              "scripts/utils.sh",
+              "scripts/az.sh"
             ],
             "output_path": "1_bootstrap"
           },
@@ -63,7 +77,7 @@
             "input_paths": [
               "markdown/docs.md"
             ],
-            "output_path": "/documentation"
+            "output_path": "documentation"
           },
           {
             "input_paths": [
@@ -74,6 +88,7 @@
           }
         ],
         "use": [
+          "common",
           "azure.common",
           "azure.resources",
           "terraform.identifiers"

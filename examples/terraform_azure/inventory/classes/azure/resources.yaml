@@ -1,8 +1,16 @@
 resources:
   location: "westeurope"
 
+  terraform_resource_group:
+    name: "rg-${target_name}-${common:project_name}-terraform-${location}"
+
   resource_group:
-    name: "rg-${target_name}-terraform-example-${azure:resources:location}"
+    name: "rg-${target_name}-${common:project_name}-${location}"
+
+  terraform_storage_account:
+    name: "storage${target_name}terraform"
+    state_container:
+      name: ${target_name}_tfstate
 
   vnet:
     name: "vnet-${target_name}-terraform-example"
