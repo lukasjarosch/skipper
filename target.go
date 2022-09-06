@@ -30,13 +30,19 @@ type Target struct {
 }
 
 type TargetConfig struct {
-	Use     []string           `mapstructure:"use"`
-	Secrets TargetSecretConfig `mapstructure:"secrets,omitempty"`
+	Use        []string           `mapstructure:"use"`
+	Secrets    TargetSecretConfig `mapstructure:"secrets,omitempty"`
+	Components []ComponentConfig  `mapstructure:"components,omitempty"`
 }
 
 type TargetSecretConfig struct {
 	Drivers map[string]interface{} `mapstructure:"drivers"`
 	Keys    map[string]string      `mapstructure:"keys"`
+}
+
+type ComponentConfig struct {
+	OutputPath string   `yaml:"output_path"`
+	InputPaths []string `yaml:"input_paths"`
 }
 
 func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
