@@ -416,7 +416,7 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 					// as long as not all classes have been checked, we cannot be sure that the variable is undefined (aka. key not found error)
 					if targetValue == nil &&
 						i < len(inv.classFiles) &&
-						!strings.Contains(err.Error(), "key not found") {
+						strings.Contains(err.Error(), "key not found") {
 						continue
 					}
 
