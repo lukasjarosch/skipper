@@ -243,7 +243,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		return nil, err
 	}
 
-	// WIP: call managment
+	// call managment
 	{
 		calls, err := FindCalls(data)
 		if err != nil {
@@ -265,8 +265,6 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 			data.SetPath(sourceValue, call.Identifier...)
 		}
 	}
-
-	log.Println(data.String())
 
 	// we need to reload the target configuration as it will derive it's configuration from the Data
 	// of a previous state. Since the calls can modify the target configuration as well, we have to reload it.
@@ -363,11 +361,6 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 	variables, err := FindVariables(data)
 	if err != nil {
 		return err
-	}
-
-	// TODO: remove
-	for _, variable := range variables {
-		log.Println("found variable", variable.FullName(), "at", variable.Path())
 	}
 
 	if len(variables) == 0 {
