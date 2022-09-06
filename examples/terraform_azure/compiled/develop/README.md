@@ -46,6 +46,27 @@
     },
     "target": {
       "skipper": {
+        "components": [
+          {
+            "input_paths": [
+              "markdown/README.md"
+            ],
+            "output_path": "/"
+          },
+          {
+            "input_paths": [
+              "markdown/docs.md"
+            ],
+            "output_path": "/documentation"
+          },
+          {
+            "input_paths": [
+              "terraform/01_resource_group.tf",
+              "terraform/02_network.tf"
+            ],
+            "output_path": "terraform"
+          }
+        ],
         "use": [
           "azure.common",
           "azure.resources",

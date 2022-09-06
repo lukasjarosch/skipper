@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"path"
 
 	"github.com/lukasjarosch/skipper"
@@ -43,8 +42,6 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("\n%s", data.String())
-
 	templateOutputPath := path.Join(outputPath, target)
 	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, nil)
 	if err != nil {
@@ -60,11 +57,20 @@ func main() {
 	}
 
 	// execute templates  ----------------------------------------------------------------------------------
-	for _, template := range templater.Files {
-		err := templater.Execute(template, templateData, false)
-		if err != nil {
-			panic(err)
-		}
-		log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+	target, err := inventory.Target(target)
+	if err != nil {
+		panic(err)
 	}
+
+	err = templater.ExecuteComponents(templateData, target.Configuration.Components, false)
+	if err != nil {
+		panic(err)
+	}
+	//for _, template := range templater.Files {
+	//	err := templater.Execute(template, templateData, false)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+	//}
 }

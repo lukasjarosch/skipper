@@ -74,6 +74,10 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 // If execution is successful, the template is written to it's desired target location.
 // If allowNoValue is true, the template is rendered even if it contains variables which are not defined.
 func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool) error {
+	return t.execute(template, data, template.Path, allowNoValue)
+}
+
+func (t *Templater) execute(template *TemplateFile, data any, targetPath string, allowNoValue bool) error {
 	err := template.Parse(t.templateFs)
 	if err != nil {
 		return err
@@ -99,9 +103,30 @@ func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool)
 		}
 	}
 
-	err = t.writeOutputFile(out.Bytes(), template.Path)
+	err = t.writeOutputFile(out.Bytes(), targetPath)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, allowNoValue bool) error {
+	if len(components) == 0 {
+		return fmt.Errorf("no components to render")
+	}
+
+	for _, component := range components {
+		for _, input := range component.InputPaths {
+			for _, file := range t.Files {
+				if file.Path == input {
+					err := t.execute(file, data, filepath.Join(component.OutputPath, filepath.Base(file.Path)), allowNoValue)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
 	}
 
 	return nil
