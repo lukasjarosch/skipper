@@ -12,7 +12,7 @@ var (
 	inventoryPath = "inventory"
 	classPath     = path.Join(inventoryPath, "classes")
 	targetPath    = path.Join(inventoryPath, "targets")
-	templatePath  = path.Join(inventoryPath, "templates")
+	templatePath  = "templates"
 	secretPath    = path.Join(inventoryPath, "secrets")
 	outputPath    = "compiled"
 

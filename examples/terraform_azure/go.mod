@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/lukasjarosch/skipper v0.0.0-20220823200445-07585978767f
 	github.com/spf13/afero v1.9.2
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 replace github.com/lukasjarosch/skipper => ../../
@@ -23,4 +22,5 @@ require (
 	github.com/spf13/cast v1.3.1 // indirect
 	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa // indirect
 	golang.org/x/text v0.3.4 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
