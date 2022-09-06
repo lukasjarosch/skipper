@@ -55,6 +55,12 @@
           },
           {
             "input_paths": [
+              "scripts/echo.sh"
+            ],
+            "output_path": "1_bootstrap"
+          },
+          {
+            "input_paths": [
               "markdown/docs.md"
             ],
             "output_path": "/documentation"

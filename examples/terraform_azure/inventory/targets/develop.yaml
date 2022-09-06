@@ -9,6 +9,9 @@ target:
       - output_path: /
         input_paths:
           - markdown/README.md
+      - output_path: 1_bootstrap
+        input_paths:
+          - scripts/echo.sh
       - output_path: /documentation
         input_paths:
           - markdown/docs.md

@@ -3,6 +3,7 @@ package skipper
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -16,6 +17,7 @@ import (
 // Note that the used filesystem is not relevant, only at the time of loading a file.
 type file struct {
 	Path  string
+	Mode  fs.FileMode
 	Bytes []byte
 }
 
@@ -43,6 +45,11 @@ func (f *file) Load(fs afero.Fs) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to Load %s: %w", f.Path, err)
 	}
+	info, err := fs.Stat(f.Path)
+	if err != nil {
+		return fmt.Errorf("unable to stat file %s: %w", f.Path, err)
+	}
+	f.Mode = info.Mode()
 	return nil
 }
 
