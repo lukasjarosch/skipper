@@ -1,9 +1,10 @@
 ---
 target:
-  use: 
-    - azure.common
-    - azure.resources
-    - terraform.identifiers
+  skipper:
+    use: 
+      - azure.common
+      - azure.resources
+      - terraform.identifiers
 
   azure:
     common:

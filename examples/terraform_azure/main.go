@@ -14,13 +14,14 @@ var (
 	classPath     = path.Join(inventoryPath, "classes")
 	targetPath    = path.Join(inventoryPath, "targets")
 	templatePath  = path.Join(inventoryPath, "templates")
+	secretPath    = path.Join(inventoryPath, "secrets")
 	outputPath    = "compiled"
 
 	target = "develop"
 )
 
 func main() {
-	inventory, err := skipper.NewInventory(fileSystem, classPath, targetPath)
+	inventory, err := skipper.NewInventory(fileSystem, classPath, targetPath, secretPath)
 	if err != nil {
 		panic(err)
 	}
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	// Process the inventory, given the target name
-	data, err := inventory.Data("develop", predefinedVariables)
+	data, err := inventory.Data("develop", predefinedVariables, true)
 	if err != nil {
 		panic(err)
 	}
