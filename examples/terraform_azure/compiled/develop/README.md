@@ -18,6 +18,8 @@
   "Inventory": {
     "azure": {
       "common": {
+        "absolute_variable": "45e4fca6-f05b-4354-951a-3ea194d2da85",
+        "local_variable": "45e4fca6-f05b-4354-951a-3ea194d2da85",
         "subscription_id": "45e4fca6-f05b-4354-951a-3ea194d2da85"
       },
       "resources": {
@@ -43,11 +45,13 @@
       }
     },
     "target": {
-      "use": [
-        "azure.resources",
-        "azure.common",
-        "terraform.identifiers"
-      ]
+      "skipper": {
+        "use": [
+          "azure.common",
+          "azure.resources",
+          "terraform.identifiers"
+        ]
+      }
     },
     "terraform": {
       "identifiers": {
