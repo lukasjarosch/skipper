@@ -8,10 +8,10 @@ Below is an overview of all the components which make up Skipper, and how they m
 
 ## Point of view
 Whatever you do as part of your daily job, you most certainly are concerned with some sort of infrastructure - otherwhise you would not have found Skipper.
-Depending on what level ov experience you have, you will most likely have seen the quickly changeing tools in our industry.
+Depending on what level ov experience you have, you will most likely have seen the quickly changing tools in our industry.
 
-Tools rise and go, but your infrastructure does not. Once you migrated all of your stuff to tool *X*, it becomes obsolete and you need to start migration agagin.
-Idioms change and for some reason you always feel left behind, although you keep up-to-dat to current CNCNF releases or other upcoming stuff.
+Tools rise and go, but your infrastructure does not. Once you migrated all of your stuff to tool *X*, it becomes obsolete and you need to start migration again.
+Idioms change and for some reason you always feel left behind, although you keep up-to-date to current CNCNF releases or other upcoming stuff.
 
 #### What you really want to describe
 No matter what tooling you're using. All you want to do is to describe you infrastructure as good as it gets.
