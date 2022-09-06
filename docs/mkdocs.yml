@@ -15,9 +15,9 @@ nav:
         - Targets: concepts/inventory/targets.md
         - Variables:
             - Overview: concepts/inventory/variables/overview.md
-            - Static Variables: concepts/inventory/variables/overview.md
-            - Dynamic Variables: concepts/inventory/variables/overview.md
-            - User-defined Variables: concepts/inventory/variables/overview.md
+            - Static Variables: concepts/inventory/variables/static.md
+            - Dynamic Variables: concepts/inventory/variables/dynamic.md
+            - User-defined Variables: concepts/inventory/variables/user-defined.md
         - Calls: concepts/inventory/calls.md
         - Secrets: 
             - Overview: concepts/inventory/secrets/overview.md
