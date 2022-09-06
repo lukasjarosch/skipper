@@ -63,6 +63,16 @@ func (c *Class) RootKey() string {
 	return val.MapKeys()[0].String()
 }
 
+func (c *Class) NameAsIdentifier() (id []interface{}) {
+	tmp := strings.Split(c.Name, ".")
+	id = make([]interface{}, len(tmp))
+
+	for i := 0; i < len(tmp); i++ {
+		id[i] = tmp[i]
+	}
+	return id
+}
+
 // classNameFromPath returns the class name given a path.
 // The path must be relative to the root class path.
 // If the class-root is at: /foo/bar/classes/
