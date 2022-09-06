@@ -111,6 +111,7 @@ func (t *Templater) execute(template *TemplateFile, data any, targetPath string,
 	return nil
 }
 
+// ExecuteComponents will only execute the templates as they are defined in the given components.
 func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, allowNoValue bool) error {
 	if len(components) == 0 {
 		return fmt.Errorf("no components to render")
@@ -118,13 +119,15 @@ func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, al
 
 	for _, component := range components {
 		for _, input := range component.InputPaths {
-			for _, file := range t.Files {
-				if file.Path == input {
-					err := t.execute(file, data, filepath.Join(component.OutputPath, filepath.Base(file.Path)), allowNoValue)
-					if err != nil {
-						return err
-					}
-				}
+			file := t.getTemplateByPath(input)
+
+			if file == nil {
+				continue
+			}
+
+			err := t.execute(file, data, filepath.Join(component.OutputPath, filepath.Base(file.Path)), allowNoValue)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -141,6 +144,15 @@ func (t *Templater) ExecuteAll(data any, allowNoValue bool) error {
 		}
 	}
 
+	return nil
+}
+
+func (t *Templater) getTemplateByPath(path string) *TemplateFile {
+	for _, file := range t.Files {
+		if file.Path == path {
+			return file
+		}
+	}
 	return nil
 }
 
