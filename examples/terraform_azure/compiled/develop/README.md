@@ -43,11 +43,13 @@
       }
     },
     "target": {
-      "use": [
-        "azure.resources",
-        "azure.common",
-        "terraform.identifiers"
-      ]
+      "skipper": {
+        "use": [
+          "azure.common",
+          "azure.resources",
+          "terraform.identifiers"
+        ]
+      }
     },
     "terraform": {
       "identifiers": {
