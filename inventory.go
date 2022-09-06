@@ -403,7 +403,7 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 				// at this point we have failed to resolve the variable using 'absolute' paths
 				// but the variable may be only locally defined which means we need to change the lookup path.
 				// We iterate over all classes and attempt to resolve the variable within that limited scope.
-				for _, class := range inv.classFiles {
+				for i, class := range inv.classFiles {
 
 					// if the value to which the variable points is valid inside the class scope, we just need to add the class identifier
 					// if the combination works this means we have found ourselves a local variable and we can set the targetValue
@@ -412,6 +412,11 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 					fullPath = append(fullPath, variable.NameAsIdentifier()...)
 
 					targetValue, err = data.GetPath(fullPath...)
+
+					// as long as not all classes have been checked, we cannot be sure that the variable is undefined
+					if targetValue == nil && i < len(inv.classFiles) {
+						continue
+					}
 
 					// the local variable is really not defined at this point
 					if err != nil {
