@@ -6,8 +6,8 @@ import (
 
 var (
 	ErrDriverNotInitialized error = fmt.Errorf("secret driver not initialized")
-	ErrDriverKeyNotSet error = fmt.Errorf("secret driver key not set")
-	ErrDriverKeyEmpty error = fmt.Errorf("secret driver key cannot be empty")
+	ErrDriverKeyNotSet      error = fmt.Errorf("secret driver key not set")
+	ErrDriverKeyEmpty       error = fmt.Errorf("secret driver key cannot be empty")
 )
 
 type driver struct {

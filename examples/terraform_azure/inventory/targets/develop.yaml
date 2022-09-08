@@ -11,10 +11,17 @@ target:
       - output_path: /
         input_paths:
           - markdown/README.md
+    secrets:
+      drivers:
+        azurekv: 
+          vault_name: "%{env:AZURE_KEY_VAULT_NAME}"
+      keys:
+        azurekv: "test"
 
   azure:
     common:
       subscription_id: "59efa773-ee54-47d6-a95a-eac3fca3bc24" # random uuid
+      secret: ?{azurekv:targets/${target_name}/some_secret||randomstring:64}
 
   # Refactoring terraform identifiers has never been easier. 
   # Just change one variable from the imported class and you're done :)

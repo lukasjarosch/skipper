@@ -34,7 +34,6 @@ func (driver *Aes) Decrypt(encrypted string) (string, error) {
 }
 
 func (driver *Aes) Encrypt(input string) (string, error) {
-
 	if !driver.initialized {
 		return "", fmt.Errorf("%s: %w", driver.Type(), ErrDriverNotInitialized)
 	}

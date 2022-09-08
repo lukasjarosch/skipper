@@ -20,6 +20,7 @@
       "common": {
         "absolute_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
         "local_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
+        "secret": "sM69u5yYqBF7NBDfrvfMv4ZHRDZuRYhb8MH6YbeUs9aqwvNa6G8NpVlgwXdhr3iu",
         "subscription_id": "59efa773-ee54-47d6-a95a-eac3fca3bc24"
       },
       "resources": {
@@ -119,6 +120,16 @@
             "output_path": "/"
           }
         ],
+        "secrets": {
+          "drivers": {
+            "azurekv": {
+              "vault_name": "kv-dev-edge"
+            }
+          },
+          "keys": {
+            "azurekv": "test"
+          }
+        },
         "use": [
           "common",
           "azure.common",
