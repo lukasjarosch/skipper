@@ -57,14 +57,17 @@ func main() {
 	}
 
 	// execute templates  ----------------------------------------------------------------------------------
-	target, err := inventory.Target(target)
-	if err != nil {
-		panic(err)
-	}
 
-	err = templater.ExecuteComponents(templateData, target.Configuration.Components, false)
-	if err != nil {
-		panic(err)
+	{
+		components, err := inventory.GetComponents(target)
+		if err != nil {
+			panic(err)
+		}
+
+		err = templater.ExecuteComponents(templateData, components, false)
+		if err != nil {
+			panic(err)
+		}
 	}
 	//for _, template := range templater.Files {
 	//	err := templater.Execute(template, templateData, false)

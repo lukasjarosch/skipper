@@ -1,0 +1,9 @@
+---
+bootstrap:
+  skipper:
+    components:
+      - output_path: 1_bootstrap
+        input_paths:
+          - scripts/bootstrap.sh
+          - scripts/utils.sh
+          - scripts/az.sh

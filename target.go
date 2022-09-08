@@ -8,9 +8,8 @@ import (
 )
 
 const (
-	targetKey  string = "target"
-	useKey     string = "use"
-	skipperKey string = "skipper"
+	targetKey string = "target"
+	useKey    string = "use"
 )
 
 var wildcardUseRegex regexp.Regexp = *regexp.MustCompile(`^\w+\.\*$`)
@@ -27,6 +26,8 @@ type Target struct {
 	UsedWildcardClasses []string
 	// Configuration is the skipper-internal configuration which needs to be present on every target.
 	Configuration TargetConfig
+	// SkipperConfig is the generic Skipper configuration which can be use throughout targets and classes
+	SkipperConfig *SkipperConfig
 }
 
 type TargetConfig struct {
@@ -38,11 +39,6 @@ type TargetConfig struct {
 type TargetSecretConfig struct {
 	Drivers map[string]interface{} `mapstructure:"drivers"`
 	Keys    map[string]string      `mapstructure:"keys"`
-}
-
-type ComponentConfig struct {
-	OutputPath string   `yaml:"output_path"`
-	InputPaths []string `yaml:"input_paths"`
 }
 
 func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
@@ -69,10 +65,17 @@ func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 		return nil, fmt.Errorf("missing skipper key in target: %w", err)
 	}
 
+	// attempt to load the generic skipper config
+	skipperConfig, err := LoadSkipperConfig(file, targetKey)
+	if err != nil {
+		return nil, err
+	}
+
 	target := &Target{
 		File:          file,
 		Name:          name,
 		Configuration: config,
+		SkipperConfig: skipperConfig,
 	}
 
 	err = target.loadUsedClasses()

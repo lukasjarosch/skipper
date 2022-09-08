@@ -12,7 +12,6 @@ import (
 type Class struct {
 	// File is the underlying file in the filesystem.
 	File *YamlFile
-
 	// Name is the relative path of the file inside the inventory which uniquely identifies this class.
 	// Because the name is path based, no two classes with the same name can exist.
 	// For the name, the path-separator is replaced with '.' and the file extension is stripped.
@@ -20,6 +19,8 @@ type Class struct {
 	//
 	// The Name is also what is used to reference classes throughout Skpper.
 	Name string
+	// Configuration holds Skipper-relevant configuration inside the class
+	Configuration *SkipperConfig
 }
 
 // NewClass will create a new class, given a raw YamlFile and the relative filePath from inside the inventory.
@@ -43,10 +44,19 @@ func NewClass(file *YamlFile, relativeClassPath string) (*Class, error) {
 		return nil, fmt.Errorf("class '%s' has more than one root-key which is currently not supported", name)
 	}
 
-	return &Class{
+	class := &Class{
 		File: file,
 		Name: name,
-	}, nil
+	}
+
+	// load skipper config
+	config, err := LoadSkipperConfig(file, class.RootKey())
+	if err != nil {
+		return nil, err
+	}
+	class.Configuration = config
+
+	return class, nil
 }
 
 // Data returns the underlying class file-data map as Data
