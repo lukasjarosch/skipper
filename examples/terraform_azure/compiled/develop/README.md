@@ -56,6 +56,61 @@
     "common": {
       "project_name": "terraform_example"
     },
+    "components": {
+      "bootstrap": {
+        "skipper": {
+          "components": [
+            {
+              "input_paths": [
+                "scripts/bootstrap.sh",
+                "scripts/utils.sh",
+                "scripts/az.sh"
+              ],
+              "output_path": "1_bootstrap"
+            }
+          ]
+        }
+      },
+      "documentation": {
+        "skipper": {
+          "components": [
+            {
+              "input_paths": [
+                "markdown/docs.md"
+              ],
+              "output_path": "documentation"
+            }
+          ]
+        }
+      },
+      "scripts": {
+        "skipper": {
+          "components": [
+            {
+              "input_paths": [
+                "scripts/bootstrap.sh",
+                "scripts/utils.sh",
+                "scripts/az.sh"
+              ],
+              "output_path": "scripts"
+            }
+          ]
+        }
+      },
+      "terraform": {
+        "skipper": {
+          "components": [
+            {
+              "input_paths": [
+                "terraform/01_resource_group.tf",
+                "terraform/02_network.tf"
+              ],
+              "output_path": "2_terraform"
+            }
+          ]
+        }
+      }
+    },
     "target": {
       "skipper": {
         "components": [
@@ -64,34 +119,14 @@
               "markdown/README.md"
             ],
             "output_path": "/"
-          },
-          {
-            "input_paths": [
-              "scripts/bootstrap.sh",
-              "scripts/utils.sh",
-              "scripts/az.sh"
-            ],
-            "output_path": "1_bootstrap"
-          },
-          {
-            "input_paths": [
-              "markdown/docs.md"
-            ],
-            "output_path": "documentation"
-          },
-          {
-            "input_paths": [
-              "terraform/01_resource_group.tf",
-              "terraform/02_network.tf"
-            ],
-            "output_path": "terraform"
           }
         ],
         "use": [
           "common",
           "azure.common",
           "azure.resources",
-          "terraform.identifiers"
+          "terraform.identifiers",
+          "components.*"
         ]
       }
     },

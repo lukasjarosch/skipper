@@ -1,0 +1,8 @@
+---
+terraform:
+  skipper:
+    components:
+      - output_path: 2_terraform
+        input_paths:
+          - terraform/01_resource_group.tf
+          - terraform/02_network.tf
