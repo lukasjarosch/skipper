@@ -4,6 +4,4 @@ scripts:
     components:
       - output_path: scripts
         input_paths:
-          - scripts/bootstrap.sh
           - scripts/utils.sh
-          - scripts/az.sh
