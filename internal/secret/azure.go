@@ -18,8 +18,11 @@ type Azure struct {
 	keyName      string
 }
 
+<<<<<<< HEAD
 // TODO: Secret version support (azure keys are versioned)
 
+=======
+>>>>>>> 0b23890 (feat: crude azure secret driver implementation working)
 func NewAzure() (*Azure, error) {
 	return &Azure{driver: &driver{initialized: false}}, nil
 }
