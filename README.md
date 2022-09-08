@@ -62,7 +62,7 @@ companies to create the own - custom built - template and inventory engine, with
   - [ ] file-based secrets
   - [ ] support different secret drivers to keep it extensible
   - [ ] secret rotation: Skipper should be able to automatically rotate all secrets
-- [ ] Allow subset template generation in targets
+- [x] Allow subset template generation in targets
   - Maybe you don't need/want to have all templates rendered in a particular target
   - There should be an option do configure which templates any given target is using
   - Maybe even with the option to rewrite target paths?

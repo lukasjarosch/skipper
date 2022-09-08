@@ -74,6 +74,10 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 // If execution is successful, the template is written to it's desired target location.
 // If allowNoValue is true, the template is rendered even if it contains variables which are not defined.
 func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool) error {
+	return t.execute(template, data, template.Path, allowNoValue)
+}
+
+func (t *Templater) execute(template *TemplateFile, data any, targetPath string, allowNoValue bool) error {
 	err := template.Parse(t.templateFs)
 	if err != nil {
 		return err
@@ -99,9 +103,33 @@ func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool)
 		}
 	}
 
-	err = t.writeOutputFile(out.Bytes(), template.Path)
+	err = t.writeOutputFile(out.Bytes(), targetPath, template.Mode)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// ExecuteComponents will only execute the templates as they are defined in the given components.
+func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, allowNoValue bool) error {
+	if len(components) == 0 {
+		return fmt.Errorf("no components to render")
+	}
+
+	for _, component := range components {
+		for _, input := range component.InputPaths {
+			file := t.getTemplateByPath(input)
+
+			if file == nil {
+				continue
+			}
+
+			err := t.execute(file, data, filepath.Join(component.OutputPath, filepath.Base(file.Path)), allowNoValue)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -119,14 +147,23 @@ func (t *Templater) ExecuteAll(data any, allowNoValue bool) error {
 	return nil
 }
 
+func (t *Templater) getTemplateByPath(path string) *TemplateFile {
+	for _, file := range t.Files {
+		if file.Path == path {
+			return file
+		}
+	}
+	return nil
+}
+
 // writeOutputFile ensures that `filePath` exists in the `outputFs` and then writes `data` into it.
-func (t *Templater) writeOutputFile(data []byte, filePath string) error {
+func (t *Templater) writeOutputFile(data []byte, filePath string, mode fs.FileMode) error {
 	err := t.outputFs.MkdirAll(filepath.Dir(filePath), 0755)
 	if err != nil {
 		return err
 	}
 
-	err = afero.WriteFile(t.outputFs, filePath, data, 0644)
+	err = afero.WriteFile(t.outputFs, filePath, data, mode)
 	if err != nil {
 		return err
 	}

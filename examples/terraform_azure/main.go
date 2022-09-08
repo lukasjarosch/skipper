@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"path"
 
 	"github.com/lukasjarosch/skipper"
@@ -13,7 +12,7 @@ var (
 	inventoryPath = "inventory"
 	classPath     = path.Join(inventoryPath, "classes")
 	targetPath    = path.Join(inventoryPath, "targets")
-	templatePath  = path.Join(inventoryPath, "templates")
+	templatePath  = "templates"
 	secretPath    = path.Join(inventoryPath, "secrets")
 	outputPath    = "compiled"
 
@@ -43,8 +42,6 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("\n%s", data.String())
-
 	templateOutputPath := path.Join(outputPath, target)
 	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, nil)
 	if err != nil {
@@ -60,11 +57,23 @@ func main() {
 	}
 
 	// execute templates  ----------------------------------------------------------------------------------
-	for _, template := range templater.Files {
-		err := templater.Execute(template, templateData, false)
+
+	{
+		components, err := inventory.GetComponents(target)
 		if err != nil {
 			panic(err)
 		}
-		log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+
+		err = templater.ExecuteComponents(templateData, components, false)
+		if err != nil {
+			panic(err)
+		}
 	}
+	//for _, template := range templater.Files {
+	//	err := templater.Execute(template, templateData, false)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+	//}
 }

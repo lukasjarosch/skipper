@@ -62,58 +62,6 @@ func NewInventory(fs afero.Fs, classPath, targetPath, secretPath string) (*Inven
 	return inv, nil
 }
 
-// AddExternalClass can be used to dynamically create class files.
-// The given data will be written into `classFilePath`, overwriting any existing file.
-//
-// The class path is first normalized to match the existing `Inventory.classPath`.
-//
-// After that, the root-key of the data is adjusted to match the fileName which is extracted from `classFilePath`.
-// This has to be done in order to comply Skipper rules where the class-filename must also be the root-key of any given class.
-//
-// A new file inside the Skipper class path is created which makes it available for loading.
-// In order to prevent confusion, a file header is added to indicate that the class was generated.
-func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string) error {
-	if data == nil {
-		return fmt.Errorf("cannot add external class without data")
-	}
-	if classFilePath == "" {
-		return fmt.Errorf("classFilePath cannot be empty")
-	}
-
-	// normalize classFilePath
-	classFilePath = strings.TrimLeft(classFilePath, "./")
-	if !strings.HasPrefix(classFilePath, inv.classPath) {
-		classFilePath = filepath.Join(inv.classPath, classFilePath)
-	}
-
-	// adjust the root key to match the filename because this is what Skipper expects
-	fileName := filepath.Base(classFilePath)
-	rootKey := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-
-	// create new data and set the root key
-	classData := make(Data)
-	classData[rootKey] = data
-
-	// warn the user that this class is generated and should not be edited manually
-	classBytes := []byte("---\n# This is a dynamically generated class file. DO NOT EDIT!\n")
-	classBytes = append(classBytes, classData.Bytes()...)
-
-	// write the class into the inventory filesystem
-	classFile, err := CreateNewFile(inv.fs, classFilePath, classBytes)
-	if err != nil {
-		return err
-	}
-
-	newClass, err := NewClass(classFile, classFilePath)
-	if err != nil {
-		return err
-	}
-
-	inv.classFiles = append(inv.classFiles, newClass)
-
-	return nil
-}
-
 // Load will discover and load all classes and targets given the paths.
 // It will also ensure that all targets only use classes which are actually defined.
 func (inv *Inventory) Load() error {
@@ -145,6 +93,52 @@ func (inv *Inventory) Load() error {
 	return nil
 }
 
+// GetUsedClasses returns the loaded classes which are used by the given target.
+func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
+	target, err := inv.Target(targetName)
+	if err != nil {
+		return nil, err
+	}
+
+	var classes []*Class
+	for _, className := range target.UsedClasses {
+		class, err := inv.Class(className)
+		if err != nil {
+			return nil, err
+		}
+		classes = append(classes, class)
+	}
+
+	return classes, nil
+}
+
+// GetComponents returns the ComponentConfig of the given target and its used classes.
+func (inv *Inventory) GetComponents(targetName string) ([]ComponentConfig, error) {
+	target, err := inv.Target(targetName)
+	if err != nil {
+		return nil, err
+	}
+
+	var components []ComponentConfig
+
+	if target.SkipperConfig.IsSet() {
+		components = append(components, target.SkipperConfig.Components...)
+	}
+
+	usedClasses, err := inv.GetUsedClasses(targetName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, class := range usedClasses {
+		if class.Configuration.IsSet() {
+			components = append(components, class.Configuration.Components...)
+		}
+	}
+
+	return components, nil
+}
+
 // Data loads the required inventory data map given the target.
 // This is where variables and secrets are handled and eventually replaced.
 // The resulting Data is what can be passed to the templates.
@@ -157,13 +151,9 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	}
 
 	// load all classes as defined by the target
-	var classes []*Class
-	for _, className := range target.UsedClasses {
-		class, err := inv.Class(className)
-		if err != nil {
-			return nil, err
-		}
-		classes = append(classes, class)
+	classes, err := inv.GetUsedClasses(targetName)
+	if err != nil {
+		return nil, err
 	}
 
 	// merge data from all classes into Data, preserving the class path.
@@ -243,7 +233,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		return nil, err
 	}
 
-	// WIP: call managment
+	// call managment
 	{
 		calls, err := FindCalls(data)
 		if err != nil {
@@ -265,8 +255,6 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 			data.SetPath(sourceValue, call.Identifier...)
 		}
 	}
-
-	log.Println(data.String())
 
 	// we need to reload the target configuration as it will derive it's configuration from the Data
 	// of a previous state. Since the calls can modify the target configuration as well, we have to reload it.
@@ -335,6 +323,58 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	return data, nil
 }
 
+// AddExternalClass can be used to dynamically create class files.
+// The given data will be written into `classFilePath`, overwriting any existing file.
+//
+// The class path is first normalized to match the existing `Inventory.classPath`.
+//
+// After that, the root-key of the data is adjusted to match the fileName which is extracted from `classFilePath`.
+// This has to be done in order to comply Skipper rules where the class-filename must also be the root-key of any given class.
+//
+// A new file inside the Skipper class path is created which makes it available for loading.
+// In order to prevent confusion, a file header is added to indicate that the class was generated.
+func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string) error {
+	if data == nil {
+		return fmt.Errorf("cannot add external class without data")
+	}
+	if classFilePath == "" {
+		return fmt.Errorf("classFilePath cannot be empty")
+	}
+
+	// normalize classFilePath
+	classFilePath = strings.TrimLeft(classFilePath, "./")
+	if !strings.HasPrefix(classFilePath, inv.classPath) {
+		classFilePath = filepath.Join(inv.classPath, classFilePath)
+	}
+
+	// adjust the root key to match the filename because this is what Skipper expects
+	fileName := filepath.Base(classFilePath)
+	rootKey := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+
+	// create new data and set the root key
+	classData := make(Data)
+	classData[rootKey] = data
+
+	// warn the user that this class is generated and should not be edited manually
+	classBytes := []byte("---\n# This is a dynamically generated class file. DO NOT EDIT!\n")
+	classBytes = append(classBytes, classData.Bytes()...)
+
+	// write the class into the inventory filesystem
+	classFile, err := CreateNewFile(inv.fs, classFilePath, classBytes)
+	if err != nil {
+		return err
+	}
+
+	newClass, err := NewClass(classFile, classFilePath)
+	if err != nil {
+		return err
+	}
+
+	inv.classFiles = append(inv.classFiles, newClass)
+
+	return nil
+}
+
 // replaceSecret will replace the given secret inside Data.
 func (inv *Inventory) replaceSecret(data Data, secret *Secret) error {
 	// sourceValue is the value where the variable is. It needs to be replaced with an actual value
@@ -363,11 +403,6 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 	variables, err := FindVariables(data)
 	if err != nil {
 		return err
-	}
-
-	// TODO: remove
-	for _, variable := range variables {
-		log.Println("found variable", variable.FullName(), "at", variable.Path())
 	}
 
 	if len(variables) == 0 {

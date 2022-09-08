@@ -1,0 +1,7 @@
+---
+scripts:
+  skipper:
+    components:
+      - output_path: scripts
+        input_paths:
+          - scripts/utils.sh
