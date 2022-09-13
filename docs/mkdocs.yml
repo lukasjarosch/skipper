@@ -23,6 +23,7 @@ nav:
             - Overview: concepts/inventory/secrets/overview.md
       - Templates:
         - Overview: concepts/templates/overview.md
+        - Components: concepts/templates/components.md
           
   - Getting Started: getting_started.md
   - Examples: examples.md
