@@ -22,6 +22,7 @@
         "local_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
         "subscription_id": "59efa773-ee54-47d6-a95a-eac3fca3bc24"
       },
+      "foo": "bar",
       "resources": {
         "location": "westeurope",
         "resource_group": {
@@ -121,6 +122,7 @@
         ],
         "use": [
           "common",
+          "azure",
           "azure.common",
           "azure.resources",
           "terraform.identifiers",
