@@ -3,6 +3,7 @@ target:
   skipper:
     use: 
       - common
+      - azure
       - azure.common
       - azure.resources
       - terraform.identifiers

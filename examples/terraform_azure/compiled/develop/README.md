@@ -23,6 +23,7 @@
         "secret": "Y38b4X3v6zrcVthaO9wWmUI77Va4eUQh8hizt-kf7mJY9aj8BcpJdAqycNgt3MBR",
         "subscription_id": "59efa773-ee54-47d6-a95a-eac3fca3bc24"
       },
+      "foo": "bar",
       "resources": {
         "location": "westeurope",
         "resource_group": {
@@ -132,6 +133,7 @@
         },
         "use": [
           "common",
+          "azure",
           "azure.common",
           "azure.resources",
           "terraform.identifiers",
