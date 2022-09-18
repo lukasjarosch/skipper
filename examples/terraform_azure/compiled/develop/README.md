@@ -88,9 +88,7 @@
           "components": [
             {
               "input_paths": [
-                "scripts/bootstrap.sh",
-                "scripts/utils.sh",
-                "scripts/az.sh"
+                "scripts/utils.sh"
               ],
               "output_path": "scripts"
             }
