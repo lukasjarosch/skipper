@@ -191,7 +191,7 @@ type SecretFile struct {
 }
 
 func (sf *SecretFile) LoadSecretFileData(fs afero.Fs) error {
-	err := sf.file.Load(fs)
+	err := sf.File.Load(fs)
 	if err != nil {
 		return err
 	}
