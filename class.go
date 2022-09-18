@@ -70,9 +70,15 @@ func (c *Class) Data() *Data {
 // RootKey returns the root key name of the class.
 func (c *Class) RootKey() string {
 	val := reflect.ValueOf(c.Data()).Elem()
+	if len(val.MapKeys()) == 0 {
+		return ""
+	}
 	return val.MapKeys()[0].String()
 }
 
+// NameAsIdentifier returns the class name as an identifier used by skipper.
+// The name is a dot-separated list of values (e.g. 'foo.bar.baz').
+// The returned identifier is a []interface which the values and can be used to address the class in Data.
 func (c *Class) NameAsIdentifier() (id []interface{}) {
 	tmp := strings.Split(c.Name, ".")
 	id = make([]interface{}, len(tmp))
