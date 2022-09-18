@@ -360,7 +360,7 @@ func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string
 	classBytes = append(classBytes, classData.Bytes()...)
 
 	// write the class into the inventory filesystem
-	classFile, err := CreateNewFile(inv.fs, classFilePath, classBytes)
+	classFile, err := CreateNewYamlFile(inv.fs, classFilePath, classBytes)
 	if err != nil {
 		return err
 	}

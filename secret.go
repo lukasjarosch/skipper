@@ -131,7 +131,7 @@ func (secret *Secret) attemptCreate(fs afero.Fs, secretPath string) error {
 	}
 
 	// create the secret file with the data from the alternative action
-	secretFile, err := CreateNewFile(fs, filepath.Join(secretPath, secret.RelativePath), fileData.Bytes())
+	secretFile, err := CreateNewYamlFile(fs, filepath.Join(secretPath, secret.RelativePath), fileData.Bytes())
 	if err != nil {
 		return err
 	}

@@ -13,24 +13,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// file is just an arbitrary description of a path and the data of the file to which Path points to.
-// Note that the used filesystem is not relevant, only at the time of loading a file.
-type file struct {
+// File is just an arbitrary description of a path and the data of the File to which Path points to.
+// Note that the used filesystem is not relevant, only at the time of loading a File.
+type File struct {
 	Path  string
 	Mode  fs.FileMode
 	Bytes []byte
 }
 
-func newFile(path string) (*file, error) {
+func newFile(path string) (*File, error) {
 	if path == "" {
 		return nil, fmt.Errorf("path cannot be empty")
 	}
 
-	return &file{Path: path}, nil
+	return &File{Path: path}, nil
 }
 
-// Exists returns true if the file exists in the given filesystem, false otherwise.
-func (f *file) Exists(fs afero.Fs) bool {
+// Exists returns true if the File exists in the given filesystem, false otherwise.
+func (f *File) Exists(fs afero.Fs) bool {
 	exists, err := afero.Exists(fs, f.Path)
 	if err != nil {
 		return false
@@ -38,9 +38,9 @@ func (f *file) Exists(fs afero.Fs) bool {
 	return exists
 }
 
-// Load will attempt to read the file from the given filesystem implementation.
-// The loaded data is stored in `file.Bytes`
-func (f *file) Load(fs afero.Fs) (err error) {
+// Load will attempt to read the File from the given filesystem implementation.
+// The loaded data is stored in `File.Bytes`
+func (f *File) Load(fs afero.Fs) (err error) {
 	f.Bytes, err = afero.ReadFile(fs, f.Path)
 	if err != nil {
 		return fmt.Errorf("failed to Load %s: %w", f.Path, err)
@@ -55,7 +55,7 @@ func (f *file) Load(fs afero.Fs) (err error) {
 
 // YamlFile is what is used for all inventory-relevant files (classes and targets).
 type YamlFile struct {
-	file
+	File
 	Data Data
 }
 
@@ -67,15 +67,15 @@ func NewFile(path string) (*YamlFile, error) {
 	}
 
 	return &YamlFile{
-		file: *f,
+		File: *f,
 	}, nil
 }
 
-// CreateNewFile can be used to manually create a file inside the given filesystem.
+// CreateNewFile can be used to manually create a File inside the given filesystem.
 // This is useful for dynamically creating classes or targets.
 //
 // The given path is attempted to be created and a file written.
-func CreateNewFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
+func CreateNewYamlFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
 	err := fs.MkdirAll(filepath.Dir(path), 0755)
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func CreateNewFile(fs afero.Fs, path string, data []byte) (*YamlFile, error) {
 // Load will first load the underlying raw file-data and then attempt to `yaml.Unmarshal` it into `Data`
 // The resulting Data is stored in `YamlFile.Data`.
 func (f *YamlFile) Load(fs afero.Fs) error {
-	err := f.file.Load(fs)
+	err := f.File.Load(fs)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (f *YamlFile) UnmarshalPath(target interface{}, path ...interface{}) error 
 
 // TemplateFile represents a file which is used as Template.
 type TemplateFile struct {
-	file
+	File
 	tpl *template.Template
 }
 
@@ -139,14 +139,14 @@ func NewTemplateFile(path string, funcs map[string]any) (*TemplateFile, error) {
 	}
 
 	return &TemplateFile{
-		file: *f,
+		File: *f,
 		tpl:  template.New(path).Funcs(sprig.TxtFuncMap()).Funcs(funcs),
 	}, nil
 }
 
 // Parse will attempt to Load and parse the template from the given filesystem.
 func (tmpl *TemplateFile) Parse(fs afero.Fs) (err error) {
-	err = tmpl.file.Load(fs)
+	err = tmpl.File.Load(fs)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ type SecretFile struct {
 }
 
 func (sf *SecretFile) LoadSecretFileData(fs afero.Fs) error {
-	err := sf.file.Load(fs)
+	err := sf.File.Load(fs)
 	if err != nil {
 		return err
 	}
