@@ -70,6 +70,9 @@ func (c *Class) Data() *Data {
 // RootKey returns the root key name of the class.
 func (c *Class) RootKey() string {
 	val := reflect.ValueOf(c.Data()).Elem()
+	if len(val.MapKeys()) == 0 {
+		return ""
+	}
 	return val.MapKeys()[0].String()
 }
 
