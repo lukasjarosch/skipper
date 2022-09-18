@@ -5,6 +5,7 @@ import (
 	"io"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -28,7 +29,7 @@ func newFile(path string) (*File, error) {
 }
 
 // Exists returns true if the file exists in the given filesystem, false otherwise.
-func (f *file) Exists(fs afero.Fs) bool {
+func (f *File) Exists(fs afero.Fs) bool {
 	exists, err := afero.Exists(fs, f.Path)
 	if err != nil {
 		return false
@@ -174,4 +175,27 @@ func (tmpl *TemplateFile) Parse(fs afero.Fs) (err error) {
 // The passed contexData is what will be available inside the template.
 func (tmpl *TemplateFile) Execute(out io.Writer, contextData any) (err error) {
 	return tmpl.tpl.Execute(out, contextData)
+}
+
+type SecretFile struct {
+	*YamlFile
+	RelativePath string
+}
+
+type SecretFileList []*SecretFile
+
+func NewSecretFile(file *YamlFile, relativeSecretPath string) (*SecretFile, error) {
+	return &SecretFile{
+		YamlFile:     file,
+		RelativePath: relativeSecretPath,
+	}, nil
+}
+
+func (sfl SecretFileList) GetSecretFile(path string) *SecretFile {
+	for _, secretFile := range sfl {
+		if strings.EqualFold(secretFile.RelativePath, path) {
+			return secretFile
+		}
+	}
+	return nil
 }
