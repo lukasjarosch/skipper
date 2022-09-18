@@ -20,6 +20,7 @@ var (
 
 	targetPath string
 	classPath  string
+	secretPath string
 
 	fileSystem = afero.NewOsFs()
 )
@@ -33,6 +34,7 @@ func init() {
 
 	targetPath = path.Join(inventoryPath, "targets")
 	classPath = path.Join(inventoryPath, "classes")
+	secretPath = path.Join(inventoryPath, "secrets")
 }
 
 func main() {
@@ -45,7 +47,7 @@ func main() {
 	log.Printf("desired target is '%s'", target)
 
 	// initialize and load inventory ----------------------------------------------------------------------------------
-	inventory, err := skipper.NewInventory(afero.NewOsFs(), classPath, targetPath)
+	inventory, err := skipper.NewInventory(afero.NewOsFs(), classPath, targetPath, secretPath)
 	if err != nil {
 		panic(err)
 	}
@@ -80,7 +82,7 @@ func main() {
 		"year":         time.Now().Year(),
 	}
 
-	data, err := inventory.Data(target, predefinedVariables)
+	data, err := inventory.Data(target, predefinedVariables, false)
 	if err != nil {
 		panic(err)
 	}
