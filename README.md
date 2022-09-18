@@ -60,12 +60,16 @@ companies to create the own - custom built - template and inventory engine, with
   - This is very useful if you have a different data-structure which you want to add
   - For example if your app has a model which can be written via an HTTP API, you might want to be able to use these data as well
 - [ ] Add some sort of secrets management (starting with Azure KeyVault)
-- [ ] Allow subset template generation in targets/classes
+  - [ ] file-based secrets
+  - [ ] support different secret drivers to keep it extensible
+  - [ ] secret rotation: Skipper should be able to automatically rotate all secrets
+- [ ] Allow subset template generation in targets
   - Maybe you don't need/want to have all templates rendered in a particular target
   - There should be an option do configure which templates any given target is using
   - Maybe even with the option to rewrite target paths?
   - Maybe allow specifying required templates in a class and once the class is used, the template gets rendered automatically
 - [x] Add convenience func `Data.String()` which outputs the whole data as yaml encoded string.
+- [x Allow the use of local variables (per class) by introducing a second variable-replace pass.
 
 
 # Documentation
@@ -194,3 +198,4 @@ throughout your yaml files and have Skipper replace them dynamically once you ca
 
 ### Acknowledgments
 - Logo: <a href="https://www.flaticon.com/de/kostenlose-icons/kapitan" title="kapitän Icons">Skipper Logo designed by freepik - Flaticon</a>
+
