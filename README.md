@@ -13,7 +13,7 @@
 
   <!-- SKIPPER TLDR -->
   <h1 align="center">Skipper</h3>
-  <p>Inventory based templated configuration library based on the kapitan project</p>
+  <p>Inventory based templated configuration library inspired by the kapitan project</p>
   </br>
 </div>
 
