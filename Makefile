@@ -7,6 +7,7 @@ GOTEST = $(GO) test
 GOLIST := $(shell $(GO) list ./... | grep -v /vendor/)
 PWD := $(shell pwd)
 COVERAGE_FILE = profile.cov
+MKDOCS := $(shell which mkdocs)
 
 
 # Fancy colors
@@ -27,6 +28,7 @@ coverage: ## Run tests with coverage and export it into 'profile.cov'.
 show-coverage: coverage ## Run coverage and open the rendered coverage site in the browser 
 	$(GO) tool cover -html=$(COVERAGE_FILE)
 	echo -e "\n=> Coverage report opened in your default browser"
+
 ## Lint
 
 lint: lint-go lint-yaml ## Run all linters
@@ -36,6 +38,11 @@ lint-go: ## Lint all GO files
 
 lint-yaml: ## Lint all YAML files
 	$(DOCKER) run --rm -it -v $(PWD):/data $(YAMLLINT_IMAGE) -f parsable $(YAMLFILES)
+
+## Docs
+
+serve-docs:
+	@cd docs && $(MKDOCS) serve
 
 
 ## Examples
