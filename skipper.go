@@ -13,8 +13,14 @@ type SkipperConfig struct {
 }
 
 type ComponentConfig struct {
-	OutputPath string   `yaml:"output_path"`
-	InputPaths []string `yaml:"input_paths"`
+	OutputPath string                  `yaml:"output_path"`
+	InputPaths []string                `yaml:"input_paths"`
+	Renames    []RenameComponentConfig `yaml:"rename"`
+}
+
+type RenameComponentConfig struct {
+	InputPath string `yaml:"input_path"`
+	Filename  string `yaml:"filename"`
 }
 
 func LoadSkipperConfig(file *YamlFile, rootKey string) (*SkipperConfig, error) {
