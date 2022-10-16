@@ -19,20 +19,23 @@ nav:
             - Dynamic Variables: concepts/inventory/variables/dynamic.md
             - User-defined Variables: concepts/inventory/variables/user-defined.md
         - Calls: concepts/inventory/calls.md
-        - Secrets: 
-            - Overview: concepts/inventory/secrets/overview.md
       - Templates:
         - Overview: concepts/templates/overview.md
         - Components: concepts/templates/components.md
-          
+      - Secrets:
+        - Overview: concepts/secrets/overview.md
+        - Drivers:
+          - Plain: concepts/secrets/drivers/azurekv.md
+          - Base64: concepts/secrets/drivers/azurekv.md
+          - AES: concepts/secrets/drivers/azurekv.md
+          - Azure KeyVault: concepts/secrets/drivers/azurekv.md
+
   - Getting Started: getting_started.md
   - Examples: examples.md
   - Changelog: changelog.md
 
 theme:
   name: material
-  primary: blue
-  accent: pink
   logo: assets/favicon.ico
   favicon: assets/favicon.ico
 
@@ -41,8 +44,10 @@ theme:
     - navigation.tabs
     - navigation.top
     - navigation.sections
+    - navigation.expand
 
   palette: 
+
     # Palette toggle for light mode
     - scheme: default
       toggle:

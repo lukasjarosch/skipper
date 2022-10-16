@@ -56,7 +56,11 @@
       }
     },
     "common": {
-      "project_name": "terraform_example"
+      "project_name": "terraform_example",
+      "test": [
+        "first"
+      ],
+      "var": "first"
     },
     "components": {
       "bootstrap": {
