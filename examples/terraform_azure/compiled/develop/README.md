@@ -123,6 +123,18 @@
               "markdown/README.md"
             ],
             "output_path": "/"
+          },
+          {
+            "input_paths": [
+              "markdown/AnotherReadme.md"
+            ],
+            "output_path": "component_rename",
+            "rename": [
+              {
+                "filename": "README.md",
+                "input_path": "markdown/AnotherReadme.md"
+              }
+            ]
           }
         ],
         "secrets": {

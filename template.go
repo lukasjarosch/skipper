@@ -119,13 +119,23 @@ func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, al
 
 	for _, component := range components {
 		for _, input := range component.InputPaths {
+
 			file := t.getTemplateByPath(input)
 
 			if file == nil {
 				continue
 			}
 
-			err := t.execute(file, data, filepath.Join(component.OutputPath, filepath.Base(file.Path)), allowNoValue)
+			outputFileName := filepath.Base(file.Path)
+
+			// if the input path has a rename config, we need to change the outputFileName accordingly
+			for _, rename := range component.Renames {
+				if strings.EqualFold(rename.InputPath, input) {
+					outputFileName = rename.Filename
+				}
+			}
+
+			err := t.execute(file, data, filepath.Join(component.OutputPath, outputFileName), allowNoValue)
 			if err != nil {
 				return err
 			}
