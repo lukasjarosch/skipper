@@ -67,7 +67,10 @@ companies to create the own - custom built - template and inventory engine, with
   - There should be an option do configure which templates any given target is using
   - Maybe even with the option to rewrite target paths?
 - [x] Add convenience func `Data.String()` which outputs the whole data as yaml encoded string.
-- [x Allow the use of local variables (per class) by introducing a second variable-replace pass.
+- [x] Allow the use of local variables (per class) by introducing a second variable-replace pass.
+- [ ] Allow template target file renaming
+    - This can be used to write templates which might become dotfiles
+    - In order to not miss or confuse the template with the actual dotfile, it would be nice to be able to rename specific template output files
 
 
 # Documentation
