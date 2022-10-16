@@ -29,7 +29,6 @@ nav:
           - Base64: concepts/secrets/drivers/azurekv.md
           - AES: concepts/secrets/drivers/azurekv.md
           - Azure KeyVault: concepts/secrets/drivers/azurekv.md
-
   - Getting Started: getting_started.md
   - Examples: examples.md
   - Changelog: changelog.md
