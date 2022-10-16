@@ -105,9 +105,10 @@ func (t *Target) Data() Data {
 // If these preconditions are met, the values are loaded into 'UsedClasses'.
 func (t *Target) loadUsedClasses() error {
 
-	if len(t.Configuration.Use) <= 1 {
-		return fmt.Errorf("target must use at least one class")
-	}
+	// TODO: evaluate whether this - artificial - limitation is really needed
+	// if len(t.Configuration.Use) <= 1 {
+	// 	return fmt.Errorf("target must use at least one class")
+	// }
 
 	// convert []interface to []string
 	for _, class := range t.Configuration.Use {
