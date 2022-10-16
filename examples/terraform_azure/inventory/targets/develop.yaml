@@ -12,6 +12,13 @@ target:
       - output_path: /
         input_paths:
           - markdown/README.md
+      - output_path: component_rename
+        input_paths:
+          - markdown/AnotherReadme.md
+        rename:
+          - input_path: markdown/AnotherReadme.md
+            filename: README.md
+
 
   azure:
     common:
