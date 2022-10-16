@@ -6,8 +6,11 @@ target:
     components:
       - output_path: .
         input_paths:
-          - .envrc
+          - envrc
           - README.md
+        rename:
+          - input_path: envrc
+            filename: .envrc
       - output_path: scripts
         input_paths:
           - apply.sh
