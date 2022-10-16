@@ -1,0 +1,19 @@
+---
+target:
+  skipper:
+    use: 
+      - keyvault
+    components:
+      - output_path: .
+        input_paths:
+          - .envrc
+          - README.md
+      - output_path: scripts
+        input_paths:
+          - apply.sh
+          - destroy.sh
+
+  azure:
+    common:
+      subscription_id: "%{env:SKIPPER_KEYVAULT_SUBSCRIPTION_ID}"
+
