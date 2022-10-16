@@ -17,7 +17,7 @@ var (
 	templatePath  = path.Join(inventoryPath, "..", "templates")
 	outputPath    = "compiled"
 
-	target = "develop"
+	target = "azure_keyvault"
 )
 
 func main() {
@@ -38,7 +38,7 @@ func main() {
 	}
 
 	// Process the inventory, given the target name
-	data, err := inventory.Data("develop", predefinedVariables, true)
+	data, err := inventory.Data(target, predefinedVariables, true)
 	if err != nil {
 		panic(err)
 	}
