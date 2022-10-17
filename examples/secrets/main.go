@@ -60,11 +60,13 @@ func main() {
 	}
 
 	// execute templates  ----------------------------------------------------------------------------------
-	for _, template := range templater.Files {
-		err := templater.Execute(template, templateData, false)
-		if err != nil {
-			panic(err)
-		}
-		log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+	components, err := inventory.GetComponents(target)
+	if err != nil {
+		panic(err)
+	}
+
+	err = templater.ExecuteComponents(templateData, components, false)
+	if err != nil {
+		panic(err)
 	}
 }
