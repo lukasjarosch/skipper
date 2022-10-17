@@ -15,6 +15,7 @@ target:
         input_paths:
           - apply.sh
           - destroy.sh
+          - create_key.sh
 
   azure:
     common:
