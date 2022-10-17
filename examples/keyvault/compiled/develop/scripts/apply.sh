@@ -9,3 +9,7 @@ az keyvault create \
   --resource-group skipper-example \
   --name skipperkeyvaultexample
 
+az keyvault set-policy \
+  -n skipperkeyvaultexample \
+  --key-permissions backup create decrypt delete encrypt get getrotationpolicy import list purge recover release restore rotate setrotationpolicy sign unwrapKey update verify wrapKey \
+  --object-id $(az ad signed-in-user show | jq -r '.id')
