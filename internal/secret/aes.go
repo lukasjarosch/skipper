@@ -7,25 +7,37 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 type Aes struct {
-	*driver
+	config *aesConfig
+}
+
+type aesConfig struct {
+	Key string `mapstructure:"key"`
 }
 
 func NewAes() (*Aes, error) {
-	return &Aes{driver: &driver{initialized: true}}, nil
+	return &Aes{config: &aesConfig{}}, nil
+}
+
+func (driver *Aes) Configure(config map[string]interface{}) error {
+	err := mapstructure.Decode(config, driver.config)
+	if err != nil {
+		return fmt.Errorf("failed to decode aes driver config: %w", err)
+	}
+
+	if len(driver.config.Key) != 32 {
+		return fmt.Errorf("AES key must be exactly 32 Byte long")
+	}
+
+	return nil
 }
 
 func (driver *Aes) Decrypt(encrypted string) (string, error) {
-	if !driver.initialized {
-		return "", ErrDriverNotInitialized
-	}
-	if !driver.isKeySet() {
-		return "", ErrDriverKeyNotSet
-	}
-
-	decrypted, err := driver.decrypt([]byte(driver.key), encrypted)
+	decrypted, err := driver.decrypt([]byte(driver.config.Key), encrypted)
 	if err != nil {
 		return "", err
 	}
@@ -34,14 +46,7 @@ func (driver *Aes) Decrypt(encrypted string) (string, error) {
 }
 
 func (driver *Aes) Encrypt(input string) (string, error) {
-	if !driver.initialized {
-		return "", fmt.Errorf("%s: %w", driver.Type(), ErrDriverNotInitialized)
-	}
-	if !driver.isKeySet() {
-		return "", fmt.Errorf("%s: %w", driver.Type(), ErrDriverKeyEmpty)
-	}
-
-	encrypted, err := driver.encrypt([]byte(driver.key), input)
+	encrypted, err := driver.encrypt([]byte(driver.config.Key), input)
 	if err != nil {
 		return "", err
 	}
@@ -97,20 +102,6 @@ func (driver *Aes) decrypt(key []byte, secure string) (decoded string, err error
 	stream.XORKeyStream(cipherText, cipherText)
 
 	return string(cipherText), err
-}
-
-func (driver *Aes) SetKey(key string) error {
-	if len(key) != 32 {
-		return fmt.Errorf("AES key must be exactly 32 Byte long")
-	}
-
-	driver.key = key
-
-	return nil
-}
-
-func (driver *Aes) Initialize(config map[string]interface{}) error {
-	return nil
 }
 
 func (driver *Aes) Type() string {

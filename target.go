@@ -38,7 +38,6 @@ type TargetConfig struct {
 
 type TargetSecretConfig struct {
 	Drivers map[string]interface{} `mapstructure:"drivers"`
-	Keys    map[string]string      `mapstructure:"keys"`
 }
 
 func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {

@@ -11,8 +11,11 @@ type SecretDriver interface {
 	Type() string
 	Encrypt(data string) (string, error)
 	Decrypt(encrypted string) (string, error)
-	Initialize(config map[string]interface{}) error
-	SetKey(key string) error
+}
+
+type ConfigurableSecretDriver interface {
+	SecretDriver
+	Configure(config map[string]interface{}) error
 }
 
 var driverCache = map[string]SecretDriver{}

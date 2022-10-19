@@ -263,30 +263,22 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	// secret management
 	// initialize drivers, load or create secrets and eventually replace them if `revealSecrets` is true.
 	{
-		// initialize secret drivers configured by the target
-		// Note: Not all drivers require initialization, this depends on the driver (e.g. plain or base64)
+		// fetch and configure secret drivers configured by the target
 		for driverName, driverConfig := range target.Configuration.Secrets.Drivers {
 			driver, err := SecretDriverFactory(driverName)
 			if err != nil {
 				return nil, fmt.Errorf("target contains invalid secret driver configuration: %w", err)
 			}
 
-			err = driver.Initialize(driverConfig.(map[string]interface{}))
-			if err != nil {
-				return nil, fmt.Errorf("failed to initialize driver '%s': %w", driverName, err)
-			}
-		}
-
-		// set driver secret keys
-		for driverName, key := range target.Configuration.Secrets.Keys {
-			driver, err := SecretDriverFactory(driverName)
-			if err != nil {
-				return nil, fmt.Errorf("target contains invalid secret driver configuration: %w", err)
-			}
-
-			err = driver.SetKey(key)
-			if err != nil {
-				return nil, fmt.Errorf("failed to set secret driver key '%s': %w", driverName, err)
+			if drv, ok := driver.(ConfigurableSecretDriver); ok {
+				if config, ok := driverConfig.(map[string]interface{}); ok {
+					err = drv.Configure(config)
+					if err != nil {
+						return nil, fmt.Errorf("failed to configure driver '%s': %w", driverName, err)
+					}
+				} else {
+					return nil, fmt.Errorf("driver configuration for '%s' is not map[string]interface{}", driverName)
+				}
 			}
 		}
 
