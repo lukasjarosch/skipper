@@ -30,6 +30,11 @@ companies to create the own - custom built - template and inventory engine, with
 ## Roadmap
 
 - [ ] Allow definition of custom variables within classes
+- [ ] Allow static file copying instead of rendering it as template (e.g. copy a zip file from templates to compiled)
+- [ ] Add timing stats (benchmark, 'compiled in xxx') to crush kapitan
+- [ ] Add more secret drivers
+    - AWS KMS
+    - GCP
 - [ ] Class inheritance. Currently only targets can `use` classes but it would be nice if classes could also use different classes
   - This would introduce a higher level of inheritance which users can set-up for their inventory.
 - [x] Allow self referencing within classes

@@ -224,6 +224,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		data = data.MergeReplace(targetMergeData)
 
 		// add all 'leftover' keys - which were not already merged with the data provided by the classes - into the 'target' key
+		// FIXME: remove 'target' as key completely and merge everything as classpath
 		data[targetKey] = targetData
 	}
 
