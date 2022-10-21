@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -40,6 +41,21 @@ func CopyFile(fs afero.Fs, sourcePath, targetPath string) error {
 	}
 	if bytesWritten != len(sourceData) {
 		return fmt.Errorf("CopyFile did not write all source file bytes into the target file, retry")
+	}
+
+	return nil
+}
+
+// WriteFile ensures that `targetPath` exists in the `fs` and then writes `data` into it.
+func WriteFile(fs afero.Fs, targetPath string, data []byte, mode fs.FileMode) error {
+	err := fs.MkdirAll(filepath.Dir(targetPath), 0755)
+	if err != nil {
+		return err
+	}
+
+	err = afero.WriteFile(fs, targetPath, data, mode)
+	if err != nil {
+		return err
 	}
 
 	return nil
