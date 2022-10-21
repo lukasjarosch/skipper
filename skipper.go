@@ -11,7 +11,6 @@ import (
 const skipperKey string = "skipper"
 
 type SkipperConfig struct {
-	// TODO: for some reason, this is not yet used
 	Classes    []string          `yaml:"use,omitempty"`
 	Components []ComponentConfig `mapstructure:"components,omitempty"`
 	Copies     []CopyConfig      `yaml:"copy,omitempty"`
