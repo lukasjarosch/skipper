@@ -138,6 +138,33 @@ func (inv *Inventory) GetComponents(targetName string) ([]ComponentConfig, error
 	return components, nil
 }
 
+// GetCopyConfigs returns the CopyConfig of the given target and its used classes.
+func (inv *Inventory) GetCopyConfigs(targetName string) ([]CopyConfig, error) {
+	target, err := inv.Target(targetName)
+	if err != nil {
+		return nil, err
+	}
+
+	var copyConfigs []CopyConfig
+
+	if target.SkipperConfig.IsSet() {
+		copyConfigs = append(copyConfigs, target.SkipperConfig.Copies...)
+	}
+
+	usedClasses, err := inv.GetUsedClasses(targetName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, class := range usedClasses {
+		if class.Configuration.IsSet() {
+			copyConfigs = append(copyConfigs, class.Configuration.Copies...)
+		}
+	}
+
+	return copyConfigs, nil
+}
+
 // Data loads the required inventory data map given the target.
 // This is where variables and secrets are handled and eventually replaced.
 // The resulting Data is what can be passed to the templates.
