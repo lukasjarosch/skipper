@@ -8,8 +8,17 @@ import (
 const skipperKey string = "skipper"
 
 type SkipperConfig struct {
-	Classes    []string          `yaml:"classes,omitempty"`
+	// TODO: for some reason, this is not yet used
+	Classes    []string          `yaml:"use,omitempty"`
 	Components []ComponentConfig `mapstructure:"components,omitempty"`
+	Copies     []CopyConfig      `yaml:"copy,omitempty"`
+}
+
+type CopyConfig struct {
+	// SourcePath is the source file to copy, relative to the template-root
+	SourcePath string `yaml:"source"`
+	// TargetPath is the target to copy the source file to, relative to the compile-root
+	TargetPath string `yaml:"target"`
 }
 
 type ComponentConfig struct {
