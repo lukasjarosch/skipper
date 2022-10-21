@@ -38,7 +38,7 @@ func main() {
 	}
 
 	// Process the inventory, given the target name
-	data, err := inventory.Data(target, predefinedVariables, true)
+	data, err := inventory.Data(target, predefinedVariables, false)
 	if err != nil {
 		panic(err)
 	}

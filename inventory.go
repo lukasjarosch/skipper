@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"log"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"github.com/spf13/afero"
@@ -201,32 +200,12 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		}
 	}
 
-	// Determine which keys are present in the target which are also defined by the classes.
 	// Merge target into Data, overwriting any existing values which were defined in classes because target data has precedence over class data.
-	// Any key which is not added to the main Data (because the keys did not already exist), will be added under the 'target' key.
-	{
-		dataKeys := reflect.ValueOf(data).MapKeys()            // we know that it's a map so we skip some checks
-		targetKeys := reflect.ValueOf(target.Data()).MapKeys() // we know that it's a map so we skip some checks
-
-		targetData := target.Data()   // copy target data since we're going to delete keys and want to preserve the original
-		targetMergeData := make(Data) // target data which needs to be merged into the main data
-
-		// copy existing keys in target data into targetMergeData and remove the key from targetData.
-		for _, dataKey := range dataKeys {
-			for _, targetKey := range targetKeys {
-				if dataKey.String() == targetKey.String() {
-					targetMergeData[targetKey.String()] = targetData[targetKey.String()]
-					delete(targetData, targetKey.String())
-					break
-				}
-			}
-		}
-		data = data.MergeReplace(targetMergeData)
-
-		// add all 'leftover' keys - which were not already merged with the data provided by the classes - into the 'target' key
-		// FIXME: remove 'target' as key completely and merge everything as classpath
-		data[targetKey] = targetData
-	}
+	// Any key which is not added to the main Data (because the keys did not already exist), will be added.
+	// Only exception is the 'skipper' key from the target, it will not be added to the data.
+	targetData := target.Data()
+	delete(targetData, skipperKey)
+	data = data.MergeReplace(targetData)
 
 	// replace all ordinary variables (`${...}`) inside the data
 	err = inv.replaceVariables(data, predefinedVariables)
