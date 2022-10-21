@@ -65,7 +65,6 @@ func main() {
 		panic(err)
 	}
 
-	// TODO: refactor, this is not nice to use
 	// copy files as specified in the target config (base path is template root)
 	copyConfigs, err := inventory.GetCopyConfigs(target)
 	if err != nil {
