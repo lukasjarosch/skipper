@@ -1,4 +1,4 @@
-module github.com/lukasjarosch/skipper/examples/terraform_azure
+module github.com/lukasjarosch/skipper/examples/keyvault
 
 go 1.18
 

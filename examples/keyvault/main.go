@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"path"
 
 	"github.com/lukasjarosch/skipper"
@@ -13,11 +12,11 @@ var (
 	inventoryPath = "inventory"
 	classPath     = path.Join(inventoryPath, "classes")
 	targetPath    = path.Join(inventoryPath, "targets")
+	templatePath  = "templates"
 	secretPath    = path.Join(inventoryPath, "secrets")
-	templatePath  = path.Join(inventoryPath, "..", "templates")
 	outputPath    = "compiled"
 
-	target = "azure_keyvault"
+	target = "develop"
 )
 
 func main() {
@@ -38,12 +37,10 @@ func main() {
 	}
 
 	// Process the inventory, given the target name
-	data, err := inventory.Data(target, predefinedVariables, true)
+	data, err := inventory.Data("develop", predefinedVariables, true)
 	if err != nil {
 		panic(err)
 	}
-
-	log.Printf("\n%s", data.String())
 
 	templateOutputPath := path.Join(outputPath, target)
 	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, nil)
@@ -60,13 +57,23 @@ func main() {
 	}
 
 	// execute templates  ----------------------------------------------------------------------------------
-	components, err := inventory.GetComponents(target)
-	if err != nil {
-		panic(err)
-	}
 
-	err = templater.ExecuteComponents(templateData, components, false)
-	if err != nil {
-		panic(err)
+	{
+		components, err := inventory.GetComponents(target)
+		if err != nil {
+			panic(err)
+		}
+
+		err = templater.ExecuteComponents(templateData, components, false)
+		if err != nil {
+			panic(err)
+		}
 	}
+	//for _, template := range templater.Files {
+	//	err := templater.Execute(template, templateData, false)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+	//}
 }

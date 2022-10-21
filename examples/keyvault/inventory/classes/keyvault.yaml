@@ -1,0 +1,4 @@
+keyvault:
+  name: "skipperkeyvaultexample"
+  location: "westeurope"
+  resource_group: "skipper-example"

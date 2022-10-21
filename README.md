@@ -29,13 +29,20 @@ companies to create the own - custom built - template and inventory engine, with
 
 ## Roadmap
 
+- [ ] Allow definition of custom variables within classes
+- [ ] Allow static file copying instead of rendering it as template (e.g. copy a zip file from templates to compiled)
+- [ ] Add timing stats (benchmark, 'compiled in xxx') to crush kapitan
+- [ ] Add more secret drivers
+    - AWS KMS
+    - GCP
+- [ ] Class inheritance. Currently only targets can `use` classes but it would be nice if classes could also use different classes
+  - This would introduce a higher level of inheritance which users can set-up for their inventory.
 - [x] Allow self referencing within classes
   - When writing classes one will very likely need to reference a valuie of the same class somewhere else. 
     Think about defining a docker image once and reusing it throughout the class, but with different tags.
   - Enable the notation `${object:key}` within classes and targets
 - [x] Introduce a default set of `${variable}` variables to be used within targets and classes
   - First candidade is to have `${target_name}` accessible everywhere
-- [ ] Allow definition of custom variables within classes
 - [x] Enable variable usage across classes
   - This will introduce definition checks. If a class is not used by a target, but referenced by a variable, it is not defined
 - [x] Allow adding external data (`map[string]any`) as classes
@@ -48,8 +55,6 @@ companies to create the own - custom built - template and inventory engine, with
   - You might want to define some sort of `GeneralizedResource` which you want customers to use.
     - In order to maintain validity of your templates, you will need to enforce a specified struct of the class
     - And you might want to import all defined classes inside that folder, without knowing in advance which classes it contains.
-- [ ] Class inheritance. Currently only targets can `use` classes but it would be nice if classes could also use different classes
-  - This would introduce a higher level of inheritance which users can set-up for their inventory.
 - [x] `<no value>` detection in rendered templates
   - If for some reason a template uses a value which is not set, the user should have the ability to detect that post generation.
   - Introduce a verify mechanism which ideally checks for missing values and maybe also extracts which template-key it originated from
@@ -58,16 +63,19 @@ companies to create the own - custom built - template and inventory engine, with
 - [x] Add the option to inject arbitrary maps into the inventory with custom keys (`inventory.AddKey(key string, data Data)`)
   - This is very useful if you have a different data-structure which you want to add
   - For example if your app has a model which can be written via an HTTP API, you might want to be able to use these data as well
-- [ ] Add some sort of secrets management (starting with Azure KeyVault)
-  - [ ] file-based secrets
-  - [ ] support different secret drivers to keep it extensible
-  - [ ] secret rotation: Skipper should be able to automatically rotate all secrets
+- [x] Add some sort of secrets management (starting with Azure KeyVault)
+  - [x] file-based secrets
+  - [x] support different secret drivers to keep it extensible
+  - [ ] ~~secret rotation: Skipper should be able to automatically rotate all secrets~~
 - [x] Allow subset template generation in targets
   - Maybe you don't need/want to have all templates rendered in a particular target
   - There should be an option do configure which templates any given target is using
   - Maybe even with the option to rewrite target paths?
 - [x] Add convenience func `Data.String()` which outputs the whole data as yaml encoded string.
-- [x Allow the use of local variables (per class) by introducing a second variable-replace pass.
+- [x] Allow the use of local variables (per class) by introducing a second variable-replace pass.
+- [x] Allow template target file renaming
+    - This can be used to write templates which might become dotfiles
+    - In order to not miss or confuse the template with the actual dotfile, it would be nice to be able to rename specific template output files
 
 
 # Documentation

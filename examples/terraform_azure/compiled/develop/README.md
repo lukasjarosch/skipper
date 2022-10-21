@@ -20,6 +20,7 @@
       "common": {
         "absolute_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
         "local_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
+        "secret": "",
         "subscription_id": "59efa773-ee54-47d6-a95a-eac3fca3bc24"
       },
       "foo": "bar",
@@ -55,7 +56,11 @@
       }
     },
     "common": {
-      "project_name": "terraform_example"
+      "project_name": "terraform_example",
+      "test": [
+        "first"
+      ],
+      "var": "first"
     },
     "components": {
       "bootstrap": {
@@ -132,6 +137,16 @@
             ]
           }
         ],
+        "secrets": {
+          "drivers": {
+            "azurekv": {
+              "vault_name": "kv-dev-edge"
+            }
+          },
+          "keys": {
+            "azurekv": "test"
+          }
+        },
         "use": [
           "common",
           "azure",
