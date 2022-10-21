@@ -2,6 +2,9 @@ package skipper
 
 import (
 	"fmt"
+	"path/filepath"
+
+	"github.com/spf13/afero"
 )
 
 // skipperKey is the key used to load skipper-related configurations from YAML files
@@ -58,4 +61,17 @@ func LoadSkipperConfig(file *YamlFile, rootKey string) (*SkipperConfig, error) {
 // The function is useful because LoadSkipperConfig can return nil.
 func (config *SkipperConfig) IsSet() bool {
 	return config != nil
+}
+
+// CopyFilesByConfig uses a list of CopyConfigs and calls the CopyFile func on them.
+func CopyFilesByConfig(fs afero.Fs, configs []CopyConfig, sourceBasePath, targetBasePath string) error {
+	for _, copyFile := range configs {
+		source := filepath.Join(sourceBasePath, copyFile.SourcePath)
+		target := filepath.Join(targetBasePath, copyFile.TargetPath)
+		err := CopyFile(fs, source, target)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

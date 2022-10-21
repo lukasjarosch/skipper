@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"path"
-	"path/filepath"
 
 	"github.com/lukasjarosch/skipper"
 	"github.com/spf13/afero"
@@ -68,16 +67,12 @@ func main() {
 
 	// TODO: refactor, this is not nice to use
 	// copy files as specified in the target config (base path is template root)
-	t, err := inventory.Target(target)
+	copyConfigs, err := inventory.GetCopyConfigs(target)
 	if err != nil {
 		panic(err)
 	}
-	for _, copyFile := range t.SkipperConfig.Copies {
-		source := filepath.Join(templatePath, copyFile.SourcePath)
-		target := filepath.Join(templateOutputPath, copyFile.TargetPath)
-		err := skipper.CopyFile(fileSystem, source, target)
-		if err != nil {
-			panic(err)
-		}
+	err = skipper.CopyFilesByConfig(fileSystem, copyConfigs, templatePath, templateOutputPath)
+	if err != nil {
+		panic(err)
 	}
 }
