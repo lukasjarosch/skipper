@@ -32,13 +32,8 @@ func main() {
 		panic(err)
 	}
 
-	predefinedVariables := map[string]interface{}{
-		"target_name": target,
-		"output_path": outputPath,
-	}
-
 	// Process the inventory, given the target name
-	data, err := inventory.Data(target, predefinedVariables, false)
+	data, err := inventory.Data(target, nil, false)
 	if err != nil {
 		panic(err)
 	}

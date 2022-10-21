@@ -207,6 +207,12 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	delete(targetData, skipperKey)
 	data = data.MergeReplace(targetData)
 
+	// add Skipper pre-defined variables
+	if predefinedVariables == nil {
+		predefinedVariables = make(map[string]interface{})
+	}
+	predefinedVariables["target_name"] = targetName
+
 	// replace all ordinary variables (`${...}`) inside the data
 	err = inv.replaceVariables(data, predefinedVariables)
 	if err != nil {
