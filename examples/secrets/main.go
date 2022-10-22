@@ -64,4 +64,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// copy files as specified in the target config (base path is template root)
+	copyConfigs, err := inventory.GetCopyConfigs(target)
+	if err != nil {
+		panic(err)
+	}
+	err = skipper.CopyFilesByConfig(fileSystem, copyConfigs, templatePath, templateOutputPath)
+	if err != nil {
+		panic(err)
+	}
 }

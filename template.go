@@ -103,7 +103,7 @@ func (t *Templater) execute(template *TemplateFile, data any, targetPath string,
 		}
 	}
 
-	err = t.writeOutputFile(out.Bytes(), targetPath, template.Mode)
+	err = WriteFile(t.outputFs, targetPath, out.Bytes(), template.Mode)
 	if err != nil {
 		return err
 	}
@@ -163,20 +163,5 @@ func (t *Templater) getTemplateByPath(path string) *TemplateFile {
 			return file
 		}
 	}
-	return nil
-}
-
-// writeOutputFile ensures that `filePath` exists in the `outputFs` and then writes `data` into it.
-func (t *Templater) writeOutputFile(data []byte, filePath string, mode fs.FileMode) error {
-	err := t.outputFs.MkdirAll(filepath.Dir(filePath), 0755)
-	if err != nil {
-		return err
-	}
-
-	err = afero.WriteFile(t.outputFs, filePath, data, mode)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }

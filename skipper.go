@@ -2,14 +2,26 @@ package skipper
 
 import (
 	"fmt"
+	"path/filepath"
+
+	"github.com/spf13/afero"
 )
 
 // skipperKey is the key used to load skipper-related configurations from YAML files
 const skipperKey string = "skipper"
 
 type SkipperConfig struct {
-	Classes    []string          `yaml:"classes,omitempty"`
+	// TODO: for some reason, this is not yet used
+	Classes    []string          `yaml:"use,omitempty"`
 	Components []ComponentConfig `mapstructure:"components,omitempty"`
+	Copies     []CopyConfig      `yaml:"copy,omitempty"`
+}
+
+type CopyConfig struct {
+	// SourcePath is the source file to copy, relative to the template-root
+	SourcePath string `yaml:"source"`
+	// TargetPath is the target to copy the source file to, relative to the compile-root
+	TargetPath string `yaml:"target"`
 }
 
 type ComponentConfig struct {
@@ -49,4 +61,17 @@ func LoadSkipperConfig(file *YamlFile, rootKey string) (*SkipperConfig, error) {
 // The function is useful because LoadSkipperConfig can return nil.
 func (config *SkipperConfig) IsSet() bool {
 	return config != nil
+}
+
+// CopyFilesByConfig uses a list of CopyConfigs and calls the CopyFile func on them.
+func CopyFilesByConfig(fs afero.Fs, configs []CopyConfig, sourceBasePath, targetBasePath string) error {
+	for _, copyFile := range configs {
+		source := filepath.Join(sourceBasePath, copyFile.SourcePath)
+		target := filepath.Join(targetBasePath, copyFile.TargetPath)
+		err := CopyFile(fs, source, target)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
