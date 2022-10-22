@@ -54,23 +54,19 @@ func main() {
 		TargetName: target,
 	}
 
-	// execute templates  ----------------------------------------------------------------------------------
-	components, err := inventory.GetComponents(target)
+	skipperConfig, err := inventory.GetSkipperConfig(target)
 	if err != nil {
 		panic(err)
 	}
 
-	err = templater.ExecuteComponents(templateData, components, false)
+	// execute templates  ----------------------------------------------------------------------------------
+	err = templater.ExecuteComponents(templateData, skipperConfig.Components, false)
 	if err != nil {
 		panic(err)
 	}
 
 	// copy files as specified in the target config (base path is template root)
-	copyConfigs, err := inventory.GetCopyConfigs(target)
-	if err != nil {
-		panic(err)
-	}
-	err = skipper.CopyFilesByConfig(fileSystem, copyConfigs, templatePath, templateOutputPath)
+	err = skipper.CopyFilesByConfig(fileSystem, skipperConfig.Copies, templatePath, templateOutputPath)
 	if err != nil {
 		panic(err)
 	}

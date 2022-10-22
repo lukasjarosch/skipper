@@ -20,8 +20,6 @@ type Target struct {
 	// Name is the relative path of the file inside the inventory
 	// where '/' is replaced with '.' and without file extension.
 	Name string
-	// UsedClasses holds the resolved class names which are specified in the `target.skipper.use` key.
-	UsedClasses []string
 	// UsedWildcardClasses holds all resolved wildcard class imports as specified in the `targets.skipper.use` key.
 	UsedWildcardClasses []string
 	// Configuration is the skipper-internal configuration which needs to be present on every target.
@@ -104,11 +102,6 @@ func (t *Target) Data() Data {
 // If these preconditions are met, the values are loaded into 'UsedClasses'.
 func (t *Target) loadUsedClasses() error {
 
-	// TODO: evaluate whether this - artificial - limitation is really needed
-	// if len(t.Configuration.Use) <= 1 {
-	// 	return fmt.Errorf("target must use at least one class")
-	// }
-
 	// convert []interface to []string
 	for _, class := range t.Configuration.Use {
 		// load wildcard imports separately as they need to be resolved
@@ -117,8 +110,7 @@ func (t *Target) loadUsedClasses() error {
 			t.UsedWildcardClasses = append(t.UsedWildcardClasses, wildcardUse)
 			continue
 		}
-
-		t.UsedClasses = append(t.UsedClasses, class)
+		t.SkipperConfig.Classes = append(t.SkipperConfig.Classes, class)
 	}
 
 	return nil
