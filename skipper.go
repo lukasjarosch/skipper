@@ -34,6 +34,16 @@ type RenameComponentConfig struct {
 	Filename  string `yaml:"filename"`
 }
 
+// MergeSkipperConfig merges a list of configs into one
+func MergeSkipperConfig(merge ...*SkipperConfig) (mergedConfig *SkipperConfig) {
+	mergedConfig = new(SkipperConfig)
+	for _, config := range merge {
+		mergedConfig.Classes = append(mergedConfig.Classes, config.Classes...)
+		mergedConfig.Components = append(mergedConfig.Components, config.Components...)
+		mergedConfig.Copies = append(mergedConfig.Copies, config.Copies...)
+	}
+	return mergedConfig
+}
 func LoadSkipperConfig(file *YamlFile, rootKey string) (*SkipperConfig, error) {
 	if file == nil {
 		return nil, fmt.Errorf("file cannot be nil")
