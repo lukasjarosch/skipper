@@ -14,6 +14,7 @@ type SkipperConfig struct {
 	Classes    []string          `yaml:"use,omitempty"`
 	Components []ComponentConfig `mapstructure:"components,omitempty"`
 	Copies     []CopyConfig      `yaml:"copy,omitempty"`
+	Renames    []RenameConfig    `yaml:"rename,omitempty"`
 }
 
 type CopyConfig struct {
@@ -24,12 +25,12 @@ type CopyConfig struct {
 }
 
 type ComponentConfig struct {
-	OutputPath string                  `yaml:"output_path"`
-	InputPaths []string                `yaml:"input_paths"`
-	Renames    []RenameComponentConfig `yaml:"rename"`
+	OutputPath string         `yaml:"output_path"`
+	InputPaths []string       `yaml:"input_paths"`
+	Renames    []RenameConfig `yaml:"rename"`
 }
 
-type RenameComponentConfig struct {
+type RenameConfig struct {
 	InputPath string `yaml:"input_path"`
 	Filename  string `yaml:"filename"`
 }

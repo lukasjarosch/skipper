@@ -103,13 +103,17 @@ func main() {
 		Additional: additional,
 	}
 
+	rc, err := inventory.GetRenameConfigs(target)
+	if err != nil {
+		panic(err)
+	}
 	// execute templates  ----------------------------------------------------------------------------------
 	for _, template := range templater.Files {
-		err := templater.Execute(template, templateData, false)
+		err := templater.Execute(template, templateData, false, rc)
 		if err != nil {
 			panic(err)
 		}
-		log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+		log.Printf("executed template '%s'", template.Path)
 	}
 	// Alternatively `templater.ExecuteAll(template, templateData)` can be used
 }
