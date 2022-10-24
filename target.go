@@ -29,8 +29,7 @@ type Target struct {
 }
 
 type TargetConfig struct {
-	Secrets    TargetSecretConfig `mapstructure:"secrets,omitempty"`
-	Components []ComponentConfig  `mapstructure:"components,omitempty"`
+	Secrets TargetSecretConfig `mapstructure:"secrets,omitempty"`
 }
 
 type TargetSecretConfig struct {
