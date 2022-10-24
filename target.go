@@ -29,7 +29,6 @@ type Target struct {
 }
 
 type TargetConfig struct {
-	Use        []string           `mapstructure:"use"`
 	Secrets    TargetSecretConfig `mapstructure:"secrets,omitempty"`
 	Components []ComponentConfig  `mapstructure:"components,omitempty"`
 }
@@ -103,7 +102,7 @@ func (t *Target) Data() Data {
 func (t *Target) loadUsedClasses() error {
 
 	// convert []interface to []string
-	for _, class := range t.Configuration.Use {
+	for _, class := range t.SkipperConfig.Classes {
 		// load wildcard imports separately as they need to be resolved
 		if match := wildcardUseRegex.FindAllString(class, 1); len(match) == 1 {
 			wildcardUse := match[0]
