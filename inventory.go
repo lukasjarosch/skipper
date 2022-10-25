@@ -77,7 +77,7 @@ func (inv *Inventory) Load() error {
 	// check for all targets whether they use classes which actually exist
 	for _, target := range inv.targetFiles {
 		for _, class := range target.UsedClasses {
-			if !inv.ClassExists(class) {
+			if inv.GetClass(class) == nil {
 				return fmt.Errorf("target '%s' uses class '%s' which does not exist", target.Name, class)
 			}
 		}
@@ -94,16 +94,16 @@ func (inv *Inventory) Load() error {
 
 // GetUsedClasses returns the loaded classes which are used by the given target.
 func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
-	target, err := inv.Target(targetName)
-	if err != nil {
-		return nil, err
+	target := inv.GetTarget(targetName)
+	if target == nil {
+		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
 	}
 
 	var classes []*Class
 	for _, className := range target.UsedClasses {
-		class, err := inv.Class(className)
-		if err != nil {
-			return nil, err
+		class := inv.GetClass(className)
+		if class == nil {
+			return nil, fmt.Errorf("class could not be loaded: %s", className)
 		}
 		classes = append(classes, class)
 	}
@@ -113,9 +113,9 @@ func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
 
 // GetComponents returns the ComponentConfig of the given target and its used classes.
 func (inv *Inventory) GetComponents(targetName string) ([]ComponentConfig, error) {
-	target, err := inv.Target(targetName)
-	if err != nil {
-		return nil, err
+	target := inv.GetTarget(targetName)
+	if target == nil {
+		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
 	}
 
 	var components []ComponentConfig
@@ -140,9 +140,9 @@ func (inv *Inventory) GetComponents(targetName string) ([]ComponentConfig, error
 
 // GetCopyConfigs returns the CopyConfig of the given target and its used classes.
 func (inv *Inventory) GetCopyConfigs(targetName string) ([]CopyConfig, error) {
-	target, err := inv.Target(targetName)
-	if err != nil {
-		return nil, err
+	target := inv.GetTarget(targetName)
+	if target == nil {
+		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
 	}
 
 	var copyConfigs []CopyConfig
@@ -171,9 +171,9 @@ func (inv *Inventory) GetCopyConfigs(targetName string) ([]CopyConfig, error) {
 func (inv *Inventory) Data(targetName string, predefinedVariables map[string]interface{}, revealSecrets bool) (data Data, err error) {
 	data = make(Data)
 
-	target, err := inv.Target(targetName)
-	if err != nil {
-		return nil, err
+	target := inv.GetTarget(targetName)
+	if target == nil {
+		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
 	}
 
 	// load all classes as defined by the target
@@ -484,25 +484,9 @@ func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string
 	return nil
 }
 
-// Target returns a target given a name.
-func (inv *Inventory) Target(name string) (*Target, error) {
-	if !inv.TargetExists(name) {
-		return nil, fmt.Errorf("target '%s' does not exist", name)
-	}
-
-	return inv.getTarget(name), nil
-}
-
-// TargetExists returns true if the given target name exists
-func (inv *Inventory) TargetExists(name string) bool {
-	if inv.getTarget(name) == nil {
-		return false
-	}
-	return true
-}
-
-// getTarget attempts to return a target struct given a target name
-func (inv *Inventory) getTarget(name string) *Target {
+// GetTarget attempts to return a target struct given a target name.
+// If the target could not be found, nil is returned.
+func (inv *Inventory) GetTarget(name string) *Target {
 	for _, target := range inv.targetFiles {
 		if strings.ToLower(name) == strings.ToLower(target.Name) {
 			return target
@@ -511,33 +495,15 @@ func (inv *Inventory) getTarget(name string) *Target {
 	return nil
 }
 
-// Class attempts to return a Class, given a name.
-// If the class does not exist, an error is returned.
-func (inv *Inventory) Class(name string) (*Class, error) {
-	if !inv.ClassExists(name) {
-		return nil, fmt.Errorf("class '%s' does not exist", name)
-	}
-	return inv.getClass(name), nil
-}
-
-// ClassExists returns true if a class with the given name exists.
-func (inv *Inventory) ClassExists(name string) bool {
-	if inv.getClass(name) == nil {
-		return false
-	}
-	return true
-}
-
-// getClass attempts to return a Class, given a name.
+// GetClass attempts to return a Class, given a name.
 // If the class does not exist, nil is returned.
-func (inv *Inventory) getClass(name string) *Class {
+func (inv *Inventory) GetClass(name string) *Class {
 	for _, class := range inv.classFiles {
 		if class.Name == name {
 			return class
 		}
 	}
 	return nil
-
 }
 
 // discoverFiles iterates over a given rootPath recursively, filters out all files with the appropriate file fileExtensions
