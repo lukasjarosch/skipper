@@ -30,7 +30,8 @@ for dir in ${examplesDir}/*; do
     continue
   fi
 
-  # TODO: execute test
+  # run actual test
+  go test -v
 
 done
 
