@@ -1,8 +1,8 @@
 ---
-name: Ensure all examples compile and produce the expected output
+name: Ensure all examples compile and tests run successfully
 on: [push, pull_request]
 jobs:
-  example_test:
+  compile_examples:
     runs-on: ubuntu-latest
     steps: 
       - uses: actions/checkout@v2
@@ -10,5 +10,12 @@ jobs:
         with:
           go-version: 1.19.x
       - run: ./.github/scripts/examples_compile.sh $(pwd)/examples
-      - run: ./.github/scripts/examples_test.sh $(pwd)/examples
 
+  run_tests:
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.x
+      - run: ./.github/scripts/examples_test.sh $(pwd)/examples
