@@ -13,6 +13,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var (
+	yamlFileExtensions = []string{".yml", ".yaml", ""}
+)
+
 // File is just an arbitrary description of a path and the data of the File to which Path points to.
 // Note that the used filesystem is not relevant, only at the time of loading a File.
 type File struct {

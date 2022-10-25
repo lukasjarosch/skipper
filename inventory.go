@@ -2,7 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"io/fs"
 	"log"
 	"path/filepath"
 	"strings"
@@ -506,37 +505,9 @@ func (inv *Inventory) GetClass(name string) *Class {
 	return nil
 }
 
-// discoverFiles iterates over a given rootPath recursively, filters out all files with the appropriate file fileExtensions
-// and finally creates a YamlFile slice which is then returned.
-func (inv *Inventory) discoverFiles(rootPath string) ([]*YamlFile, error) {
-	exists, err := afero.Exists(inv.fs, rootPath)
-	if err != nil {
-		return nil, fmt.Errorf("check if path exists: %w", err)
-	}
-	if !exists {
-		return nil, fmt.Errorf("file path does not exist: %s", rootPath)
-	}
-
-	var files []*YamlFile
-	err = afero.Walk(inv.fs, rootPath, func(path string, info fs.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-		if inv.matchesExtension(path) {
-			file, err := NewFile(path)
-			if err != nil {
-				return err
-			}
-			files = append(files, file)
-		}
-		return nil
-	})
-	return files, err
-}
-
 // loadClassFiles
 func (inv *Inventory) loadClassFiles(classPath string) error {
-	classFiles, err := inv.discoverFiles(classPath)
+	classFiles, err := DiscoverYamlFiles(inv.fs, classPath)
 	if err != nil {
 		return err
 	}
@@ -566,7 +537,7 @@ func (inv *Inventory) loadClassFiles(classPath string) error {
 }
 
 func (inv *Inventory) loadSecretFiles(secretPath string) error {
-	secretFiles, err := inv.discoverFiles(secretPath)
+	secretFiles, err := DiscoverYamlFiles(inv.fs, secretPath)
 	if err != nil {
 		return err
 	}
@@ -598,7 +569,7 @@ func (inv *Inventory) loadSecretFiles(secretPath string) error {
 // loadTargetFiles
 // MUST be called after loadClassFiles as it depends on existing classes to handle wildcard imports
 func (inv *Inventory) loadTargetFiles(targetPath string) error {
-	targetFiles, err := inv.discoverFiles(targetPath)
+	targetFiles, err := DiscoverYamlFiles(inv.fs, targetPath)
 	if err != nil {
 		return err
 	}
@@ -633,15 +604,4 @@ func (inv *Inventory) loadTargetFiles(targetPath string) error {
 	}
 
 	return nil
-}
-
-// matchesExtension returns true if the given string has a valid extension as defined in `Inventory.fileExtensions`
-func (inv *Inventory) matchesExtension(path string) bool {
-	ext := filepath.Ext(path)
-	for _, extension := range inv.fileExtensions {
-		if extension == ext {
-			return true
-		}
-	}
-	return false
 }
