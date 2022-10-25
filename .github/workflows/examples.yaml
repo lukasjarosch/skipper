@@ -1,5 +1,5 @@
 ---
-name: Ensure all examples compile and tests run successfully
+name: Example Tests
 on: [push, pull_request]
 jobs:
   compile_examples:
@@ -11,7 +11,7 @@ jobs:
           go-version: 1.19.x
       - run: ./.github/scripts/examples_compile.sh $(pwd)/examples
 
-  run_tests:
+  run_example_tests:
     runs-on: ubuntu-latest
     steps: 
       - uses: actions/checkout@v2
