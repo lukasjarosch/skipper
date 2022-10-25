@@ -31,7 +31,12 @@ for dir in ${examplesDir}/*; do
   fi
 
   # run actual test
-  go test -v
+  if go test -v; then
+    echo "::notice::Tests ran successfully"
+  else
+    echo "::error::Tests failed"
+    exitCode=1
+  fi
 
 done
 
