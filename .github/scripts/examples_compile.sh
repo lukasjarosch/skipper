@@ -4,7 +4,7 @@ examplesDir="$1"
 exitCode=0
 
 for dir in ${examplesDir}/*; do
-
+  echo "Entering $dir"
   cd $dir
 
   if ! go mod tidy; then
