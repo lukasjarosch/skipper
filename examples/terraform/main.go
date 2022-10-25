@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"path"
 	"time"
@@ -99,13 +100,15 @@ func main() {
 		Additional: additional,
 	}
 
-	rc, err := inventory.GetRenameConfigs(target)
+	cfg, err := inventory.GetSkipperConfig(target)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(cfg)
+	fmt.Println(cfg.Renames)
 	// execute templates  ----------------------------------------------------------------------------------
 	for _, template := range templater.Files {
-		err := templater.Execute(template, templateData, false, rc)
+		err := templater.Execute(template, templateData, false, cfg.Renames)
 		if err != nil {
 			panic(err)
 		}

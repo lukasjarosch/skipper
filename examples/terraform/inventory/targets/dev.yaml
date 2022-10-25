@@ -9,14 +9,14 @@ target:
     rename:
     - input_path: README.md
       filename: README_dev.md
-  target:
-    name: "dev"
 
   terraform:
     resources:
       aks:
         node_pool:
           node_count: 1 # overwrites terraform.resources.aks.node_pool.node_count
+
+  target_name: ${target_name}
 
   azure:
     subscription_id: "my-awesome-subscription"
