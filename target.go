@@ -77,7 +77,7 @@ func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 		SkipperConfig: skipperConfig,
 	}
 
-	err = target.loadUsedClasses()
+	err = target.loadUsedWildcardClasses()
 	if err != nil {
 		return nil, err
 	}
@@ -99,15 +99,10 @@ func (t *Target) Data() Data {
 	return t.File.Data.Get(targetKey)
 }
 
-// loadUsedClasses will check that the target has the 'use' key,
-// with a value of kind []string which is not empty. At least one class must be used by every target.
-// If these preconditions are met, the values are loaded into 'UsedClasses'.
-func (t *Target) loadUsedClasses() error {
-
-	// TODO: evaluate whether this - artificial - limitation is really needed
-	// if len(t.Configuration.Use) <= 1 {
-	// 	return fmt.Errorf("target must use at least one class")
-	// }
+// loadUsedWildcardClasses will extract all wildcards-uses from the configuration,
+// remove them from the loaded configuration and store them in UsedWildcardClasses for
+// further processing.
+func (t *Target) loadUsedWildcardClasses() error {
 
 	// convert []interface to []string
 	for _, class := range t.Configuration.Use {
