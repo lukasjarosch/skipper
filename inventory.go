@@ -13,14 +13,13 @@ import (
 // The inventory wraps everything together and is capable of producing a single, coherent [Data]
 // which can then be used inside the templates.
 type Inventory struct {
-	fs             afero.Fs
-	fileExtensions []string
-	classPath      string
-	targetPath     string
-	secretPath     string
-	secretFiles    []*SecretFile
-	classFiles     []*Class
-	targetFiles    []*Target
+	fs          afero.Fs
+	classPath   string
+	targetPath  string
+	secretPath  string
+	secretFiles []*SecretFile
+	classFiles  []*Class
+	targetFiles []*Target
 }
 
 // NewInventory creates a new Inventory with the given afero.Fs.
@@ -50,11 +49,10 @@ func NewInventory(fs afero.Fs, classPath, targetPath, secretPath string) (*Inven
 	}
 
 	inv := &Inventory{
-		fs:             fs,
-		classPath:      classPath,
-		targetPath:     targetPath,
-		secretPath:     secretPath,
-		fileExtensions: []string{".yml", ".yaml", ""},
+		fs:         fs,
+		classPath:  classPath,
+		targetPath: targetPath,
+		secretPath: secretPath,
 	}
 
 	return inv, nil
