@@ -32,9 +32,9 @@ for dir in ${examplesDir}/*; do
 
   # run actual test
   if go test -v; then
-    echo "::notice::Tests ran successfully"
+    echo "::notice::Tests ran successfully in $dir"
   else
-    echo "::error::Tests failed"
+    echo "::error::Tests failed in $dir"
     exitCode=1
   fi
 
