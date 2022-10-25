@@ -11,14 +11,14 @@ for dir in ${examplesDir}/*; do
 
   # examples usually only have a 'main.go', hence the test 'main_test.go' must exist
   if [[ ! -f $testFile ]]; then
-    echo "MISSING test file '$testFile'"
+    echo "Error: missing test file '$testFile'"
     exitCode=1
     continue
   fi
 
   # testdata directory must exist
   if [[ ! -d $testdataDir ]]; then
-    echo "MISSING '$testdataDir' directory"
+    echo "Error: missing '$testdataDir' directory"
     exitCode=1
     continue
   fi
@@ -26,7 +26,7 @@ for dir in ${examplesDir}/*; do
   # at least one golden file fixture needs to be present
   fileCount=$(ls $testdataDir | wc -l)
   if [[ ! $fileCount -gt 0 ]]; then
-    echo "MISSING golden files in '$testdataDir'"
+    echo "Error: no golden files in '$testdataDir'"
     exitCode=1
     continue
   fi

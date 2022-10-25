@@ -8,13 +8,13 @@ for dir in ${examplesDir}/*; do
   cd $dir
 
   if ! go mod tidy; then
-    echo "FAILED to 'go mod tidy' $dir"
+    echo "Error: failed to 'go mod tidy' $dir"
     exitCode=1
     continue
   fi
 
   if ! go build -buildvcs=false; then
-    echo "FAILED to 'go build' $dir"
+    echo "Error: failed to 'go build' $dir"
     exitCode=1
     continue
   fi
