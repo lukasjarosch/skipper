@@ -17,6 +17,8 @@ for dir in ${examplesDir}/*; do
     echo "Error: failed to 'go build' $dir"
     exitCode=1
     continue
+  else
+    echo "::notice::Compiled successfully: $dir"
   fi
 
 done
