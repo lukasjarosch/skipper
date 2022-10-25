@@ -55,12 +55,17 @@ func NewInventory(fs afero.Fs, classPath, targetPath, secretPath string) (*Inven
 		secretPath: secretPath,
 	}
 
+	err := inv.load()
+	if err != nil {
+		return nil, err
+	}
+
 	return inv, nil
 }
 
-// Load will discover and load all classes and targets given the paths.
+// load will discover and load all classes and targets given the paths.
 // It will also ensure that all targets only use classes which are actually defined.
-func (inv *Inventory) Load() error {
+func (inv *Inventory) load() error {
 	err := YamlFileLoader(inv.fs, inv.classPath, classYamlFileLoader(&inv.classFiles))
 	if err != nil {
 		return fmt.Errorf("unable to load class files: %w", err)

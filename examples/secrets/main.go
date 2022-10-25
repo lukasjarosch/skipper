@@ -26,12 +26,6 @@ func main() {
 		panic(err)
 	}
 
-	// Load the inventory
-	err = inventory.Load()
-	if err != nil {
-		panic(err)
-	}
-
 	// Process the inventory, given the target name
 	data, err := inventory.Data(target, nil, false)
 	if err != nil {
