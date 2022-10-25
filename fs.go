@@ -9,6 +9,10 @@ import (
 	"github.com/spf13/afero"
 )
 
+func DiscoverYamlFiles(fileSystem afero.Fs, rootPath string) ([]*YamlFile, error) {
+
+}
+
 // CopyFile will copy the given sourcePath to the targetPath inside the passed afero.Fs.
 func CopyFile(fs afero.Fs, sourcePath, targetPath string) error {
 	sourceExists, err := afero.Exists(fs, sourcePath)
