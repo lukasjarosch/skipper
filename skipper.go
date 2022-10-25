@@ -14,6 +14,7 @@ type SkipperConfig struct {
 	Classes    []string          `yaml:"use,omitempty"`
 	Components []ComponentConfig `mapstructure:"components,omitempty"`
 	Copies     []CopyConfig      `yaml:"copy,omitempty"`
+	Renames    []RenameConfig    `yaml:"rename,omitempty"`
 }
 
 type CopyConfig struct {
@@ -24,12 +25,12 @@ type CopyConfig struct {
 }
 
 type ComponentConfig struct {
-	OutputPath string                  `yaml:"output_path"`
-	InputPaths []string                `yaml:"input_paths"`
-	Renames    []RenameComponentConfig `yaml:"rename"`
+	OutputPath string         `yaml:"output_path"`
+	InputPaths []string       `yaml:"input_paths"`
+	Renames    []RenameConfig `yaml:"rename,omitempty"`
 }
 
-type RenameComponentConfig struct {
+type RenameConfig struct {
 	InputPath string `yaml:"input_path"`
 	Filename  string `yaml:"filename"`
 }
@@ -44,9 +45,13 @@ func (config *SkipperConfig) IsSet() bool {
 func MergeSkipperConfig(merge ...*SkipperConfig) (mergedConfig *SkipperConfig) {
 	mergedConfig = new(SkipperConfig)
 	for _, config := range merge {
+		if config == nil {
+			continue
+		}
 		mergedConfig.Classes = append(mergedConfig.Classes, config.Classes...)
 		mergedConfig.Components = append(mergedConfig.Components, config.Components...)
 		mergedConfig.Copies = append(mergedConfig.Copies, config.Copies...)
+		mergedConfig.Renames = append(mergedConfig.Renames, config.Renames...)
 	}
 	return mergedConfig
 }

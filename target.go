@@ -97,18 +97,19 @@ func (t *Target) Data() Data {
 
 // loadUsedClasses will check that the target has the 'use' key,
 // with a value of kind []string which is not empty. At least one class must be used by every target.
-// If these preconditions are met, the values are loaded into 'UsedClasses'.
+// If these preconditions are met, the values are loaded into 'SkipperConfig.Classes'.
 func (t *Target) loadUsedClasses() error {
 
 	// convert []interface to []string
-	for _, class := range t.SkipperConfig.Classes {
+	for key, class := range t.SkipperConfig.Classes {
 		// load wildcard imports separately as they need to be resolved
 		if match := wildcardUseRegex.FindAllString(class, 1); len(match) == 1 {
 			wildcardUse := match[0]
 			t.UsedWildcardClasses = append(t.UsedWildcardClasses, wildcardUse)
+			// remove wildcard classes from regular classes config
+			t.SkipperConfig.Classes = append(t.SkipperConfig.Classes[:key], t.SkipperConfig.Classes[key+1:]...)
 			continue
 		}
-		t.SkipperConfig.Classes = append(t.SkipperConfig.Classes, class)
 	}
 
 	return nil

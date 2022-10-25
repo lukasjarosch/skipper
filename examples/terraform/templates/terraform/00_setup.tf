@@ -26,5 +26,5 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "{{ $inv.target.azure.subscription_id }}"
+  subscription_id = "{{ $inv.azure.subscription_id }}"
 }

@@ -73,7 +73,15 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 // Execute is responsible of parsing and executing the given template, using the passed data context.
 // If execution is successful, the template is written to it's desired target location.
 // If allowNoValue is true, the template is rendered even if it contains variables which are not defined.
-func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool) error {
+func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool, renameConfig []RenameConfig) error {
+	// if a renameConfig exists, rename possible files accordingly
+	if renameConfig != nil {
+		for _, rename := range renameConfig {
+			if strings.EqualFold(template.Path, rename.InputPath) {
+				return t.execute(template, data, rename.Filename, allowNoValue)
+			}
+		}
+	}
 	return t.execute(template, data, template.Path, allowNoValue)
 }
 
@@ -97,7 +105,7 @@ func (t *Templater) execute(template *TemplateFile, data any, targetPath string,
 
 		for scanner.Scan() {
 			if strings.Contains(scanner.Text(), "<no value>") {
-				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be acurate)", template.Path, line)
+				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", template.Path, line)
 			}
 			line++
 		}
@@ -146,9 +154,9 @@ func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, al
 }
 
 // ExecuteAll is just a convenience function to execute all templates in `Templater.Files`
-func (t *Templater) ExecuteAll(data any, allowNoValue bool) error {
+func (t *Templater) ExecuteAll(data any, allowNoValue bool, renameConfig []RenameConfig) error {
 	for _, template := range t.Files {
-		err := t.Execute(template, data, allowNoValue)
+		err := t.Execute(template, data, allowNoValue, renameConfig)
 		if err != nil {
 			return err
 		}
