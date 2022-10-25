@@ -27,7 +27,7 @@ type CopyConfig struct {
 type ComponentConfig struct {
 	OutputPath string         `yaml:"output_path"`
 	InputPaths []string       `yaml:"input_paths"`
-	Renames    []RenameConfig `yaml:"rename"`
+	Renames    []RenameConfig `yaml:"rename,omitempty"`
 }
 
 type RenameConfig struct {
