@@ -123,3 +123,19 @@ func (t *Target) loadUsedClasses() error {
 
 	return nil
 }
+
+// targetYamlFileLoader returns a YamlFileLoaderFunc which is capable of
+// creating Targets from a given YamlFile.
+// The created targets are then appended to the passed targetList.
+func targetYamlFileLoader(targetList *[]*Target) YamlFileLoaderFunc {
+	return func(file *YamlFile, relativePath string) error {
+		target, err := NewTarget(file, relativePath)
+		if err != nil {
+			return fmt.Errorf("%s: %w", file.Path, err)
+		}
+
+		(*targetList) = append((*targetList), target)
+
+		return nil
+	}
+}

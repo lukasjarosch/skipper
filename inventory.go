@@ -63,29 +63,41 @@ func NewInventory(fs afero.Fs, classPath, targetPath, secretPath string) (*Inven
 // Load will discover and load all classes and targets given the paths.
 // It will also ensure that all targets only use classes which are actually defined.
 func (inv *Inventory) Load() error {
-	err := inv.loadClassFiles(inv.classPath)
+	err := YamlFileLoader(inv.fs, inv.classPath, classYamlFileLoader(&inv.classFiles))
 	if err != nil {
 		return fmt.Errorf("unable to load class files: %w", err)
 	}
-
-	err = inv.loadTargetFiles(inv.targetPath)
+	err = YamlFileLoader(inv.fs, inv.targetPath, targetYamlFileLoader(&inv.targetFiles))
 	if err != nil {
 		return fmt.Errorf("unable to load target files: %w", err)
+	}
+	err = YamlFileLoader(inv.fs, inv.secretPath, secretYamlFileLoader(&inv.secretFiles))
+	if err != nil {
+		return fmt.Errorf("unable to load secret files: %w", err)
 	}
 
 	// check for all targets whether they use classes which actually exist
 	for _, target := range inv.targetFiles {
+
+		// check the used wildcard classes by the target
+		// and add them to the "UsedClasses" field if they exist
+		for _, use := range target.UsedWildcardClasses {
+			for _, class := range inv.classFiles {
+				usePrefix := strings.TrimRight(use, "*")
+
+				if strings.HasPrefix(class.Name, usePrefix) {
+					target.UsedClasses = append(target.UsedClasses, class.Name)
+				}
+
+			}
+		}
+
+		// now check if the classes used by the target (including expanded wildcards) are valid
 		for _, class := range target.UsedClasses {
 			if inv.GetClass(class) == nil {
 				return fmt.Errorf("target '%s' uses class '%s' which does not exist", target.Name, class)
 			}
 		}
-	}
-
-	// load all secret files which exist in the inventory
-	err = inv.loadSecretFiles(inv.secretPath)
-	if err != nil {
-		return fmt.Errorf("unable to load secret files: %w", err)
 	}
 
 	return nil
@@ -502,106 +514,5 @@ func (inv *Inventory) GetClass(name string) *Class {
 			return class
 		}
 	}
-	return nil
-}
-
-// loadClassFiles
-func (inv *Inventory) loadClassFiles(classPath string) error {
-	classFiles, err := DiscoverYamlFiles(inv.fs, classPath)
-	if err != nil {
-		return err
-	}
-
-	// load all class files, replacing the inventory-relative path with dot-separated style
-	for _, class := range classFiles {
-		err = class.Load(inv.fs)
-		if err != nil {
-			return err
-		}
-
-		// skip empty files
-		if len(class.Data) == 0 {
-			continue
-		}
-
-		relativePath := strings.ReplaceAll(class.Path, classPath, "")
-		relativePath = strings.TrimLeft(relativePath, "/")
-
-		c, err := NewClass(class, relativePath)
-		if err != nil {
-			return fmt.Errorf("%s: %w", class.Path, err)
-		}
-		inv.classFiles = append(inv.classFiles, c)
-	}
-	return nil
-}
-
-func (inv *Inventory) loadSecretFiles(secretPath string) error {
-	secretFiles, err := DiscoverYamlFiles(inv.fs, secretPath)
-	if err != nil {
-		return err
-	}
-
-	// load all secret files
-	for _, secret := range secretFiles {
-		err = secret.Load(inv.fs)
-		if err != nil {
-			return err
-		}
-
-		// skip empty files
-		if len(secret.Data) == 0 {
-			continue
-		}
-
-		relativePath := strings.ReplaceAll(secret.Path, secretPath, "")
-		relativePath = strings.TrimLeft(relativePath, "/")
-
-		c, err := NewSecretFile(secret, relativePath)
-		if err != nil {
-			return fmt.Errorf("%s: %w", secret.Path, err)
-		}
-		inv.secretFiles = append(inv.secretFiles, c)
-	}
-	return nil
-}
-
-// loadTargetFiles
-// MUST be called after loadClassFiles as it depends on existing classes to handle wildcard imports
-func (inv *Inventory) loadTargetFiles(targetPath string) error {
-	targetFiles, err := DiscoverYamlFiles(inv.fs, targetPath)
-	if err != nil {
-		return err
-	}
-
-	for _, target := range targetFiles {
-		err = target.Load(inv.fs)
-		if err != nil {
-			return err
-		}
-
-		relativePath := strings.ReplaceAll(target.Path, targetPath, "")
-		relativePath = strings.TrimLeft(relativePath, "/")
-
-		t, err := NewTarget(target, relativePath)
-		if err != nil {
-			return fmt.Errorf("%s: %w", target.Path, err)
-		}
-
-		for _, use := range t.UsedWildcardClasses {
-			for _, class := range inv.classFiles {
-
-				usePrefix := strings.TrimRight(use, "*")
-
-				if strings.HasPrefix(class.Name, usePrefix) {
-					t.UsedClasses = append(t.UsedClasses, class.Name)
-				}
-
-			}
-		}
-
-		inv.targetFiles = append(inv.targetFiles, t)
-	}
-
 	return nil
 }

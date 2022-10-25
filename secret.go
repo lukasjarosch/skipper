@@ -191,6 +191,21 @@ func secretFindValueFunc(secretFiles SecretFileList) FindValueFunc {
 	}
 }
 
+// secretYamlFileLoader returns a YamlFileLoaderFunc which is capable of
+// creating SecretFiles from a given YamlFile.
+// The created secret files are then appended to the passed secretFileList.
+func secretYamlFileLoader(secretFileList *[]*SecretFile) YamlFileLoaderFunc {
+	return func(file *YamlFile, relativePath string) error {
+		secret, err := NewSecretFile(file, relativePath)
+		if err != nil {
+			return fmt.Errorf("%s: %w", file.Path, err)
+		}
+		(*secretFileList) = append((*secretFileList), secret)
+
+		return nil
+	}
+}
+
 // Value returns the actual secret value.
 func (s *Secret) Value() (string, error) {
 	return s.Driver.Decrypt(s.Data.Data)
