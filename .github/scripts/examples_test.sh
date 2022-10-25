@@ -3,6 +3,7 @@
 examplesDir="$1"
 testdataDir="testdata"
 testFile="main_test.go"
+exitCode=0
 
 for dir in ${examplesDir}/*; do
   echo "Entering $dir"
@@ -11,12 +12,14 @@ for dir in ${examplesDir}/*; do
   # examples usually only have a 'main.go', hence the test 'main_test.go' must exist
   if [[ ! -f $testFile ]]; then
     echo "::error:: Missing test file '$testFile'"
+    exitCode=1
     continue
   fi
 
   # testdata directory must exist
   if [[ ! -d $testdataDir ]]; then
     echo "::error:: Missing '$testdataDir' directory"
+    exitCode=1
     continue
   fi
 
@@ -30,3 +33,5 @@ for dir in ${examplesDir}/*; do
   # TODO: execute test
 
 done
+
+exit $exitCode
