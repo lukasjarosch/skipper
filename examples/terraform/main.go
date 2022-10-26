@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"path"
 	"time"
@@ -28,8 +29,8 @@ var (
 func init() {
 	flag.StringVar(&inventoryPath, "data", "inventory", "path to the inventory folder")
 	flag.StringVar(&templatePath, "templates", "templates", "path to the templates folder")
-	flag.StringVar(&outputPath, "output", "output", "template output path")
-	flag.StringVar(&target, "target", "", "name of the target to use")
+	flag.StringVar(&outputPath, "output", "compiled", "template output path")
+	flag.StringVar(&target, "target", "dev", "name of the target to use")
 	flag.Parse()
 
 	targetPath = path.Join(inventoryPath, "targets")
@@ -38,9 +39,6 @@ func init() {
 }
 
 func main() {
-	if target == "" {
-		log.Fatalln("target cannot be empty")
-	}
 	log.Printf("inventory path set to '%s'", inventoryPath)
 	log.Printf("template path set to '%s'", templatePath)
 	log.Printf("compiled path set to '%s'", outputPath)
@@ -76,7 +74,6 @@ func main() {
 
 	// render inventory data based on target ----------------------------------------------------------------------------------
 	predefinedVariables := map[string]interface{}{
-		"target_name":  target,
 		"output_path":  outputPath,
 		"company_name": "AcmeCorp International",
 		"year":         time.Now().Year(),
@@ -103,13 +100,19 @@ func main() {
 		Additional: additional,
 	}
 
+	cfg, err := inventory.GetSkipperConfig(target)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(cfg)
+	fmt.Println(cfg.Renames)
 	// execute templates  ----------------------------------------------------------------------------------
 	for _, template := range templater.Files {
-		err := templater.Execute(template, templateData, false)
+		err := templater.Execute(template, templateData, false, cfg.Renames)
 		if err != nil {
 			panic(err)
 		}
-		log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+		log.Printf("executed template '%s'", template.Path)
 	}
 	// Alternatively `templater.ExecuteAll(template, templateData)` can be used
 }

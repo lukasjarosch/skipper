@@ -20,8 +20,6 @@ type Target struct {
 	// Name is the relative path of the file inside the inventory
 	// where '/' is replaced with '.' and without file extension.
 	Name string
-	// UsedClasses holds the resolved class names which are specified in the `target.skipper.use` key.
-	UsedClasses []string
 	// UsedWildcardClasses holds all resolved wildcard class imports as specified in the `targets.skipper.use` key.
 	UsedWildcardClasses []string
 	// Configuration is the skipper-internal configuration which needs to be present on every target.
@@ -31,9 +29,7 @@ type Target struct {
 }
 
 type TargetConfig struct {
-	Use        []string           `mapstructure:"use"`
-	Secrets    TargetSecretConfig `mapstructure:"secrets,omitempty"`
-	Components []ComponentConfig  `mapstructure:"components,omitempty"`
+	Secrets TargetSecretConfig `mapstructure:"secrets,omitempty"`
 }
 
 type TargetSecretConfig struct {
@@ -103,17 +99,16 @@ func (t *Target) Data() Data {
 // remove them from the loaded configuration and store them in UsedWildcardClasses for
 // further processing.
 func (t *Target) loadUsedWildcardClasses() error {
-
 	// convert []interface to []string
-	for _, class := range t.Configuration.Use {
+	for key, class := range t.SkipperConfig.Classes {
 		// load wildcard imports separately as they need to be resolved
 		if match := wildcardUseRegex.FindAllString(class, 1); len(match) == 1 {
 			wildcardUse := match[0]
 			t.UsedWildcardClasses = append(t.UsedWildcardClasses, wildcardUse)
+			// remove wildcard classes from regular classes config
+			t.SkipperConfig.Classes = append(t.SkipperConfig.Classes[:key], t.SkipperConfig.Classes[key+1:]...)
 			continue
 		}
-
-		t.UsedClasses = append(t.UsedClasses, class)
 	}
 
 	return nil

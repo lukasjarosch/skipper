@@ -11,10 +11,10 @@ import (
 const skipperKey string = "skipper"
 
 type SkipperConfig struct {
-	// TODO: for some reason, this is not yet used
 	Classes    []string          `yaml:"use,omitempty"`
 	Components []ComponentConfig `mapstructure:"components,omitempty"`
 	Copies     []CopyConfig      `yaml:"copy,omitempty"`
+	Renames    []RenameConfig    `yaml:"rename,omitempty"`
 }
 
 type CopyConfig struct {
@@ -25,16 +25,38 @@ type CopyConfig struct {
 }
 
 type ComponentConfig struct {
-	OutputPath string                  `yaml:"output_path"`
-	InputPaths []string                `yaml:"input_paths"`
-	Renames    []RenameComponentConfig `yaml:"rename"`
+	OutputPath string         `yaml:"output_path"`
+	InputPaths []string       `yaml:"input_paths"`
+	Renames    []RenameConfig `yaml:"rename,omitempty"`
 }
 
-type RenameComponentConfig struct {
+type RenameConfig struct {
 	InputPath string `yaml:"input_path"`
 	Filename  string `yaml:"filename"`
 }
 
+// IsSet returns true if the config is not nil.
+// The function is useful because LoadSkipperConfig can return nil.
+func (config *SkipperConfig) IsSet() bool {
+	return config != nil
+}
+
+// MergeSkipperConfig merges a list of configs into one
+func MergeSkipperConfig(merge ...*SkipperConfig) (mergedConfig *SkipperConfig) {
+	mergedConfig = new(SkipperConfig)
+	for _, config := range merge {
+		if config == nil {
+			continue
+		}
+		mergedConfig.Classes = append(mergedConfig.Classes, config.Classes...)
+		mergedConfig.Components = append(mergedConfig.Components, config.Components...)
+		mergedConfig.Copies = append(mergedConfig.Copies, config.Copies...)
+		mergedConfig.Renames = append(mergedConfig.Renames, config.Renames...)
+	}
+	return mergedConfig
+}
+
+// LoadSkipperConfig attempts to load a SkipperConfig from the given YamlFile with the passed rootKey
 func LoadSkipperConfig(file *YamlFile, rootKey string) (*SkipperConfig, error) {
 	if file == nil {
 		return nil, fmt.Errorf("file cannot be nil")
@@ -55,12 +77,6 @@ func LoadSkipperConfig(file *YamlFile, rootKey string) (*SkipperConfig, error) {
 	}
 
 	return &config, nil
-}
-
-// IsSet returns true if the config is not nil.
-// The function is useful because LoadSkipperConfig can return nil.
-func (config *SkipperConfig) IsSet() bool {
-	return config != nil
 }
 
 // CopyFilesByConfig uses a list of CopyConfigs and calls the CopyFile func on them.

@@ -81,7 +81,6 @@ func (inv *Inventory) load() error {
 
 	// check for all targets whether they use classes which actually exist
 	for _, target := range inv.targetFiles {
-
 		// check the used wildcard classes by the target
 		// and add them to the "UsedClasses" field if they exist
 		for _, use := range target.UsedWildcardClasses {
@@ -89,14 +88,14 @@ func (inv *Inventory) load() error {
 				usePrefix := strings.TrimRight(use, "*")
 
 				if strings.HasPrefix(class.Name, usePrefix) {
-					target.UsedClasses = append(target.UsedClasses, class.Name)
+					target.SkipperConfig.Classes = append(target.SkipperConfig.Classes, class.Name)
 				}
 
 			}
 		}
 
 		// now check if the classes used by the target (including expanded wildcards) are valid
-		for _, class := range target.UsedClasses {
+		for _, class := range target.SkipperConfig.Classes {
 			if inv.GetClass(class) == nil {
 				return fmt.Errorf("target '%s' uses class '%s' which does not exist", target.Name, class)
 			}
@@ -104,6 +103,29 @@ func (inv *Inventory) load() error {
 	}
 
 	return nil
+}
+
+// GetSkipperConfig merges SkipperConfig of the target and it's used classes into one effective configuration.
+func (inv *Inventory) GetSkipperConfig(targetName string) (config *SkipperConfig, err error) {
+	var configurations []*SkipperConfig
+
+	// load SkipperConfig of target
+	target := inv.GetTarget(targetName)
+	if target == nil {
+		return nil, fmt.Errorf("unable to load target %s", targetName)
+	}
+	configurations = append(configurations, target.SkipperConfig)
+
+	// load all GetSkipperConfigs from used classes
+	for _, className := range target.SkipperConfig.Classes {
+		class := inv.GetClass(className)
+		if class == nil {
+			return nil, fmt.Errorf("unable to load class %s", className)
+		}
+		configurations = append(configurations, class.Configuration)
+	}
+
+	return MergeSkipperConfig(configurations...), nil
 }
 
 // GetUsedClasses returns the loaded classes which are used by the given target.
@@ -114,7 +136,7 @@ func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
 	}
 
 	var classes []*Class
-	for _, className := range target.UsedClasses {
+	for _, className := range target.SkipperConfig.Classes {
 		class := inv.GetClass(className)
 		if class == nil {
 			return nil, fmt.Errorf("class could not be loaded: %s", className)
@@ -123,60 +145,6 @@ func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
 	}
 
 	return classes, nil
-}
-
-// GetComponents returns the ComponentConfig of the given target and its used classes.
-func (inv *Inventory) GetComponents(targetName string) ([]ComponentConfig, error) {
-	target := inv.GetTarget(targetName)
-	if target == nil {
-		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
-	}
-
-	var components []ComponentConfig
-
-	if target.SkipperConfig.IsSet() {
-		components = append(components, target.SkipperConfig.Components...)
-	}
-
-	usedClasses, err := inv.GetUsedClasses(targetName)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, class := range usedClasses {
-		if class.Configuration.IsSet() {
-			components = append(components, class.Configuration.Components...)
-		}
-	}
-
-	return components, nil
-}
-
-// GetCopyConfigs returns the CopyConfig of the given target and its used classes.
-func (inv *Inventory) GetCopyConfigs(targetName string) ([]CopyConfig, error) {
-	target := inv.GetTarget(targetName)
-	if target == nil {
-		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
-	}
-
-	var copyConfigs []CopyConfig
-
-	if target.SkipperConfig.IsSet() {
-		copyConfigs = append(copyConfigs, target.SkipperConfig.Copies...)
-	}
-
-	usedClasses, err := inv.GetUsedClasses(targetName)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, class := range usedClasses {
-		if class.Configuration.IsSet() {
-			copyConfigs = append(copyConfigs, class.Configuration.Copies...)
-		}
-	}
-
-	return copyConfigs, nil
 }
 
 // Data loads the required inventory data map given the target.
