@@ -331,7 +331,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 			// if the flag is true, all secret variables will be replaced by their actual value.
 			// CAUTION: This is not something you want to do during local development, only inside your CI pipeline when the compiled output is ephemeral.
 			if revealSecrets {
-				err = inv.replaceSecret(data, secret)
+				err = ReplaceSecret(data, secret)
 				if err != nil {
 					return nil, fmt.Errorf("failed to replace secret value: %w", err)
 				}
@@ -390,26 +390,6 @@ func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string
 	}
 
 	inv.classFiles = append(inv.classFiles, newClass)
-
-	return nil
-}
-
-// replaceSecret will replace the given secret inside Data.
-func (inv *Inventory) replaceSecret(data Data, secret *Secret) error {
-	// sourceValue is the value where the variable is. It needs to be replaced with an actual value
-	sourceValue, err := data.GetPath(secret.Identifier...)
-	if err != nil {
-		return err
-	}
-
-	// Replace the full variable name (${variable}) with the actual secret value which will be fetched by the underlying driver.
-	secretValue, err := secret.Value()
-	if err != nil {
-		return err
-	}
-
-	sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), secret.FullName(), secretValue)
-	data.SetPath(sourceValue, secret.Identifier...)
 
 	return nil
 }

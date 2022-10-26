@@ -93,6 +93,26 @@ func FindOrCreateSecrets(data Data, secretFiles SecretFileList, secretPath strin
 	return foundSecrets, nil
 }
 
+// ReplaceSecret will replace the given secret inside Data with the actual secret value.
+func ReplaceSecret(data Data, secret *Secret) error {
+	// sourceValue is the value where the variable is. It needs to be replaced with an actual value
+	sourceValue, err := data.GetPath(secret.Identifier...)
+	if err != nil {
+		return err
+	}
+
+	// Replace the full variable name (${variable}) with the actual secret value which will be fetched by the underlying driver.
+	secretValue, err := secret.Value()
+	if err != nil {
+		return err
+	}
+
+	sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), secret.FullName(), secretValue)
+	data.SetPath(sourceValue, secret.Identifier...)
+
+	return nil
+}
+
 // Load is used to load the actual secret files and ensure that they are correctly formatted.
 // Load does NOT load the actual value, it just ensures that it could be loaded using the secret.Value() call.
 func (s *Secret) Load(fs afero.Fs) error {
