@@ -78,6 +78,15 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 	return t, nil
 }
 
+// DefaultTemplateContext returns the default template context with only an 'Inventory' field where the Data is located.
+func DefaultTemplateContext(data Data) any {
+	return struct {
+		Inventory any
+	}{
+		Inventory: data,
+	}
+}
+
 // Execute is responsible of parsing and executing the given template, using the passed data context.
 // If execution is successful, the template is written to it's desired target location.
 // If allowNoValue is true, the template is rendered even if it contains variables which are not defined.
