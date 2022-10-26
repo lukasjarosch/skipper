@@ -73,7 +73,7 @@ func NewTarget(file *YamlFile, inventoryPath string) (*Target, error) {
 		SkipperConfig: skipperConfig,
 	}
 
-	err = target.loadUsedClasses()
+	err = target.loadUsedWildcardClasses()
 	if err != nil {
 		return nil, err
 	}
@@ -95,11 +95,10 @@ func (t *Target) Data() Data {
 	return t.File.Data.Get(targetKey)
 }
 
-// loadUsedClasses will check that the target has the 'use' key,
-// with a value of kind []string which is not empty. At least one class must be used by every target.
-// If these preconditions are met, the values are loaded into 'SkipperConfig.Classes'.
-func (t *Target) loadUsedClasses() error {
-
+// loadUsedWildcardClasses will extract all wildcards-uses from the configuration,
+// remove them from the loaded configuration and store them in UsedWildcardClasses for
+// further processing.
+func (t *Target) loadUsedWildcardClasses() error {
 	// convert []interface to []string
 	for key, class := range t.SkipperConfig.Classes {
 		// load wildcard imports separately as they need to be resolved
@@ -113,4 +112,20 @@ func (t *Target) loadUsedClasses() error {
 	}
 
 	return nil
+}
+
+// targetYamlFileLoader returns a YamlFileLoaderFunc which is capable of
+// creating Targets from a given YamlFile.
+// The created targets are then appended to the passed targetList.
+func targetYamlFileLoader(targetList *[]*Target) YamlFileLoaderFunc {
+	return func(file *YamlFile, relativePath string) error {
+		target, err := NewTarget(file, relativePath)
+		if err != nil {
+			return fmt.Errorf("%s: %w", file.Path, err)
+		}
+
+		(*targetList) = append((*targetList), target)
+
+		return nil
+	}
 }

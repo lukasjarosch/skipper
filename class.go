@@ -101,3 +101,18 @@ func classNameFromPath(path string) string {
 	pathNoExt := strings.TrimSuffix(path, filepath.Ext(path))
 	return strings.ReplaceAll(pathNoExt, "/", ".")
 }
+
+// classYamlFileLoader returns a YamlFileLoaderFunc which is capable of
+// creating Class files from a given YamlFile.
+// The created Class files are then appended to the passed classList.
+func classYamlFileLoader(classList *[]*Class) YamlFileLoaderFunc {
+	return func(file *YamlFile, relativePath string) error {
+		class, err := NewClass(file, relativePath)
+		if err != nil {
+			return fmt.Errorf("%s: %w", file.Path, err)
+		}
+		(*classList) = append((*classList), class)
+
+		return nil
+	}
+}

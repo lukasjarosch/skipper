@@ -9,6 +9,45 @@ import (
 	"github.com/spf13/afero"
 )
 
+// DiscoverYamlFiles iterates over a given rootPath recursively, filters out all files with the appropriate file fileExtensions
+// and finally creates a YamlFile slice which is then returned.
+func DiscoverYamlFiles(fileSystem afero.Fs, rootPath string) ([]*YamlFile, error) {
+	exists, err := afero.Exists(fileSystem, rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("check if path exists: %w", err)
+	}
+	if !exists {
+		return nil, fmt.Errorf("file path does not exist: %s", rootPath)
+	}
+
+	matchesExtension := func(path string) bool {
+		ext := filepath.Ext(path)
+		for _, extension := range yamlFileExtensions {
+			if extension == ext {
+				return true
+			}
+		}
+		return false
+	}
+
+	var files []*YamlFile
+	err = afero.Walk(fileSystem, rootPath, func(path string, info fs.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		if matchesExtension(path) {
+			file, err := NewFile(path)
+			if err != nil {
+				return err
+			}
+			files = append(files, file)
+		}
+		return nil
+	})
+
+	return files, nil
+}
+
 // CopyFile will copy the given sourcePath to the targetPath inside the passed afero.Fs.
 func CopyFile(fs afero.Fs, sourcePath, targetPath string) error {
 	sourceExists, err := afero.Exists(fs, sourcePath)

@@ -13,6 +13,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var (
+	yamlFileExtensions = []string{".yml", ".yaml", ""}
+)
+
 // File is just an arbitrary description of a path and the data of the File to which Path points to.
 // Note that the used filesystem is not relevant, only at the time of loading a File.
 type File struct {
@@ -53,7 +57,45 @@ func (f *File) Load(fs afero.Fs) (err error) {
 	return nil
 }
 
-// YamlFile is what is used for all inventory-relevant files (classes and targets).
+// YamlFileLoaderFunc is a function used to create specific types from a YamlFile and a relative path to that file.
+type YamlFileLoaderFunc func(file *YamlFile, relativePath string) error
+
+// YamlFileLoader is used to load Skipper specific yaml files from the inventory.
+// It searches the basePath inside the given fileSystem for yaml files and loads them.
+// Empty files are skipped.
+// A path relative to the given pasePath is constructed.
+// The loaded yaml file and the relative path are then passed to the given YamlFileLoaderFunc
+// which is responsible for creating specific types from the YamlFile.
+func YamlFileLoader(fileSystem afero.Fs, basePath string, loader YamlFileLoaderFunc) error {
+	yamlFiles, err := DiscoverYamlFiles(fileSystem, basePath)
+	if err != nil {
+		return err
+	}
+
+	for _, yamlFile := range yamlFiles {
+		err = yamlFile.Load(fileSystem)
+		if err != nil {
+			return err
+		}
+
+		// skip empty files
+		if len(yamlFile.Data) == 0 {
+			continue
+		}
+
+		relativePath := strings.ReplaceAll(yamlFile.Path, basePath, "")
+		relativePath = strings.TrimLeft(relativePath, "/")
+
+		err = loader(yamlFile, relativePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// YamlFile is what is used for all inventory-relevant files (classes, secrets and targets).
 type YamlFile struct {
 	File
 	Data Data

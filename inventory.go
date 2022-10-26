@@ -2,7 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"io/fs"
 	"log"
 	"path/filepath"
 	"strings"
@@ -14,14 +13,13 @@ import (
 // The inventory wraps everything together and is capable of producing a single, coherent [Data]
 // which can then be used inside the templates.
 type Inventory struct {
-	fs             afero.Fs
-	fileExtensions []string
-	classPath      string
-	targetPath     string
-	secretPath     string
-	secretFiles    []*SecretFile
-	classFiles     []*Class
-	targetFiles    []*Target
+	fs          afero.Fs
+	classPath   string
+	targetPath  string
+	secretPath  string
+	secretFiles []*SecretFile
+	classFiles  []*Class
+	targetFiles []*Target
 }
 
 // NewInventory creates a new Inventory with the given afero.Fs.
@@ -51,42 +49,57 @@ func NewInventory(fs afero.Fs, classPath, targetPath, secretPath string) (*Inven
 	}
 
 	inv := &Inventory{
-		fs:             fs,
-		classPath:      classPath,
-		targetPath:     targetPath,
-		secretPath:     secretPath,
-		fileExtensions: []string{".yml", ".yaml", ""},
+		fs:         fs,
+		classPath:  classPath,
+		targetPath: targetPath,
+		secretPath: secretPath,
+	}
+
+	err := inv.load()
+	if err != nil {
+		return nil, err
 	}
 
 	return inv, nil
 }
 
-// Load will discover and load all classes and targets given the paths.
+// load will discover and load all classes and targets given the paths.
 // It will also ensure that all targets only use classes which are actually defined.
-func (inv *Inventory) Load() error {
-	err := inv.loadClassFiles(inv.classPath)
+func (inv *Inventory) load() error {
+	err := YamlFileLoader(inv.fs, inv.classPath, classYamlFileLoader(&inv.classFiles))
 	if err != nil {
 		return fmt.Errorf("unable to load class files: %w", err)
 	}
-
-	err = inv.loadTargetFiles(inv.targetPath)
+	err = YamlFileLoader(inv.fs, inv.targetPath, targetYamlFileLoader(&inv.targetFiles))
 	if err != nil {
 		return fmt.Errorf("unable to load target files: %w", err)
+	}
+	err = YamlFileLoader(inv.fs, inv.secretPath, secretYamlFileLoader(&inv.secretFiles))
+	if err != nil {
+		return fmt.Errorf("unable to load secret files: %w", err)
 	}
 
 	// check for all targets whether they use classes which actually exist
 	for _, target := range inv.targetFiles {
+		// check the used wildcard classes by the target
+		// and add them to the "UsedClasses" field if they exist
+		for _, use := range target.UsedWildcardClasses {
+			for _, class := range inv.classFiles {
+				usePrefix := strings.TrimRight(use, "*")
+
+				if strings.HasPrefix(class.Name, usePrefix) {
+					target.SkipperConfig.Classes = append(target.SkipperConfig.Classes, class.Name)
+				}
+
+			}
+		}
+
+		// now check if the classes used by the target (including expanded wildcards) are valid
 		for _, class := range target.SkipperConfig.Classes {
-			if !inv.ClassExists(class) {
+			if inv.GetClass(class) == nil {
 				return fmt.Errorf("target '%s' uses class '%s' which does not exist", target.Name, class)
 			}
 		}
-	}
-
-	// load all secret files which exist in the inventory
-	err = inv.loadSecretFiles(inv.secretPath)
-	if err != nil {
-		return fmt.Errorf("unable to load secret files: %w", err)
 	}
 
 	return nil
@@ -97,17 +110,17 @@ func (inv *Inventory) GetSkipperConfig(targetName string) (config *SkipperConfig
 	var configurations []*SkipperConfig
 
 	// load SkipperConfig of target
-	target, err := inv.Target(targetName)
-	if err != nil {
-		return nil, err
+	target := inv.GetTarget(targetName)
+	if target == nil {
+		return nil, fmt.Errorf("unable to load target %s", targetName)
 	}
 	configurations = append(configurations, target.SkipperConfig)
 
 	// load all GetSkipperConfigs from used classes
 	for _, className := range target.SkipperConfig.Classes {
-		class, err := inv.Class(className)
-		if err != nil {
-			return nil, err
+		class := inv.GetClass(className)
+		if class == nil {
+			return nil, fmt.Errorf("unable to load class %s", className)
 		}
 		configurations = append(configurations, class.Configuration)
 	}
@@ -117,16 +130,16 @@ func (inv *Inventory) GetSkipperConfig(targetName string) (config *SkipperConfig
 
 // GetUsedClasses returns the loaded classes which are used by the given target.
 func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
-	target, err := inv.Target(targetName)
-	if err != nil {
-		return nil, err
+	target := inv.GetTarget(targetName)
+	if target == nil {
+		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
 	}
 
 	var classes []*Class
 	for _, className := range target.SkipperConfig.Classes {
-		class, err := inv.Class(className)
-		if err != nil {
-			return nil, err
+		class := inv.GetClass(className)
+		if class == nil {
+			return nil, fmt.Errorf("class could not be loaded: %s", className)
 		}
 		classes = append(classes, class)
 	}
@@ -140,9 +153,9 @@ func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
 func (inv *Inventory) Data(targetName string, predefinedVariables map[string]interface{}, revealSecrets bool) (data Data, err error) {
 	data = make(Data)
 
-	target, err := inv.Target(targetName)
-	if err != nil {
-		return nil, err
+	target := inv.GetTarget(targetName)
+	if target == nil {
+		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
 	}
 
 	// load all classes as defined by the target
@@ -210,7 +223,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	predefinedVariables["target_name"] = targetName
 
 	// replace all ordinary variables (`${...}`) inside the data
-	err = inv.replaceVariables(data, predefinedVariables)
+	err = ReplaceVariables(data, inv.classFiles, predefinedVariables)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +299,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 			// if the flag is true, all secret variables will be replaced by their actual value.
 			// CAUTION: This is not something you want to do during local development, only inside your CI pipeline when the compiled output is ephemeral.
 			if revealSecrets {
-				err = inv.replaceSecret(data, secret)
+				err = ReplaceSecret(data, secret)
 				if err != nil {
 					return nil, fmt.Errorf("failed to replace secret value: %w", err)
 				}
@@ -349,129 +362,9 @@ func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string
 	return nil
 }
 
-// replaceSecret will replace the given secret inside Data.
-func (inv *Inventory) replaceSecret(data Data, secret *Secret) error {
-	// sourceValue is the value where the variable is. It needs to be replaced with an actual value
-	sourceValue, err := data.GetPath(secret.Identifier...)
-	if err != nil {
-		return err
-	}
-
-	// Replace the full variable name (${variable}) with the actual secret value which will be fetched by the underlying driver.
-	secretValue, err := secret.Value()
-	if err != nil {
-		return err
-	}
-
-	sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), secret.FullName(), secretValue)
-	data.SetPath(sourceValue, secret.Identifier...)
-
-	return nil
-}
-
-// replaceVariables iterates over the given Data map and replaces all variables with the required value.
-// TODO enable custom variable definition inside classes
-func (inv *Inventory) replaceVariables(data Data, predefinedVariables map[string]interface{}) (err error) {
-
-	// Determine which variables exist in the Data map
-	variables, err := FindVariables(data)
-	if err != nil {
-		return err
-	}
-
-	if len(variables) == 0 {
-		return nil
-	}
-
-	isPredefinedVariable := func(variable Variable) bool {
-		for name := range predefinedVariables {
-			if strings.EqualFold(variable.Name, name) {
-				return true
-			}
-		}
-		return false
-	}
-
-	for _, variable := range variables {
-		var targetValue interface{}
-		if isPredefinedVariable(variable) {
-			targetValue = predefinedVariables[variable.Name]
-		} else {
-			// targetValue is the value on which the variable points to.
-			// This is the value we need to replace the variable with
-			targetValue, err = data.GetPath(variable.NameAsIdentifier()...)
-			if err != nil {
-
-				// for any other error than a 'key not found' there is nothing we can do
-				if !strings.Contains(err.Error(), "key not found") {
-					return fmt.Errorf("reference to invalid variable '%s': %w", variable.FullName(), err)
-				}
-
-				// Local variable handling
-				//
-				// at this point we have failed to resolve the variable using 'absolute' paths
-				// but the variable may be only locally defined which means we need to change the lookup path.
-				// We iterate over all classes and attempt to resolve the variable within that limited scope.
-				for i, class := range inv.classFiles {
-
-					// if the value to which the variable points is valid inside the class scope, we just need to add the class identifier
-					// if the combination works this means we have found ourselves a local variable and we can set the targetValue
-					fullPath := []interface{}{}
-					fullPath = append(fullPath, class.NameAsIdentifier()...)
-					fullPath = append(fullPath, variable.NameAsIdentifier()...)
-
-					targetValue, err = data.GetPath(fullPath...)
-
-					// as long as not all classes have been checked, we cannot be sure that the variable is undefined (aka. key not found error)
-					if targetValue == nil &&
-						i < len(inv.classFiles) &&
-						strings.Contains(err.Error(), "key not found") {
-						continue
-					}
-
-					// the local variable is really not defined at this point
-					if err != nil {
-						return fmt.Errorf("reference to invalid variable '%s': %w", variable.FullName(), err)
-					}
-
-					break
-				}
-			}
-		}
-
-		// sourceValue is the value where the variable is located. It needs to be replaced with the 'targetValue'
-		sourceValue, err := data.GetPath(variable.Identifier...)
-		if err != nil {
-			return err
-		}
-
-		// Replace the full variable name (${variable}) with the targetValue
-		sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), variable.FullName(), fmt.Sprint(targetValue))
-		data.SetPath(sourceValue, variable.Identifier...)
-	}
-
-	return nil
-}
-
-// Target returns a target given a name.
-func (inv *Inventory) Target(name string) (*Target, error) {
-	if !inv.TargetExists(name) {
-		return nil, fmt.Errorf("target '%s' does not exist", name)
-	}
-
-	return inv.getTarget(name), nil
-}
-
-// TargetExists returns true if the given target name exists
-func (inv *Inventory) TargetExists(name string) bool {
-	if inv.getTarget(name) == nil {
-		return false
-	}
-	return true
-}
-
-// getTarget attempts to return a target struct given a target name
-func (inv *Inventory) getTarget(name string) *Target {
+// GetTarget attempts to return a target struct given a target name.
+// If the target could not be found, nil is returned.
+func (inv *Inventory) GetTarget(name string) *Target {
 	for _, target := range inv.targetFiles {
 		if strings.ToLower(name) == strings.ToLower(target.Name) {
 			return target
@@ -480,171 +373,13 @@ func (inv *Inventory) getTarget(name string) *Target {
 	return nil
 }
 
-// Class attempts to return a Class, given a name.
-// If the class does not exist, an error is returned.
-func (inv *Inventory) Class(name string) (*Class, error) {
-	if !inv.ClassExists(name) {
-		return nil, fmt.Errorf("class '%s' does not exist", name)
-	}
-	return inv.getClass(name), nil
-}
-
-// ClassExists returns true if a class with the given name exists.
-func (inv *Inventory) ClassExists(name string) bool {
-	if inv.getClass(name) == nil {
-		return false
-	}
-	return true
-}
-
-// getClass attempts to return a Class, given a name.
+// GetClass attempts to return a Class, given a name.
 // If the class does not exist, nil is returned.
-func (inv *Inventory) getClass(name string) *Class {
+func (inv *Inventory) GetClass(name string) *Class {
 	for _, class := range inv.classFiles {
 		if class.Name == name {
 			return class
 		}
 	}
 	return nil
-
-}
-
-// discoverFiles iterates over a given rootPath recursively, filters out all files with the appropriate file fileExtensions
-// and finally creates a YamlFile slice which is then returned.
-func (inv *Inventory) discoverFiles(rootPath string) ([]*YamlFile, error) {
-	exists, err := afero.Exists(inv.fs, rootPath)
-	if err != nil {
-		return nil, fmt.Errorf("check if path exists: %w", err)
-	}
-	if !exists {
-		return nil, fmt.Errorf("file path does not exist: %s", rootPath)
-	}
-
-	var files []*YamlFile
-	err = afero.Walk(inv.fs, rootPath, func(path string, info fs.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-		if inv.matchesExtension(path) {
-			file, err := NewFile(path)
-			if err != nil {
-				return err
-			}
-			files = append(files, file)
-		}
-		return nil
-	})
-	return files, err
-}
-
-// loadClassFiles
-func (inv *Inventory) loadClassFiles(classPath string) error {
-	classFiles, err := inv.discoverFiles(classPath)
-	if err != nil {
-		return err
-	}
-
-	// load all class files, replacing the inventory-relative path with dot-separated style
-	for _, class := range classFiles {
-		err = class.Load(inv.fs)
-		if err != nil {
-			return err
-		}
-
-		// skip empty files
-		if len(class.Data) == 0 {
-			continue
-		}
-
-		relativePath := strings.ReplaceAll(class.Path, classPath, "")
-		relativePath = strings.TrimLeft(relativePath, "/")
-
-		c, err := NewClass(class, relativePath)
-		if err != nil {
-			return fmt.Errorf("%s: %w", class.Path, err)
-		}
-		inv.classFiles = append(inv.classFiles, c)
-	}
-	return nil
-}
-
-func (inv *Inventory) loadSecretFiles(secretPath string) error {
-	secretFiles, err := inv.discoverFiles(secretPath)
-	if err != nil {
-		return err
-	}
-
-	// load all secret files
-	for _, secret := range secretFiles {
-		err = secret.Load(inv.fs)
-		if err != nil {
-			return err
-		}
-
-		// skip empty files
-		if len(secret.Data) == 0 {
-			continue
-		}
-
-		relativePath := strings.ReplaceAll(secret.Path, secretPath, "")
-		relativePath = strings.TrimLeft(relativePath, "/")
-
-		c, err := NewSecretFile(secret, relativePath)
-		if err != nil {
-			return fmt.Errorf("%s: %w", secret.Path, err)
-		}
-		inv.secretFiles = append(inv.secretFiles, c)
-	}
-	return nil
-}
-
-// loadTargetFiles
-// MUST be called after loadClassFiles as it depends on existing classes to handle wildcard imports
-func (inv *Inventory) loadTargetFiles(targetPath string) error {
-	targetFiles, err := inv.discoverFiles(targetPath)
-	if err != nil {
-		return err
-	}
-
-	for _, target := range targetFiles {
-		err = target.Load(inv.fs)
-		if err != nil {
-			return err
-		}
-
-		relativePath := strings.ReplaceAll(target.Path, targetPath, "")
-		relativePath = strings.TrimLeft(relativePath, "/")
-
-		t, err := NewTarget(target, relativePath)
-		if err != nil {
-			return fmt.Errorf("%s: %w", target.Path, err)
-		}
-
-		for _, use := range t.UsedWildcardClasses {
-			for _, class := range inv.classFiles {
-
-				usePrefix := strings.TrimRight(use, "*")
-
-				if strings.HasPrefix(class.Name, usePrefix) {
-					t.SkipperConfig.Classes = append(t.SkipperConfig.Classes, class.Name)
-				}
-
-			}
-		}
-
-		inv.targetFiles = append(inv.targetFiles, t)
-	}
-
-	return nil
-}
-
-// matchesExtension returns true if the given string has a valid extension as defined in `Inventory.fileExtensions`
-func (inv *Inventory) matchesExtension(path string) bool {
-	ext := filepath.Ext(path)
-	for _, extension := range inv.fileExtensions {
-		if extension == ext {
-			return true
-		}
-	}
-	return false
 }
