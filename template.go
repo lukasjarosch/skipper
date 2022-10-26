@@ -51,7 +51,15 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 		}
 	}
 
-	err := afero.Walk(t.templateFs, "", func(filePath string, info fs.FileInfo, err error) error {
+	exists, err := afero.DirExists(fileSystem, templateRootPath)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("templateRootPath does not exist: %s", templateRootPath)
+	}
+
+	err = afero.Walk(t.templateFs, "", func(filePath string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
