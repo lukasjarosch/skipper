@@ -68,6 +68,89 @@ func FindVariables(data Data) ([]Variable, error) {
 	return foundVariables, nil
 }
 
+// ReplaceVariables searches and replaces variables defined in data.
+// The classFiles are used for local referencing variables (class internal references).
+// predefinedVariables can be used to provide global user-defined variables.
+func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[string]interface{}) (err error) {
+	variables, err := FindVariables(data)
+	if err != nil {
+		return err
+	}
+
+	if len(variables) == 0 {
+		return nil
+	}
+
+	isPredefinedVariable := func(variable Variable) bool {
+		for name := range predefinedVariables {
+			if strings.EqualFold(variable.Name, name) {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, variable := range variables {
+		var targetValue interface{}
+		if isPredefinedVariable(variable) {
+			targetValue = predefinedVariables[variable.Name]
+		} else {
+			// targetValue is the value on which the variable points to.
+			// This is the value we need to replace the variable with
+			targetValue, err = data.GetPath(variable.NameAsIdentifier()...)
+			if err != nil {
+
+				// for any other error than a 'key not found' there is nothing we can do
+				if !strings.Contains(err.Error(), "key not found") {
+					return fmt.Errorf("reference to invalid variable '%s': %w", variable.FullName(), err)
+				}
+
+				// Local variable handling
+				//
+				// at this point we have failed to resolve the variable using 'absolute' paths
+				// but the variable may be only locally defined which means we need to change the lookup path.
+				// We iterate over all classes and attempt to resolve the variable within that limited scope.
+				for i, class := range classFiles {
+
+					// if the value to which the variable points is valid inside the class scope, we just need to add the class identifier
+					// if the combination works this means we have found ourselves a local variable and we can set the targetValue
+					fullPath := []interface{}{}
+					fullPath = append(fullPath, class.NameAsIdentifier()...)
+					fullPath = append(fullPath, variable.NameAsIdentifier()...)
+
+					targetValue, err = data.GetPath(fullPath...)
+
+					// as long as not all classes have been checked, we cannot be sure that the variable is undefined (aka. key not found error)
+					if targetValue == nil &&
+						i < len(classFiles) &&
+						strings.Contains(err.Error(), "key not found") {
+						continue
+					}
+
+					// the local variable is really not defined at this point
+					if err != nil {
+						return fmt.Errorf("reference to invalid variable '%s': %w", variable.FullName(), err)
+					}
+
+					break
+				}
+			}
+		}
+
+		// sourceValue is the value where the variable is located. It needs to be replaced with the 'targetValue'
+		sourceValue, err := data.GetPath(variable.Identifier...)
+		if err != nil {
+			return err
+		}
+
+		// Replace the full variable name (${variable}) with the targetValue
+		sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), variable.FullName(), fmt.Sprint(targetValue))
+		data.SetPath(sourceValue, variable.Identifier...)
+	}
+
+	return nil
+}
+
 // variableFindValueFunc implements the [FindValueFunc] and searches for variables inside [Data].
 // Variables are extracted by matching the values to the [variableRegex].
 // All found variables are initialized and added to the output.
