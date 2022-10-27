@@ -78,12 +78,15 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 	return t, nil
 }
 
-// DefaultTemplateContext returns the default template context with only an 'Inventory' field where the Data is located.
-func DefaultTemplateContext(data Data) any {
+// DefaultTemplateContext returns the default template context with an 'Inventory' field where the Data is located.
+// Additionally it adds the 'TargetName' field for convenience.
+func DefaultTemplateContext(data Data, targetName string) any {
 	return struct {
-		Inventory any
+		Inventory  any
+		TargetName string
 	}{
-		Inventory: data,
+		Inventory:  data,
+		TargetName: targetName,
 	}
 }
 
