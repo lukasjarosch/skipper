@@ -116,7 +116,15 @@ func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[st
 					// if the combination works this means we have found ourselves a local variable and we can set the targetValue
 					fullPath := []interface{}{}
 					fullPath = append(fullPath, class.NameAsIdentifier()...)
-					fullPath = append(fullPath, variable.NameAsIdentifier()...)
+
+					// edge case: the class root key is 'foo', and the variable used references it like ${foo:bar:baz}
+					// this would result in the full path being 'foo foo bar baz', hence we need to strip the class name from the variable reference.
+					if strings.EqualFold(class.RootKey(), variable.NameAsIdentifier()[0].(string)) {
+						fullPath = append(fullPath, variable.NameAsIdentifier()[1:]...)
+					} else {
+						// default case: the class root key is not used in the variable, we can add the full variable identifier
+						fullPath = append(fullPath, variable.NameAsIdentifier()...)
+					}
 
 					targetValue, err = data.GetPath(fullPath...)
 
