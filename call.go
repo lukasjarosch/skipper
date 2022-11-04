@@ -15,7 +15,7 @@ var (
 	callRegex = regexp.MustCompile(`\%\{(.+)\}`)
 
 	// callActionRegex matches the actual call syntax `function:param`
-	callActionRegex = regexp.MustCompile(`(\w+)(\:(\w+))?`)
+	callActionRegex = regexp.MustCompile(`(\w+)(\:(.+))?`)
 
 	callFuncMap = map[string]CallFunc{
 		"env": func(param string) string {
