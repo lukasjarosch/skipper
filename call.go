@@ -15,7 +15,7 @@ var (
 	callRegex = regexp.MustCompile(`\%\{(.+)\}`)
 
 	// callActionRegex matches the actual call syntax `function:param`
-	callActionRegex = regexp.MustCompile(`(\w+)(\:(\w+))?`)
+	callActionRegex = regexp.MustCompile(`(\w+)(\:(.+))?`)
 
 	callFuncMap = map[string]CallFunc{
 		"env": func(param string) string {
@@ -49,6 +49,13 @@ var (
 			}
 
 			return string(ret)
+		},
+		"loweralpha": func(param string) string {
+			reg, err := regexp.Compile("[^a-z0-9]+")
+			if err != nil {
+				return err.Error()
+			}
+			return reg.ReplaceAllString(strings.ToLower(param), "")
 		},
 	}
 
@@ -127,6 +134,7 @@ func FindCalls(data Data) ([]*Call, error) {
 	var foundCalls []*Call
 	for _, val := range foundValues {
 		calls, ok := val.([]*Call)
+
 		if !ok {
 			return nil, fmt.Errorf("unexpected error during call detection, file a bug report")
 		}
