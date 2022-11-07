@@ -211,9 +211,7 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 
 	// Merge target into Data, overwriting any existing values which were defined in classes because target data has precedence over class data.
 	// Any key which is not added to the main Data (because the keys did not already exist), will be added.
-	// Only exception is the 'skipper' key from the target, it will not be added to the data.
 	targetData := target.Data()
-	delete(targetData, skipperKey)
 	data = data.MergeReplace(targetData)
 
 	// add Skipper pre-defined variables
