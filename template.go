@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/spf13/afero"
@@ -20,6 +21,10 @@ var customFuncs map[string]any = map[string]any{
 			s = append(s, "\""+fmt.Sprintf(v.(string))+"\"")
 		}
 		return strings.Join(s, ", ")
+	},
+
+	"addDate": func(days, months, years int) string {
+		return time.Now().AddDate(days, months, years).Format(time.RFC3339)
 	},
 }
 

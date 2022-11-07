@@ -11,7 +11,6 @@
   - Subnet `{{ $vnet.subnets.virtual_machines.name }}`
     - Address Prefixes: `[{{ $vnet.subnets.virtual_machines.address_prefixes | tfStringArray }}]`
 
-
 ## Template context data available for this target
 ```json
 {{ . | toPrettyJson }}
