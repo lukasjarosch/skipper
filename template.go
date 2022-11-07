@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,8 +24,20 @@ var customFuncs map[string]any = map[string]any{
 		return strings.Join(s, ", ")
 	},
 
-	"addDate": func(days, months, years int) string {
-		return time.Now().AddDate(days, months, years).Format(time.RFC3339)
+	"addDate": func(years, months, days string) string {
+		y, err := strconv.Atoi(years)
+		if err != nil {
+			return err.Error()
+		}
+		m, err := strconv.Atoi(months)
+		if err != nil {
+			return err.Error()
+		}
+		d, err := strconv.Atoi(days)
+		if err != nil {
+			return err.Error()
+		}
+		return time.Now().AddDate(y, m, d).Format(time.RFC3339)
 	},
 }
 
