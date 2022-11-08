@@ -50,11 +50,6 @@ func main() {
 		panic(err)
 	}
 
-	err = inventory.Load()
-	if err != nil {
-		panic(err)
-	}
-
 	// discover, load and parse the templates ----------------------------------------------------------------------------------
 	myTemplateFuncs := map[string]any{
 		"foo": func() string {
