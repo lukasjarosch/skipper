@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"hash/crc32"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -99,8 +100,12 @@ func (driver *GCP) Decrypt(input string) (string, error) {
 	}
 	decodedCRC32C := crc32c(decoded)
 
+	// In case the key name contains the key version, we need to omit it for the decrypt request
+	// GCP will choose the correct key version for decryption
+	keyName := strings.Split(driver.config.KeyName, "/cryptoKeyVersions/")[0]
+
 	req := &kmspb.DecryptRequest{
-		Name:             driver.config.KeyName,
+		Name:             keyName,
 		Ciphertext:       decoded,
 		CiphertextCrc32C: wrapperspb.Int64(int64(decodedCRC32C)),
 	}
