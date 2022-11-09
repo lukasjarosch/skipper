@@ -49,17 +49,25 @@ func (driver *Azure) Configure(config map[string]interface{}) error {
 		return fmt.Errorf("failed to decode azure driver config: %w", err)
 	}
 
-	if len(driver.config.KeyId) == 0 {
-		return fmt.Errorf("azure key id cannot be empty")
-	}
+	if len(driver.config.KeyId) > 0 {
 
-	if !isAzureKeyId(driver.config.KeyId) {
-		return fmt.Errorf("malformed azure key id")
-	}
+		if !isAzureKeyId(driver.config.KeyId) {
+			return fmt.Errorf("malformed azure key id")
+		}
 
-	driver.config.VaultName, driver.config.KeyName, driver.config.KeyVersion, err = parseAzureKeyVaultKeyId(driver.config.KeyId)
-	if err != nil {
-		return fmt.Errorf("failed to parse azure key id: %w", err)
+		driver.config.VaultName, driver.config.KeyName, driver.config.KeyVersion, err = parseAzureKeyVaultKeyId(driver.config.KeyId)
+		if err != nil {
+			return fmt.Errorf("failed to parse azure key id: %w", err)
+		}
+
+	} else if len(driver.config.VaultName) > 0 && len(driver.config.KeyName) > 0 {
+
+		if !driver.config.IgnoreVersion && len(driver.config.KeyVersion) == 0 {
+			return fmt.Errorf("azure key version has to be set unless ignore version is set to true")
+		}
+
+	} else {
+		return fmt.Errorf("either azure key id or azure key vault name and key name have to be set")
 	}
 
 	driver.vaultBaseUrl = fmt.Sprintf("https://%s.vault.azure.net", driver.config.VaultName)
