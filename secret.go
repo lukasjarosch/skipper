@@ -127,7 +127,7 @@ func (s *Secret) Load(fs afero.Fs) error {
 func (secret *Secret) attemptCreate(fs afero.Fs, secretPath string) error {
 	// if the secret does not have an alternative call, it is considered invalid and we cannot continue because we require the secret file to exist
 	if secret.AlternativeCall == nil {
-		return fmt.Errorf("secret does not have an alternative cwll: %s in '%s'", secret.FullName(), secret.Path())
+		return fmt.Errorf("secret does not exist and no alternative call is specified: %s in '%s'", secret.FullName(), secret.Path())
 	}
 
 	// call the given alternative call function to get the target output
