@@ -84,11 +84,11 @@ func (driver *GCP) Encrypt(input string) (string, error) {
 		return "", fmt.Errorf("Encrypt: response corrupted in-transit")
 	}
 
-	return base64.RawStdEncoding.EncodeToString(res.Ciphertext), nil
+	return base64.StdEncoding.EncodeToString(res.Ciphertext), nil
 }
 
 func (driver *GCP) Decrypt(input string) (string, error) {
-	decoded, err := base64.RawStdEncoding.DecodeString(input)
+	decoded, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
 		return "", err
 	}
