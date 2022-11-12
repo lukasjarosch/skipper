@@ -2,7 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"strings"
 
@@ -234,8 +233,6 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 		}
 
 		for _, call := range calls {
-			log.Println("found call", call.FullName(), "at", call.Path(), "value", call.Execute())
-
 			// replace call with function result
 			// sourceValue is the value where the variable is. It needs to be replaced with an actual value
 			sourceValue, err := data.GetPath(call.Identifier...)
@@ -283,8 +280,6 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 
 		// attempt load all secret files and replace the variables with the actual values if revealSecrets is true
 		for _, secret := range secrets {
-			log.Println("found secret", secret.FullName(), "at", secret.Path())
-
 			if !secret.Exists(inv.fs) {
 				return nil, fmt.Errorf("undefined secret '%s': file does not exist: %s", secret.FullName(), secret.SecretFile.Path)
 			}

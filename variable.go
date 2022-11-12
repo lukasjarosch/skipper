@@ -2,7 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 )
@@ -159,8 +158,6 @@ func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[st
 		if err != nil {
 			return err
 		}
-
-		log.Println(len(variables))
 
 		if len(variables) == 0 {
 			break
