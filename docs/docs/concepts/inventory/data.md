@@ -1,5 +1,11 @@
 # Data
 
+!!! note ""
+
+    This datatype is heavily used within Skipper. Although it is exposed via the API, you will most likely not 
+    have to work with it in the beginning.
+    It may help to understand this core feature of Skipper though.
+
 The [Data](https://pkg.go.dev/github.com/lukasjarosch/skipper#Data) type is the core datatype used throughout skipper.
 It is the result of unmarshalling arbitrary yaml data and having the requirement to work with it in classes or targets.
 In essence, it is just a `map[string]interface{}` with some attached functionality.
@@ -14,7 +20,7 @@ In essence, one can do the following:
 - Recursively find values
 
 ## Paths 
-If you're familiar with [yq](https://github.com/mikefarah/yq), then you already know what paths are.
+If you're familiar with [jq](https://github.com/stedolan/jq) or [yq](https://github.com/mikefarah/yq), then you already know what paths are.
 Although, the paths in Skipper are not as powerful, they get the job done.
 
 A path is a unique identifier of a specific value inside Skipper (say: a yaml file).
@@ -34,8 +40,8 @@ example:
     - one
     - two
     - three
-    
 ```
+
 In order to identify specific values inside this yaml file, the following paths could be used:
 
 - `example.foo` points to **bar**
@@ -45,8 +51,31 @@ In order to identify specific values inside this yaml file, the following paths 
 That's pretty much how paths work, there is not much more to know about them. 
 Paths are just the plain identifiers and do not support any modifiers. They are only used to point to data which you're interested in.
 
+These paths are what enables the use of variables, calls and secrets by uniquely identifying a specific value inside your inventory.
+
 
 ## Get and Set values
+Getting and setting values inside `Data` is obviously required.
+It leverages the [paths](#paths) to reference inside the map.
+
+
+```puml
+@startyaml
+#highlight "example" / "food" / "0" / "name"
+example:
+  foo: bar
+  food:
+    - name: "pizza" 
+      rating: 10
+    - name: "salad"
+      rating: 2
+  array:
+    - one
+    - two
+    - three
+@endyaml
+```
+
 ## Merge
 ## Find values
 

@@ -13,29 +13,29 @@ hide:
 
 ## What is Skipper?
 
-Whoa, TODO
+Skipper is a library which helps you to manage complex configuration and enables
+you to use your large data-set inside templates.
+Having one - central - set of agnostic configuration files will make managing
+your clusters, infrastrucutre stages, etc. much easier. You can rely on 
+the inventory of data, modify it to target-specific needs, use the data in 
+templates, and be sure that whatever you're generating is always in sync with your inventoyu.
+Whether you generate only a single file, or manage multi-stage multi-region infrastructure deployments doesn't matter.
+Skipper is a library which enables you to easily build your own - company or project specific - configuration management.
 
-## The problem
+Skipper is heavily inspired by the [Kapitan](https://kapitan.dev/) project. The difference
+is that skipper is a library which does not make any assumptions of your needs (aka. not opinionated). 
+This allows you for example to have way more control over how you want to process your inventory.
 
-## Our solution
+Skipper is not meant to be a *one-size-fits-all* solution. The goal of Skipper is to enable
+you to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
 
-## What Skipper is *not*
 
-- A solution to all your problems, but it might just solve a few :wink:
-- A 'one-size-fits-all' project which allows you to think of something else.
-    - Sorry to tell you that, but you will need to have to put some effort into solving your problems.
-    - **But**, it's great to be able to solve problems the way *you* think they should be solved.  
-        Without having to solve basic stuff (that's what Skipper does).
-- It won't cook dinner or bring you a beer. We'll inform you once we've figured that out, tho.
+## Values
 
-## I've seen this before...
-Skipper is heavily inspired by the awesome [Kapitan](https://kapitan.dev/) project.  
-The major difference is that skipper is meant to be used as library. This allows you for example to have way more
-control over the data-structures used inside the templates. 
+- Skipper wants you to abstract away all the information at your disposal - before thinking about the technologies used
+- Infrastructure/Code/Documentation/Bootstraping/... is just an aggregation of information you should already have
+- Skipper helps you to aggregate, cumulate and leverage your information to build the next big thing.
+- Secret management should not be hard, it should be automatic. Skipper has got you covered!
 
-Additionaly we think that being able to provide a single binary without any dependencies will make thinks a lot easier.  
-This is what you can do with Skipper. Build *your own* templating sytem, which is nice.
 
-Skipper is not meant to be a *one-size-fits-all* solution.   
-The goal of Skipper is to enable companies to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
-
+> Skipper is a library which does the heavy lifting. Creating something awesome is up to you :wink:!

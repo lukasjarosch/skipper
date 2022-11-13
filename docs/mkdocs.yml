@@ -7,9 +7,8 @@ repo_url: https://github.com/lukasjarosch/skipper
 nav:
   - Home: index.md
   - Concepts: 
-      - Big Picture: concepts.md
+      - Overview: concepts/inventory/overview.md
       - Inventory: 
-        - Overview: concepts/inventory/overview.md
         - Data: concepts/inventory/data.md
         - Classes: concepts/inventory/classes.md
         - Targets: concepts/inventory/targets.md
@@ -29,6 +28,7 @@ nav:
           - Base64: concepts/secrets/drivers/azurekv.md
           - AES: concepts/secrets/drivers/azurekv.md
           - Azure KeyVault: concepts/secrets/drivers/azurekv.md
+          - Google KMS: concepts/secrets/drivers/googlekms.md
   - Getting Started: getting_started.md
   - Examples: examples.md
   - Changelog: changelog.md
@@ -61,6 +61,9 @@ theme:
 
 plugins:
   - search
+  - plantuml:
+        puml_url: https://www.plantuml.com/plantuml/
+        num_workers: 8
 
 markdown_extensions:
   - admonition

@@ -19,63 +19,51 @@
 
 # What is skipper?
 
-Skipper is heavily inspired by the awesome [Kapitan](https://kapitan.dev/) project. The major difference
-is that skipper is primarily meant to be used as library. This allows you for example to have way more
-control over the data-structures used inside the templates. 
+Skipper is a library which helps you to manage complex configuration and enables
+you to use your large data-set inside templates.
+Having one - central - set of agnostic configuration files will make managing
+your clusters, infrastrucutre stages, etc. much easier. You can rely on 
+the inventory of data, modify it to target-specific needs, use the data in 
+templates, and be sure that whatever you're generating is always in sync with your inventoyu.
+Whether you generate only a single file, or manage multi-stage multi-region infrastructure deployments doesn't matter.
+Skipper is a library which enables you to easily build your own - company or project specific - configuration management.
+
+Skipper is heavily inspired by the [Kapitan](https://kapitan.dev/) project. The difference
+is that skipper is a library which does not make any assumptions of your needs (aka. not opinionated). 
+This allows you for example to have way more control over how you want to process your inventory.
 
 Skipper is not meant to be a *one-size-fits-all* solution. The goal of Skipper is to enable
-companies to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
+you to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
+
+# Core Concepts
+Skipper has a few concepts, but not all of them are necessary to understand how Skipper works.
+More in-depth informatation about Skippers concepts can be found [in our docs](https://lukasjarosch.github.io/skipper/concepts/).
+
+## Inventory
+The inventory is the heart of every Skipper-enabled project. It is your data storage, the single source of truth.
+It is a user-defined collection of YAML files (classes and targets).
+
+### Classes
+Classes are YAML files in which you can define information about every part of your project.
+These classes become your building blocks and therefore the heart of your project.
+
+### Targets
+A target represents an instance of your project. Targets are defined with YAML files as well.
+They use skipper-keywords to *includ* classes, relevant for that instance.
+Inside a target config you are also able to overwrite any kind of information (change the location in which your resources are deployed for example).
+
+## Templates
+Templates (Skipper is using [go templates](https://pkg.go.dev/text/template)) have access to your target and classes.
+You can build generic templates and aggregate your data into it, without having to re-write files for different stages.
+Having a documentation, specific to an instance (stage) of your project, can be quite useful and is easy to implement with Skipper.
 
 
-## Roadmap
+# Idea collection
 
-- [ ] Allow definition of custom variables within classes
 - [ ] Allow static file copying instead of rendering it as template (e.g. copy a zip file from templates to compiled)
-- [ ] Add timing stats (benchmark, 'compiled in xxx') to crush kapitan
-- [ ] Add more secret drivers
-    - AWS KMS
-    - GCP
+- [ ] Add timing stats (benchmark, 'compiled in xxx') to compare with kapitan
 - [ ] Class inheritance. Currently only targets can `use` classes but it would be nice if classes could also use different classes
   - This would introduce a higher level of inheritance which users can set-up for their inventory.
-- [x] Allow self referencing within classes
-  - When writing classes one will very likely need to reference a valuie of the same class somewhere else. 
-    Think about defining a docker image once and reusing it throughout the class, but with different tags.
-  - Enable the notation `${object:key}` within classes and targets
-- [x] Introduce a default set of `${variable}` variables to be used within targets and classes
-  - First candidade is to have `${target_name}` accessible everywhere
-- [x] Enable variable usage across classes
-  - This will introduce definition checks. If a class is not used by a target, but referenced by a variable, it is not defined
-- [x] Allow adding external data (`map[string]any`) as classes
-  - Useful for data which is pre-processed somewhere else, outside of the skipper scope
-  - Add function something like `AddClass(data map[string]any, classPath string, adjustRootKey bool) error`
-    - data is the data to add as class, this will be written into the `classPath` as file - relative to the class path of skipper
-    - `adjustRootKey` addresses the issue that if the data has been mapped to a struct prior, the root key might not match the filename and thus break skipper rules.
-- [x] Allow wildcard imports of classes `foo.bar.*`
-  - This might be useful if you want to define a directory with classes which are validated by your business-logic.
-  - You might want to define some sort of `GeneralizedResource` which you want customers to use.
-    - In order to maintain validity of your templates, you will need to enforce a specified struct of the class
-    - And you might want to import all defined classes inside that folder, without knowing in advance which classes it contains.
-- [x] `<no value>` detection in rendered templates
-  - If for some reason a template uses a value which is not set, the user should have the ability to detect that post generation.
-  - Introduce a verify mechanism which ideally checks for missing values and maybe also extracts which template-key it originated from
-  - This can be evaluated before the template files are written to disk
-  - We can have a strict mode which fails on these errors, or not
-- [x] Add the option to inject arbitrary maps into the inventory with custom keys (`inventory.AddKey(key string, data Data)`)
-  - This is very useful if you have a different data-structure which you want to add
-  - For example if your app has a model which can be written via an HTTP API, you might want to be able to use these data as well
-- [x] Add some sort of secrets management (starting with Azure KeyVault)
-  - [x] file-based secrets
-  - [x] support different secret drivers to keep it extensible
-  - [ ] ~~secret rotation: Skipper should be able to automatically rotate all secrets~~
-- [x] Allow subset template generation in targets
-  - Maybe you don't need/want to have all templates rendered in a particular target
-  - There should be an option do configure which templates any given target is using
-  - Maybe even with the option to rewrite target paths?
-- [x] Add convenience func `Data.String()` which outputs the whole data as yaml encoded string.
-- [x] Allow the use of local variables (per class) by introducing a second variable-replace pass.
-- [x] Allow template target file renaming
-    - This can be used to write templates which might become dotfiles
-    - In order to not miss or confuse the template with the actual dotfile, it would be nice to be able to rename specific template output files
 
 
 # Documentation
