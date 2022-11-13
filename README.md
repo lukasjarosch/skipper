@@ -67,7 +67,7 @@ Having a documentation, specific to an instance (stage) of your project, can be 
 
 
 # Documentation
-> This documentation is work in progress and will be moved to it's own place in the future. 
+> This documentation is 
 
 ## Classes
 A class is a yaml file which defines arbitrary information about your project.

@@ -61,9 +61,6 @@ theme:
 
 plugins:
   - search
-  - plantuml:
-        puml_url: https://www.plantuml.com/plantuml/
-        num_workers: 8
 
 markdown_extensions:
   - admonition
