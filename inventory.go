@@ -376,3 +376,13 @@ func (inv *Inventory) GetClass(name string) *Class {
 	}
 	return nil
 }
+
+// GetAllTargets returns all discovered Targets
+func (inv *Inventory) GetAllTargets() []*Target {
+	return inv.targetFiles
+}
+
+// GetAllClasses returns all discovered Classes
+func (inv *Inventory) GetAllClasses() []*Class {
+	return inv.classFiles
+}
