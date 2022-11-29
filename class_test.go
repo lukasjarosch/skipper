@@ -10,10 +10,11 @@ import (
 
 type ClassTestSuite struct {
 	suite.Suite
-	FileSystem      afero.Fs
-	EmptyYamlFile   *skipper.YamlFile
-	InvalidYamlFile *skipper.YamlFile
-	ValidYamlFile   *skipper.YamlFile
+	FileSystem          afero.Fs
+	EmptyYamlFile       *skipper.YamlFile
+	InvalidYamlFile     *skipper.YamlFile
+	TooManyKeysYamlFile *skipper.YamlFile
+	ValidYamlFile       *skipper.YamlFile
 }
 
 func TestClassTestSuite(t *testing.T) {
@@ -23,20 +24,35 @@ func TestClassTestSuite(t *testing.T) {
 func (suite *ClassTestSuite) SetupTest() {
 	suite.FileSystem = afero.NewMemMapFs()
 
-	suite.EmptyYamlFile, _ = skipper.CreateNewYamlFile(suite.FileSystem, "/emptyYamlFile.yaml", []byte(nil))
+	suite.EmptyYamlFile, _ = skipper.CreateNewYamlFile(suite.FileSystem, "/emptyYaml.yaml", []byte(nil))
+	suite.ValidYamlFile, _ = skipper.CreateNewYamlFile(suite.FileSystem, "/validYaml.yaml", []byte(nil))
+	suite.InvalidYamlFile, _ = skipper.CreateNewYamlFile(suite.FileSystem, "/invalidYaml.yaml", []byte(nil))
+	suite.TooManyKeysYamlFile, _ = skipper.CreateNewYamlFile(suite.FileSystem, "/tooManyKeys.yaml", []byte(nil))
 }
 
 func (suite *ClassTestSuite) TestNewClass() {
 	noRootKey := suite.EmptyYamlFile
 	noRootKey.Data = make(skipper.Data)
 
-	multipleRootKeys := suite.EmptyYamlFile
+	rootKeyFalse := suite.InvalidYamlFile
+	rootKeyFalse.Data = skipper.Data{
+		"asdasd": "test",
+	}
+
+	multipleRootKeys := suite.TooManyKeysYamlFile
 	multipleRootKeys.Data = skipper.Data{
 		"root1": skipper.Data{
 			"foo": "bar",
 		},
 		"root2": skipper.Data{
 			"bar": "baz",
+		},
+	}
+
+	validYaml := suite.ValidYamlFile
+	validYaml.Data = skipper.Data{
+		"validYaml": skipper.Data{
+			"foo": "bar",
 		},
 	}
 
@@ -62,31 +78,36 @@ func (suite *ClassTestSuite) TestNewClass() {
 			TestName:          "EmptyYamlFile",
 			ErrorExpected:     true,
 			YamlFile:          suite.EmptyYamlFile,
-			RelativeClassPath: "emptyYamlFile.yaml",
+			RelativeClassPath: "emptyYaml.yaml",
 		},
 		{
 			TestName:          "DataNoRootKey",
 			ErrorExpected:     true,
 			YamlFile:          noRootKey,
-			RelativeClassPath: "emptyYamlFile.yaml",
+			RelativeClassPath: "emptyYaml.yaml",
 		},
 		{
 			TestName:          "MultipleRootKeys",
 			ErrorExpected:     true,
-			YamlFile:          multipleRootKeys,
-			RelativeClassPath: "emptyYamlFile.yaml",
+			YamlFile:          suite.TooManyKeysYamlFile,
+			RelativeClassPath: "tooManyKeys.yaml",
+		},
+		{
+			TestName:          "RootKeyDoesNotMatchYamlFileName",
+			ErrorExpected:     true,
+			YamlFile:          rootKeyFalse,
+			RelativeClassPath: "invalidYaml.yaml",
 		},
 		{
 			TestName:          "ValidYamlFile",
-			ErrorExpected:     true,
-			YamlFile:          suite.ValidYamlFile,
-			RelativeClassPath: "validYamlFile.yaml",
+			ErrorExpected:     false,
+			YamlFile:          validYaml,
+			RelativeClassPath: "validYaml.yaml",
 		},
 	}
 
 	for _, tt := range table {
 		suite.Run(tt.TestName, func() {
-
 			class, err := skipper.NewClass(tt.YamlFile, tt.RelativeClassPath)
 
 			if tt.ErrorExpected {
