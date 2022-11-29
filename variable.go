@@ -143,8 +143,24 @@ func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[st
 			return err
 		}
 
-		// Replace the full variable name (${variable}) with the targetValue
-		sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), variable.FullName(), fmt.Sprint(targetValue))
+		isYamlObject := func(value interface{}) bool {
+			_, err := NewData(value)
+			if err != nil {
+				return false
+			}
+			return true
+		}
+
+		// if targetValue is a valid 'Data' (aka. YAML) structure, we want to append the structure directly, not as string
+		if isYamlObject(targetValue) {
+			// we can ignore the error, as `isYamlObject` already captures it and would not be true if there was an error
+			sourceValue, _ = NewData(targetValue)
+		} else {
+			// Replace the full variable name (${variable}) with the targetValue
+			sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), variable.FullName(), fmt.Sprint(targetValue))
+		}
+
+		// replace variable in Data
 		data.SetPath(sourceValue, variable.Identifier...)
 
 		return nil
