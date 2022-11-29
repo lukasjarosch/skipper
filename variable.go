@@ -137,40 +137,40 @@ func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[st
 			}
 		}
 
-		// if the place we want to fetch the value is below the place where we want to insert it, we are self-referencing
-		// example:
-		// target file:
-		//  ```
-		//  foo: ${foo:bar}
-		//  ```
-		//  this will not work, as foo.bar would be tried to replace with the same variable it is set in
-
-		joinedVariableIdentifier := strings.ReplaceAll(variable.Path(), ".", ":")
-		if strings.HasPrefix(variable.Name, joinedVariableIdentifier) {
-			return fmt.Errorf("%s references a value with the same prefixed identifier: %s", joinedVariableIdentifier, variable.Name)
-		}
-
 		// sourceValue is the value where the variable is located. It needs to be replaced with the 'targetValue'
 		sourceValue, err := data.GetPath(variable.Identifier...)
 		if err != nil {
 			return err
 		}
 
-		isYamlObject := func(value interface{}) bool {
-			_, err := NewData(value)
-			if err != nil {
-				return false
-			}
-			return true
+		// an inline variable is a variable which occurs with a context and not alone
+		// inline variable: "foo ${my_variable} bar"
+		// not inline: "${my_variable}"
+		isInlineVariable := func() bool {
+			return variable.FullName() != sourceValue
 		}
 
-		// if targetValue is a valid 'Data' (aka. YAML) structure, we want to append the structure directly, not as string
-		if isYamlObject(targetValue) {
-			// we can ignore the error, as `isYamlObject` already captures it and would not be true if there was an error
-			sourceValue, _ = NewData(targetValue)
-		} else {
-			// Replace the full variable name (${variable}) with the targetValue
+		// if the variable is not 'inline', we are going to 'attach' whatever the variable points to
+		// with the variable. This allows you to import a list from a different class for example.
+		// class-file:
+		// ```
+		//	myclass:
+		//		foo:
+		//			- somewhere
+		//			- over
+		//			- the rainbow
+		// ```
+		//
+		// target file:
+		// ```
+		// target:
+		// 		something: ${myclass:foo} // <-- Non-Inline import of the list under `myclass.foo`
+		// 		something_else: "hello ${myclass:foo:2}" // <-- inline variable which will be 'string replaced'
+		// ```
+		if isInlineVariable() {
 			sourceValue = strings.ReplaceAll(fmt.Sprint(sourceValue), variable.FullName(), fmt.Sprint(targetValue))
+		} else {
+			sourceValue = targetValue
 		}
 
 		// replace variable in Data
