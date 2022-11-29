@@ -137,6 +137,19 @@ func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[st
 			}
 		}
 
+		// if the place we want to fetch the value is below the place where we want to insert it, we are self-referencing
+		// example:
+		// target file:
+		//  ```
+		//  foo: ${foo:bar}
+		//  ```
+		//  this will not work, as foo.bar would be tried to replace with the same variable it is set in
+
+		joinedVariableIdentifier := strings.ReplaceAll(variable.Path(), ".", ":")
+		if strings.HasPrefix(variable.Name, joinedVariableIdentifier) {
+			return fmt.Errorf("%s references a value with the same prefixed identifier: %s", joinedVariableIdentifier, variable.Name)
+		}
+
 		// sourceValue is the value where the variable is located. It needs to be replaced with the 'targetValue'
 		sourceValue, err := data.GetPath(variable.Identifier...)
 		if err != nil {
