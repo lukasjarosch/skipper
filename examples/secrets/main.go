@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"path"
 
 	"github.com/lukasjarosch/skipper"
@@ -32,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("\n%s", data.String())
+	//	log.Printf("\n%s", data.String())
 
 	templateOutputPath := path.Join(outputPath, target)
 	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, nil)

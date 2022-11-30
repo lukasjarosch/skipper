@@ -5,7 +5,10 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
+	"log"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -137,21 +140,94 @@ func (t *Templater) execute(template *TemplateFile, data any, targetPath string,
 
 	// no value detection using scanner in order to give a rough estimate on where the original error is
 	if !allowNoValue {
-		scanner := bufio.NewScanner(strings.NewReader(out.String()))
 
+		templateVariableRegex := regexp.MustCompile(`(\{\{)(.*)(\}\})`)
+		templateVariableIdentifierRegex := regexp.MustCompile(`\.[\.|\w]+\w`)
+
+		log.Println("=============================")
+
+		scanner := bufio.NewScanner(bytes.NewBuffer(template.Bytes))
 		line := 1
-
 		for scanner.Scan() {
-			if strings.Contains(scanner.Text(), "<no value>") {
-				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", template.Path, line)
+
+			// first, find all {{ .... }} strings in the line
+			templateVariables := templateVariableRegex.FindAll(scanner.Bytes(), -1)
+			for _, templateVariable := range templateVariables {
+
+				// then, find all strings like ".foo.bar.baz" inside the {{ ... }}
+				tplVariableIdentifier := templateVariableIdentifierRegex.FindAll(templateVariable, -1)
+
+				for _, identifier := range tplVariableIdentifier {
+
+					identifierElements := strings.Split(string(identifier), ".")
+
+					firstIdentifierElement := strings.TrimLeft(strings.TrimSpace(string(identifierElements[1])), ".")
+
+					// Now begins the hard part. We need to figure out whether the identifiers actually point to valid data inside `data any`
+					// Most likely the data will be a custom struct type with N fields, one of which is the first element of our identifier.
+
+					tmp := reflect.ValueOf(data)
+					index := 0
+					for i := 0; i < tmp.Type().NumField(); i++ {
+						fieldName := tmp.Type().Field(i).Name
+						if strings.EqualFold(fieldName, firstIdentifierElement) {
+							index = i
+							break
+						}
+					}
+
+					// value is now most likely (in case of skipper) a map[string]interface{} which we can address
+					value := tmp.FieldByIndex([]int{index})
+					_ = value
+
+					if valueMap, ok := value.Interface().(Data); ok {
+						var identifiers []interface{}
+						for _, el := range identifierElements[2:] {
+							log.Println(el)
+							identifiers = append(identifiers, el)
+						}
+
+						targetValue, err := valueMap.GetPath(identifiers...)
+						if err != nil {
+							return fmt.Errorf("template variable '%s' in file '%s' on line %d contains an undefined value", templateVariable, template.Path, line)
+						}
+
+						log.Println(targetValue)
+					}
+
+					for i := 1; i < len(identifierElements); i++ {
+						log.Println(identifierElements[i])
+					}
+
+					log.Printf("%s line %d: %s", template.File.Path, line, identifier)
+				}
 			}
+
 			line++
+		}
+
+		if err := t.noValueDetection(*template, out.String()); err != nil {
+			return err
 		}
 	}
 
 	err = WriteFile(t.outputFs, targetPath, out.Bytes(), template.Mode)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (t *Templater) noValueDetection(template TemplateFile, renderedBytes string) error {
+	scanner := bufio.NewScanner(strings.NewReader(renderedBytes))
+
+	line := 1
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), "<no value>") {
+			return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", template.Path, line)
+		}
+		line++
 	}
 
 	return nil

@@ -1,2 +1,4 @@
 # Azure KeyVault
 
+{{ .Inventory.undefined }}
+
