@@ -92,13 +92,6 @@ func (inv *Inventory) load() error {
 
 			}
 		}
-
-		// now check if the classes used by the target (including expanded wildcards) are valid
-		for _, class := range target.SkipperConfig.Classes {
-			if inv.GetClass(class) == nil {
-				return fmt.Errorf("target '%s' uses class '%s' which does not exist", target.Name, class)
-			}
-		}
 	}
 
 	return nil
@@ -111,7 +104,7 @@ func (inv *Inventory) GetSkipperConfig(targetName string) (config *SkipperConfig
 	// load SkipperConfig of target
 	target := inv.GetTarget(targetName)
 	if target == nil {
-		return nil, fmt.Errorf("unable to load target %s", targetName)
+		return nil, fmt.Errorf("target could not be loaded: %s", targetName)
 	}
 	configurations = append(configurations, target.SkipperConfig)
 
@@ -119,7 +112,7 @@ func (inv *Inventory) GetSkipperConfig(targetName string) (config *SkipperConfig
 	for _, className := range target.SkipperConfig.Classes {
 		class := inv.GetClass(className)
 		if class == nil {
-			return nil, fmt.Errorf("unable to load class %s", className)
+			return nil, fmt.Errorf("target '%s' uses class which does not exist: %s", targetName, className)
 		}
 		configurations = append(configurations, class.Configuration)
 	}
@@ -138,7 +131,7 @@ func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
 	for _, className := range target.SkipperConfig.Classes {
 		class := inv.GetClass(className)
 		if class == nil {
-			return nil, fmt.Errorf("class could not be loaded: %s", className)
+			return nil, fmt.Errorf("target '%s' uses class which does not exist: %s", targetName, className)
 		}
 		classes = append(classes, class)
 	}
