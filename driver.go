@@ -38,6 +38,8 @@ func SecretDriverFactory(name string) (secretDriver SecretDriver, err error) {
 		secretDriver, err = driver.NewAes()
 	case "azurekv":
 		secretDriver, err = driver.NewAzure()
+	case "gcpkms":
+		secretDriver, err = driver.NewGCP()
 	default:
 		return nil, fmt.Errorf("driver '%s' cannot be loaded: not implemented", name)
 	}
