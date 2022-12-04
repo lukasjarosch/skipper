@@ -39,21 +39,13 @@ func main() {
 		panic(err)
 	}
 
-	templateData := struct {
-		Inventory  any
-		TargetName string
-	}{
-		Inventory:  data,
-		TargetName: target,
-	}
-
 	skipperConfig, err := inventory.GetSkipperConfig(target)
 	if err != nil {
 		panic(err)
 	}
 
 	// execute templates  ----------------------------------------------------------------------------------
-	err = templater.ExecuteComponents(templateData, skipperConfig.Components, false)
+	err = templater.ExecuteComponents(skipper.DefaultTemplateContext(data, target), skipperConfig.Components, false)
 	if err != nil {
 		panic(err)
 	}
