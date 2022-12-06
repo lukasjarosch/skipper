@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	ErrEmptyVaultName = fmt.Errorf("vault_name is required if only the key name is set")
-	ErrInvalidKeyUri  = fmt.Errorf("invalid vault key id")
+	ErrInvalidKeyUri = fmt.Errorf("invalid vault key id")
 )
 
 type Azure struct {
@@ -28,15 +27,12 @@ type Azure struct {
 type azureConfig struct {
 	// IgnoreVersion will ignore any key version, even if given, and always use the latest version.
 	IgnoreVersion bool `mapstructure:"ignore_version"`
-	// VaultName is required if only the key name is passed.
-	// The vault name is then required to build the base url.
-	VaultName string `mapstructure:"vault_name"`
-	// Version of the key to use. Will be ignored if IgnoreVersion is true.
-	KeyVersion string `mapstructure:"key_version"`
 	// The Azure Vault KeyId to use for encryption and decryption
 	KeyId string `mapstructure:"key_id"`
-	// Name of the key in the vault
-	KeyName string `mapstructure:"key_name"`
+
+	VaultName  string
+	KeyName    string
+	KeyVersion string
 }
 
 func NewAzure() (*Azure, error) {
