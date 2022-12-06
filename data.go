@@ -101,7 +101,6 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 				return nil, fmt.Errorf("path index out of range: %d", index)
 			}
 			tree = node[index]
-
 		default:
 			return nil, fmt.Errorf("unexpected node type %T at index %d", node, i)
 		}
