@@ -8,6 +8,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type ErrUndefinedPath struct {
+	Path     []interface{}
+	FuncName string
+}
+
+func (e ErrUndefinedPath) Error() string {
+	return fmt.Sprintf("%s: undefined path: %v", e.FuncName, e.Path)
+}
+
 // Data is an arbitrary map of values which makes up the inventory.
 type Data map[string]interface{}
 
@@ -79,14 +88,14 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 			}
 			tree, ok = node[key]
 			if !ok {
-				return nil, fmt.Errorf("key not found: %v", el)
+				return nil, ErrUndefinedPath{Path: path, FuncName: "GetPath"}
 			}
 
 		case map[interface{}]interface{}:
 			var ok bool
 			tree, ok = node[el]
 			if !ok {
-				return nil, fmt.Errorf("key not found: %v", el)
+				return nil, ErrUndefinedPath{Path: path, FuncName: "GetPath"}
 			}
 
 		case []interface{}:
@@ -102,7 +111,7 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 			}
 			tree = node[index]
 		default:
-			return nil, fmt.Errorf("unexpected node type %T at index %d", node, i)
+			return nil, ErrUndefinedPath{Path: path, FuncName: "GetPath"}
 		}
 	}
 	return tree, nil
@@ -150,9 +159,8 @@ func (d *Data) SetPath(value interface{}, path ...interface{}) (err error) {
 			return fmt.Errorf("path index out of range: %d", index)
 		}
 		node[index] = value
-
-	default:
-		return fmt.Errorf("unexpected node type %T at index %d", node, i)
+	case string:
+		return ErrUndefinedPath{Path: path, FuncName: "SetPath"}
 	}
 
 	return nil
