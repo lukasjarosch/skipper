@@ -77,79 +77,79 @@ func (v Variable) IsPredefined(predefinedVariables map[string]any) bool {
 	return false
 }
 
-func (v *Variable) Replace(data Data, predefinedVariables map[string]any, classFiles []*Class) error {
-
-	// Variable referencing shadowed value
-	//
-	// Find out whether the variables path is valid in the data AND one class-data.
-	// In that case, Skipper would attempt to replace the variable with the target data
-	// which results in the variable attempting to replace itself instead of
-	// with the data inside the class (shadowing).
-	// This is different from recursive variables because there is an actual
-	// value which would be correct, it is only shadowed.
-	//
-	// Example:
-	// ```
-	// ---
-	// myclass:
-	//	self_reference: "bar"
-	// ---
-	// target:
-	// 	myclass:
-	//		self_reference: ${myclass:self_reference}
-	// ```
-	// Here, `myclass:self_reference` is a valid identifier for two keys.
-	// Once on a class scope (myclass) and once on the main target scope.
-	// Because the main target scope is evaluated first, before attempting a local reference,
-	// Skipper would attempt to replace `${myclass:self_reference}` with `${myclass:self_reference}`
-	// instead of replacing it with the value `bar`.
-	//
-	// If a variable is referencing a value in a class, which would be overwritten by
-	// the target, we need to ensure that the variable is replaced with the class-data.
-	isReferencingShadowedValue := func(variable Variable) (*Class, bool) {
-		for _, class := range classFiles {
-
-			classData, err := class.Data().GetPath(variable.Identifier...)
-			if err != nil {
-				continue
-			}
-
-			variableTargetData, err := class.Data().GetPath(variable.NameAsIdentifier()...)
-			if err != nil {
-				continue
-			}
-
-			if classData != nil && variableTargetData != nil {
-				return class, true
-			}
-		}
-		return nil, false
-	}
-
-	// Find recursive variables. A variable is recursive if it points to itself.
-	//
-	// Example:
-	// ```
-	// ---
-	// target:
-	// 	myclass:
-	//		self_reference: ${myclass:self_reference} <- RECURIVE VARIABLE
-	// ```
-	// Note that there is no `myclass` which might provide the correct value.
-	isRecursiveVariable := func(variable *Variable) bool {
-
-		variableTargetData, err := data.GetPath(variable.NameAsIdentifier()...)
-		if err != nil {
-			return false
-		}
-
-		if strings.Contains(fmt.Sprint(variableTargetData), variable.FullName()) {
-			return true
-		}
-
+// IsRecursive finds recursive variables. A variable is recursive if it points to itself.
+//
+// Example:
+// ```
+// ---
+// target:
+// 	myclass:
+//		self_reference: ${myclass:self_reference} <- RECURIVE VARIABLE
+// ```
+// Note that there is no `myclass` which might provide the correct value.
+func (v Variable) IsRecursive(data Data) bool {
+	variableTargetData, err := data.GetPath(v.NameAsIdentifier()...)
+	if err != nil {
 		return false
 	}
 
+	if strings.Contains(fmt.Sprint(variableTargetData), v.FullName()) {
+		return true
+	}
+
+	return false
+}
+
+// isReferencingShadowedValue check whether the variable is referencing a value
+// which might've been overwritten by the target alredy.
+//
+// Find out whether the variables path is valid in the data AND one class-data.
+// In that case, Skipper would attempt to replace the variable with the target data
+// which results in the variable attempting to replace itself instead of
+// with the data inside the class (shadowing).
+// This is different from recursive variables because there is an actual
+// value which would be correct, it is only shadowed.
+//
+// Example:
+// ```
+// ---
+// myclass:
+//	self_reference: "bar"
+// ---
+// target:
+// 	myclass:
+//		self_reference: ${myclass:self_reference}
+// ```
+// Here, `myclass:self_reference` is a valid identifier for two keys.
+// Once on a class scope (myclass) and once on the main target scope.
+// Because the main target scope is evaluated first, before attempting a local reference,
+// Skipper would attempt to replace `${myclass:self_reference}` with `${myclass:self_reference}`
+// instead of replacing it with the value `bar`.
+//
+// If a variable is referencing a value in a class, which would be overwritten by
+// the target, we need to ensure that the variable is replaced with the class-data.
+func (v Variable) isReferencingShadowedValue(classFiles []*Class) (*Class, bool) {
+	for _, class := range classFiles {
+
+		classData, err := class.Data().GetPath(v.Identifier...)
+		if err != nil {
+			continue
+		}
+
+		variableTargetData, err := class.Data().GetPath(v.NameAsIdentifier()...)
+		if err != nil {
+			continue
+		}
+
+		if classData != nil && variableTargetData != nil {
+			return class, true
+		}
+	}
+	return nil, false
+}
+
+// Replace attempts to replace the variable with it's actual value inside `Data`.
+func (v *Variable) Replace(data Data, predefinedVariables map[string]any, classFiles []*Class) error {
 	// targetValue is the value with which is assigned to the given variable
 	// all occurrences of `variable` will be replaced with its `targetValue`.
 	// Given the below example:
@@ -164,26 +164,9 @@ func (v *Variable) Replace(data Data, predefinedVariables map[string]any, classF
 	///		test: "something_${myclass:something:foo}"
 	/// ```
 	/// then targetValue would be `bar`
-	var targetValue interface{}
-
-	var err error
-	if class, ok := isReferencingShadowedValue(*v); ok {
-		targetValue, err = class.Data().GetPath(v.NameAsIdentifier()...)
-		if err != nil {
-			return err
-		}
-	} else {
-
-		// variable could still be recursive
-		if isRecursiveVariable(v) {
-			return fmt.Errorf("recursive variable usage found at path '%s': %s", v.Path(), v.FullName())
-		}
-
-		// variable is not referencing a shadowed class value, default case
-		targetValue, err = v.GetTargetValue(predefinedVariables, data, classFiles)
-		if err != nil {
-			return fmt.Errorf("cannot load target data for variable %s: %w", v.FullName(), err)
-		}
+	targetValue, err := v.GetTargetValue(predefinedVariables, data, classFiles)
+	if err != nil {
+		return fmt.Errorf("cannot load target data for variable %s: %w", v.FullName(), err)
 	}
 
 	// sourceValue is the value where the variable is used. It needs to be replaced with the 'targetValue'
@@ -244,7 +227,32 @@ func (v *Variable) Replace(data Data, predefinedVariables map[string]any, classF
 	return nil
 }
 
+// GetTargetValue returns the targetValue for the variable.
+//
+// Determening the value means including checks:
+//	- variable used points to a value which is already overwritten in `data` but can be loaded from a class
+//  - variable is recursive
+//  - variable is predefined
+//  - variable is any value from `Data`
 func (v Variable) GetTargetValue(predefinedVariables map[string]any, data Data, classFiles []*Class) (targetValue interface{}, err error) {
+	if class, ok := v.isReferencingShadowedValue(classFiles); ok {
+		targetValue, err = class.Data().GetPath(v.NameAsIdentifier()...)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// variable could still be recursive
+		if v.IsRecursive(data) {
+			return nil, fmt.Errorf("recursive variable usage at path '%s': %s", v.Path(), v.FullName())
+		}
+
+		// variable is not referencing a shadowed class value, default case
+		targetValue, err = v.GetTargetValue(predefinedVariables, data, classFiles)
+		if err != nil {
+			return nil, fmt.Errorf("cannot load target data for variable %s: %w", v.FullName(), err)
+		}
+	}
+
 	// in case the variable is in the predefinedVariables map,
 	// getting it's targetValue is straight-forward.
 	if v.IsPredefined(predefinedVariables) {
