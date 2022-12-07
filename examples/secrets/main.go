@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"path"
 
 	"github.com/lukasjarosch/skipper"
@@ -32,20 +31,12 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("\n%s", data.String())
+	//	log.Printf("\n%s", data.String())
 
 	templateOutputPath := path.Join(outputPath, target)
 	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, nil)
 	if err != nil {
 		panic(err)
-	}
-
-	templateData := struct {
-		Inventory  any
-		TargetName string
-	}{
-		Inventory:  data,
-		TargetName: target,
 	}
 
 	skipperConfig, err := inventory.GetSkipperConfig(target)
@@ -54,7 +45,7 @@ func main() {
 	}
 
 	// execute templates  ----------------------------------------------------------------------------------
-	err = templater.ExecuteComponents(templateData, skipperConfig.Components, false)
+	err = templater.ExecuteComponents(skipper.DefaultTemplateContext(data, target), skipperConfig.Components, false)
 	if err != nil {
 		panic(err)
 	}

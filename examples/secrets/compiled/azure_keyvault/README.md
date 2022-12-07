@@ -1,2 +1,122 @@
 # Azure KeyVault
 
+azure_keyvault
+INVALID DEFAULT VALUE
+defined
+{
+  "alphaNum": "test",
+  "azure": {
+    "common": {
+      "baz": null,
+      "baz2": null,
+      "foo": {
+        "bar": "test"
+      },
+      "from_target": "test_CHANGED",
+      "self_reference": "bar",
+      "skipper": {
+        "copy": [
+          {
+            "source": "inventory.json",
+            "target": "something_else/foobar.json"
+          }
+        ]
+      },
+      "subscription_id": "INVALID DEFAULT VALUE",
+      "this": {
+        "complex": "object",
+        "is": "a",
+        "which": [
+          "I",
+          "WANT",
+          "TO",
+          "INCLUDE"
+        ]
+      }
+    },
+    "resources": {
+      "location": "westeurope",
+      "resource_group": {
+        "name": "rg-azure_keyvault-terraform-example-westeurope"
+      },
+      "vnet": {
+        "address_space": [
+          "10.1.0.0/16",
+          "10.2.0.0/16"
+        ],
+        "name": "vnet-azure_keyvault-terraform-example",
+        "subnets": {
+          "virtual_machines": {
+            "address_prefixes": [
+              "10.1.1.0/24"
+            ],
+            "name": "virtual_machines"
+          }
+        }
+      }
+    }
+  },
+  "features": {
+    "production": {
+      "feature1": false,
+      "feature2": false
+    },
+    "sandbox": {
+      "asdf": "asdf",
+      "feature1": true,
+      "feature2": true
+    }
+  },
+  "foo": "defined",
+  "import": {
+    "complex": "object",
+    "is": "a",
+    "which": [
+      "I",
+      "WANT",
+      "TO",
+      "INCLUDE"
+    ]
+  },
+  "secrets": {
+    "test1": "?{azurekv:targets/azure_keyvault/test1||randomstring:32}",
+    "test2": "?{azurekv:targets/azure_keyvault/test2||randomstring:64}",
+    "test3": "?{azurekv:targets/azure_keyvault/test2}"
+  },
+  "skipper": {
+    "components": [
+      {
+        "input_paths": [
+          "AzureReadme.md",
+          "inventory.json"
+        ],
+        "output_path": ".",
+        "rename": [
+          {
+            "filename": "README.md",
+            "input_path": "AzureReadme.md"
+          }
+        ]
+      }
+    ],
+    "copy": [
+      {
+        "source": "inventory.json",
+        "target": "something/foobar.json"
+      }
+    ],
+    "secrets": {
+      "drivers": {
+        "azurekv": {
+          "ignore_version": true,
+          "key_id": "https://kv-dev-infra-platform.vault.azure.net/keys/dev-infra-secrets-key/6e0360a098eb4808af5ec1f970d399c0"
+        }
+      }
+    },
+    "use": [
+      "azure.*",
+      "features"
+    ]
+  },
+  "test": "azure_keyvault"
+}

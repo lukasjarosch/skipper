@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +42,25 @@ var customFuncs map[string]any = map[string]any{
 		return time.Now().AddDate(y, m, d).Format(time.RFC3339)
 	},
 }
+
+type ErrUndefinedTemplateVariable struct {
+	error
+	DownstreamError    error
+	VariableIdentifier string
+	TemplateFile       string
+	Line               int
+}
+
+func (err ErrUndefinedTemplateVariable) Error() string {
+	return fmt.Sprintf("undefined template variable '%s' in template '%s' on line %d: %s", err.VariableIdentifier, err.TemplateFile, err.Line, err.DownstreamError)
+}
+
+var (
+	// matches template variables `{{ ... }}`
+	templateVariableRegex = regexp.MustCompile(`(\{\{)(.*)(\}\})`)
+	// matches template data identifiers within variables `.Something.else.foo`
+	templateVariableIdentifierRegex = regexp.MustCompile(`\.[\.|\w]+\w`)
+)
 
 type Templater struct {
 	Files            []*TemplateFile
@@ -123,6 +144,82 @@ func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool,
 	return t.execute(template, data, template.Path, allowNoValue)
 }
 
+func (t *Templater) checkUndefinedTemplateVariables(template *TemplateFile, templateContextData any) error {
+	scanner := bufio.NewScanner(bytes.NewBuffer(template.Bytes))
+	line := 1
+	for scanner.Scan() {
+		variableIdentifiers := t.findTemplateVariableIdentifiers(scanner.Bytes())
+
+		if len(variableIdentifiers) == 0 {
+			line++
+			continue
+		}
+
+		// at this point we have variable identifiers like `.Inventory.foo.bar`
+		// the first element in the identifier is always the name of a field inside the given [data]
+		// we need to figure out, whether this field exists in the [data].
+		{
+			for _, variableIdentifier := range variableIdentifiers {
+
+				getDataFieldByName := func(name string) reflect.Value {
+					tmp := reflect.ValueOf(templateContextData)
+					index := 0
+					for i := 0; i < tmp.Type().NumField(); i++ {
+						fieldName := tmp.Type().Field(i).Name
+						if strings.EqualFold(fieldName, name) {
+							index = i
+							break
+						}
+					}
+					return tmp.FieldByIndex([]int{index})
+				}
+
+				identifierToPath := func(identifierElements []string) (path []interface{}) {
+					for _, el := range identifierElements {
+						path = append(path, el)
+					}
+					return path
+				}
+
+				// value is now most likely (in case of skipper) a map[string]interface{} which we can address
+				identifierElements := strings.Split(string(variableIdentifier), ".")
+				identifierElements = append(identifierElements[:0], identifierElements[1:]...) // remove first element, it will be empty
+				firstIdentifierElement := strings.TrimLeft(strings.TrimSpace(string(identifierElements[0])), ".")
+				value := getDataFieldByName(firstIdentifierElement)
+
+				// it is very likely that the value is of type `map[string]interface{}` because that's what we use in skipper.Data
+				// hence if there are > 1 identifier elements, we'll assume this case
+				if len(identifierElements) > 1 {
+					dataKeys := append(identifierElements[:0], identifierElements[1:]...) // data keys begin after the 'firstIdentifierElement'
+					if valueData, ok := value.Interface().(Data); ok {
+						_, err := valueData.GetPath(identifierToPath(dataKeys)...)
+						if err != nil {
+							return ErrUndefinedTemplateVariable{
+								DownstreamError:    err,
+								VariableIdentifier: variableIdentifier,
+								TemplateFile:       template.Path,
+								Line:               line,
+							}
+						}
+					}
+				} else {
+					if len(value.String()) == 0 {
+						return ErrUndefinedTemplateVariable{
+							VariableIdentifier: variableIdentifier,
+							TemplateFile:       template.Path,
+							Line:               line,
+						}
+					}
+				}
+			}
+		}
+
+		line++
+	}
+
+	return nil
+}
+
 func (t *Templater) execute(template *TemplateFile, data any, targetPath string, allowNoValue bool) error {
 	err := template.Parse(t.templateFs)
 	if err != nil {
@@ -137,21 +234,43 @@ func (t *Templater) execute(template *TemplateFile, data any, targetPath string,
 
 	// no value detection using scanner in order to give a rough estimate on where the original error is
 	if !allowNoValue {
-		scanner := bufio.NewScanner(strings.NewReader(out.String()))
-
-		line := 1
-
-		for scanner.Scan() {
-			if strings.Contains(scanner.Text(), "<no value>") {
-				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", template.Path, line)
-			}
-			line++
+		if err := t.checkUndefinedTemplateVariables(template, data); err != nil {
+			return err
 		}
 	}
 
 	err = WriteFile(t.outputFs, targetPath, out.Bytes(), template.Mode)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (t *Templater) findTemplateVariableIdentifiers(templateData []byte) (variableIdentifiers []string) {
+	// first, find all {{ .... }} strings in the line
+	templateVariables := templateVariableRegex.FindAll(templateData, -1)
+	for _, templateVariable := range templateVariables {
+
+		// then, find all strings like ".foo.bar.baz" inside the {{ ... }}
+		tplVariableIdentifier := templateVariableIdentifierRegex.FindAll(templateVariable, -1)
+		for _, id := range tplVariableIdentifier {
+			variableIdentifiers = append(variableIdentifiers, string(id))
+		}
+	}
+
+	return variableIdentifiers
+}
+
+func (t *Templater) noValueDetection(template TemplateFile, renderedBytes string) error {
+	scanner := bufio.NewScanner(strings.NewReader(renderedBytes))
+
+	line := 1
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), "<no value>") {
+			return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", template.Path, line)
+		}
+		line++
 	}
 
 	return nil
