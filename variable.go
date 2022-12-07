@@ -126,8 +126,7 @@ func (v *Variable) Replace(data Data, predefinedVariables map[string]any, classF
 		return nil, false
 	}
 
-	// Find recursive variables. A variable is recursive if it points to itself
-	// and there is no class-key which also resolves to the path of the variable.
+	// Find recursive variables. A variable is recursive if it points to itself.
 	//
 	// Example:
 	// ```
@@ -139,16 +138,12 @@ func (v *Variable) Replace(data Data, predefinedVariables map[string]any, classF
 	// Note that there is no `myclass` which might provide the correct value.
 	isRecursiveVariable := func(variable *Variable) bool {
 
-		// a variable can only be recursive, if it is NOT referencing a shadowed value
-		if _, shadowed := isReferencingShadowedValue(*variable); shadowed {
+		variableTargetData, err := data.GetPath(variable.NameAsIdentifier()...)
+		if err != nil {
 			return false
 		}
 
-		variableNameAsPath := strings.ReplaceAll(variable.Name, ":", ".")
-
-		// if either the variableName has the variable Path as prefix or vice versa, we can be sure
-		// that the variable is recursive, because we know that the variable does not reference a class.
-		if strings.HasPrefix(variableNameAsPath, variable.Path()) || strings.HasPrefix(variable.Path(), variableNameAsPath) {
+		if strings.Contains(fmt.Sprint(variableTargetData), variable.FullName()) {
 			return true
 		}
 
@@ -187,7 +182,7 @@ func (v *Variable) Replace(data Data, predefinedVariables map[string]any, classF
 		// variable is not referencing a shadowed class value, default case
 		targetValue, err = v.GetTargetValue(predefinedVariables, data, classFiles)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot load target data for variable %s: %w", v.FullName(), err)
 		}
 	}
 
@@ -207,7 +202,7 @@ func (v *Variable) Replace(data Data, predefinedVariables map[string]any, classF
 	/// then the sourceValue would be `something_${myclass:something:foo}`.
 	sourceValue, err := data.GetPath(v.Identifier...)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot load source data of variable %s at %s: %w", v.FullName(), v.Identifier, err)
 	}
 
 	// an inline variable is a variable which occurs with a context and not alone
