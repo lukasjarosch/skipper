@@ -2,14 +2,21 @@ package secret
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"net/url"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azkeys"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -85,6 +92,61 @@ func (driver *Azure) Encrypt(input string) (string, error) {
 	}
 
 	return base64.RawStdEncoding.EncodeToString(res.Result), nil
+}
+
+func (driver *Azure) EncryptFile(source io.Reader, sink io.Writer) error {
+	keyResp, err := driver.client.GetKey(context.TODO(), driver.config.KeyName, driver.config.KeyVersion, &azkeys.GetKeyOptions{})
+	if err != nil {
+		return err
+	}
+
+	keyJson, err := keyResp.Key.MarshalJSON()
+	if err != nil {
+		return err
+	}
+
+	set, err := jwk.Parse([]byte(keyJson))
+	if err != nil {
+		return err
+	}
+
+	for it := set.Iterate(context.Background()); it.Next(context.Background()); {
+		pair := it.Pair()
+		key := pair.Value.(jwk.Key)
+
+		var rawkey interface{} // This is the raw key, like *rsa.PrivateKey or *ecdsa.PrivateKey
+		if err := key.Raw(&rawkey); err != nil {
+			log.Printf("failed to create public key: %s", err)
+			return err
+		}
+
+		// We know this is an RSA Key so...
+		rsaKey, ok := rawkey.(*rsa.PublicKey)
+		if !ok {
+			panic(fmt.Sprintf("expected ras key, got %T", rawkey))
+		}
+		// As this is a demo just dump the key to the console
+		fmt.Println(rsaKey)
+
+		sourceData, err := ioutil.ReadAll(source)
+		if err != nil {
+			return err
+		}
+
+		encrypted, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaKey, sourceData, nil)
+		if err != nil {
+			return err
+		}
+		log.Println(base64.RawStdEncoding.EncodeToString(encrypted))
+
+	}
+
+	// b := rsa.PublicKey{
+	// 	N: keyResp.Key.N,
+	// 	E: 0,
+	// }
+
+	return nil
 }
 
 func (driver *Azure) Decrypt(input string) (string, error) {
