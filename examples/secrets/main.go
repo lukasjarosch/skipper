@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"log"
 	"path"
 
@@ -27,7 +28,7 @@ func main() {
 	}
 
 	// Process the inventory, given the target name
-	data, err := inventory.Data(target, nil, false)
+	data, err := inventory.Data(target, nil, true)
 	if err != nil {
 		panic(err)
 	}
@@ -49,6 +50,18 @@ func main() {
 	}
 
 	skipperConfig, err := inventory.GetSkipperConfig(target)
+	if err != nil {
+		panic(err)
+	}
+
+	driver, err := skipper.SecretDriverFactory("azurekv")
+	if err != nil {
+		log.Fatalf("cannot get secret driver %q: %w", "azurekv", err)
+	}
+
+	source := bytes.NewBuffer([]byte("Hallo Welt, das hab ich ganz alleine verschlüsselt"))
+	sink := bytes.NewBuffer([]byte{})
+	err = driver.(skipper.SecretFileEncrypter).EncryptFile(source, sink)
 	if err != nil {
 		panic(err)
 	}
