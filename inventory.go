@@ -142,7 +142,7 @@ func (inv *Inventory) GetUsedClasses(targetName string) ([]*Class, error) {
 // Data loads the required inventory data map given the target.
 // This is where variables and secrets are handled and eventually replaced.
 // The resulting Data is what can be passed to the templates.
-func (inv *Inventory) Data(targetName string, predefinedVariables map[string]interface{}, revealSecrets bool) (data Data, err error) {
+func (inv *Inventory) Data(targetName string, predefinedVariables map[string]interface{}, skipSecretHandling, revealSecrets bool) (data Data, err error) {
 	data = make(Data)
 
 	target := inv.GetTarget(targetName)
@@ -245,7 +245,8 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 
 	// secret management
 	// initialize drivers, load or create secrets and eventually replace them if `revealSecrets` is true.
-	{
+	// TODO: This flag is absolutely hacky and was introduced as hotfix
+	if !skipSecretHandling {
 		// fetch and configure secret drivers configured by the target
 		for driverName, driverConfig := range target.Configuration.Secrets.Drivers {
 			driver, err := SecretDriverFactory(driverName)
