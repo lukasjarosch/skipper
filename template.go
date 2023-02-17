@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/Masterminds/sprig/v3"
@@ -42,30 +43,29 @@ var customFuncs map[string]any = map[string]any{
 }
 
 type Templater struct {
-	Files            []*TemplateFile
+	templateFiles    []*File
 	templateRootPath string
 	outputRootPath   string
 	templateFs       afero.Fs
 	outputFs         afero.Fs
+	templateFuncs    template.FuncMap
 }
 
 func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, userFuncMap map[string]any) (*Templater, error) {
 	t := &Templater{
-		templateFs: afero.NewBasePathFs(fileSystem, templateRootPath),
-		outputFs:   afero.NewBasePathFs(fileSystem, outputRootPath),
+		templateFs:    afero.NewBasePathFs(fileSystem, templateRootPath),
+		outputFs:      afero.NewBasePathFs(fileSystem, outputRootPath),
+		templateFuncs: sprig.TxtFuncMap(),
 	}
-
-	// perpare template functions
-	templateFunctions := sprig.TxtFuncMap()
 
 	// merge our own custom functions
 	for key, customFunc := range customFuncs {
-		templateFunctions[key] = customFunc
+		t.templateFuncs[key] = customFunc
 	}
 	// merge userFuncMap
 	if userFuncMap != nil {
 		for key, customFunc := range userFuncMap {
-			templateFunctions[key] = customFunc
+			t.templateFuncs[key] = customFunc
 		}
 	}
 
@@ -77,16 +77,17 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 		return nil, fmt.Errorf("templateRootPath does not exist: %s", templateRootPath)
 	}
 
+	// discover all files in the templateRootPath
 	err = afero.Walk(t.templateFs, "", func(filePath string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
 
-		file, err := NewTemplateFile(filePath, templateFunctions)
+		file, err := newFile(filePath)
 		if err != nil {
 			return err
 		}
-		t.Files = append(t.Files, file)
+		t.templateFiles = append(t.templateFiles, file)
 		return nil
 	})
 	if err != nil {
@@ -111,7 +112,7 @@ func DefaultTemplateContext(data Data, targetName string) any {
 // Execute is responsible of parsing and executing the given template, using the passed data context.
 // If execution is successful, the template is written to it's desired target location.
 // If allowNoValue is true, the template is rendered even if it contains variables which are not defined.
-func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool, renameConfig []RenameConfig) error {
+func (t *Templater) Execute(template *File, data any, allowNoValue bool, renameConfig []RenameConfig) error {
 	// if a renameConfig exists, rename possible files accordingly
 	if renameConfig != nil {
 		for _, rename := range renameConfig {
@@ -123,14 +124,20 @@ func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool,
 	return t.execute(template, data, template.Path, allowNoValue)
 }
 
-func (t *Templater) execute(template *TemplateFile, data any, targetPath string, allowNoValue bool) error {
-	err := template.Parse(t.templateFs)
+func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoValue bool) error {
+	err := tplFile.Load(t.templateFs)
 	if err != nil {
 		return err
 	}
 
+	tpl := template.New(tplFile.Path).Funcs(t.templateFuncs)
+	tpl, err = tpl.Parse(string(tplFile.Bytes))
+	if err != nil {
+		return fmt.Errorf("failed to parse template %s: %w", tplFile.Path, err)
+	}
+
 	out := new(bytes.Buffer)
-	err = template.Execute(out, data)
+	err = tpl.Execute(out, data)
 	if err != nil {
 		return err
 	}
@@ -143,13 +150,13 @@ func (t *Templater) execute(template *TemplateFile, data any, targetPath string,
 
 		for scanner.Scan() {
 			if strings.Contains(scanner.Text(), "<no value>") {
-				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", template.Path, line)
+				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", tplFile.Path, line)
 			}
 			line++
 		}
 	}
 
-	err = WriteFile(t.outputFs, targetPath, out.Bytes(), template.Mode)
+	err = WriteFile(t.outputFs, targetPath, out.Bytes(), tplFile.Mode)
 	if err != nil {
 		return err
 	}
@@ -193,7 +200,7 @@ func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, al
 
 // ExecuteAll is just a convenience function to execute all templates in `Templater.Files`
 func (t *Templater) ExecuteAll(data any, allowNoValue bool, renameConfig []RenameConfig) error {
-	for _, template := range t.Files {
+	for _, template := range t.templateFiles {
 		err := t.Execute(template, data, allowNoValue, renameConfig)
 		if err != nil {
 			return err
@@ -203,8 +210,8 @@ func (t *Templater) ExecuteAll(data any, allowNoValue bool, renameConfig []Renam
 	return nil
 }
 
-func (t *Templater) getTemplateByPath(path string) *TemplateFile {
-	for _, file := range t.Files {
+func (t *Templater) getTemplateByPath(path string) *File {
+	for _, file := range t.templateFiles {
 		if file.Path == path {
 			return file
 		}
