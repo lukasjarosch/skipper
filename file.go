@@ -2,13 +2,10 @@ package skipper
 
 import (
 	"fmt"
-	"io"
 	"io/fs"
 	"path/filepath"
 	"strings"
-	"text/template"
 
-	"github.com/Masterminds/sprig/v3"
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v3"
 )
@@ -163,48 +160,6 @@ func (f *YamlFile) UnmarshalPath(target interface{}, path ...interface{}) error 
 	}
 
 	return yaml.Unmarshal(bytes, target)
-}
-
-// TemplateFile represents a file which is used as Template.
-type TemplateFile struct {
-	File
-	tpl *template.Template
-}
-
-// NewTemplateFile creates a new TemplateFile at the given path.
-// User-defined template funcs can be added to have them available in the templates.
-// By default, the well-known sprig functions are always added (see: https://github.com/Masterminds/sprig).
-func NewTemplateFile(path string, funcs map[string]any) (*TemplateFile, error) {
-	f, err := newFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return &TemplateFile{
-		File: *f,
-		tpl:  template.New(path).Funcs(sprig.TxtFuncMap()).Funcs(funcs),
-	}, nil
-}
-
-// Parse will attempt to Load and parse the template from the given filesystem.
-func (tmpl *TemplateFile) Parse(fs afero.Fs) (err error) {
-	err = tmpl.File.Load(fs)
-	if err != nil {
-		return err
-	}
-
-	tmpl.tpl, err = tmpl.tpl.Parse(string(tmpl.Bytes))
-	if err != nil {
-		return fmt.Errorf("failed to parse template %s: %w", tmpl.Path, err)
-	}
-
-	return nil
-}
-
-// Execute renders the template file and writes the output into the passed `io.Writer`
-// The passed contexData is what will be available inside the template.
-func (tmpl *TemplateFile) Execute(out io.Writer, contextData any) (err error) {
-	return tmpl.tpl.Execute(out, contextData)
 }
 
 type SecretFile struct {
