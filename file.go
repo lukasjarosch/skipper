@@ -12,6 +12,7 @@ import (
 
 var (
 	yamlFileExtensions = []string{".yml", ".yaml", ""}
+	ErrFilePathEmpty   = fmt.Errorf("file path is empty")
 )
 
 // File is just an arbitrary description of a path and the data of the File to which Path points to.
@@ -22,9 +23,9 @@ type File struct {
 	Bytes []byte
 }
 
-func newFile(path string) (*File, error) {
+func NewFile(path string) (*File, error) {
 	if path == "" {
-		return nil, fmt.Errorf("path cannot be empty")
+		return nil, ErrFilePathEmpty
 	}
 
 	return &File{Path: path}, nil
@@ -98,9 +99,9 @@ type YamlFile struct {
 	Data Data
 }
 
-// NewFile returns a newly initialized `YamlFile`.
-func NewFile(path string) (*YamlFile, error) {
-	f, err := newFile(path)
+// NewYamlFile returns a newly initialized `YamlFile`.
+func NewYamlFile(path string) (*YamlFile, error) {
+	f, err := NewFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +125,7 @@ func CreateNewYamlFile(fs afero.Fs, path string, data []byte) (*YamlFile, error)
 	if err != nil {
 		return nil, err
 	}
-	return NewFile(path)
+	return NewYamlFile(path)
 }
 
 // Load will first load the underlying raw file-data and then attempt to `yaml.Unmarshal` it into `Data`

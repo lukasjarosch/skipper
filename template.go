@@ -83,7 +83,7 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 			return nil
 		}
 
-		file, err := newFile(filePath)
+		file, err := NewFile(filePath)
 		if err != nil {
 			return err
 		}
