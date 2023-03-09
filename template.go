@@ -43,7 +43,7 @@ var customFuncs map[string]any = map[string]any{
 }
 
 type Templater struct {
-	templateFiles    []*File
+	Files            []*File
 	templateRootPath string
 	outputRootPath   string
 	templateFs       afero.Fs
@@ -87,7 +87,7 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 		if err != nil {
 			return err
 		}
-		t.templateFiles = append(t.templateFiles, file)
+		t.Files = append(t.Files, file)
 		return nil
 	})
 	if err != nil {
@@ -200,7 +200,7 @@ func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, al
 
 // ExecuteAll is just a convenience function to execute all templates in `Templater.Files`
 func (t *Templater) ExecuteAll(data any, allowNoValue bool, renameConfig []RenameConfig) error {
-	for _, template := range t.templateFiles {
+	for _, template := range t.Files {
 		err := t.Execute(template, data, allowNoValue, renameConfig)
 		if err != nil {
 			return err
@@ -211,7 +211,7 @@ func (t *Templater) ExecuteAll(data any, allowNoValue bool, renameConfig []Renam
 }
 
 func (t *Templater) getTemplateByPath(path string) *File {
-	for _, file := range t.templateFiles {
+	for _, file := range t.Files {
 		if file.Path == path {
 			return file
 		}
