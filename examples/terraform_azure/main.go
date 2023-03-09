@@ -25,21 +25,18 @@ func main() {
 		panic(err)
 	}
 
-	// Load the inventory
-	err = inventory.Load()
-	if err != nil {
-		panic(err)
-	}
-
 	predefinedVariables := map[string]interface{}{
 		"target_name": target,
 		"output_path": outputPath,
 	}
 
 	// Process the inventory, given the target name
-	data, err := inventory.Data("develop", predefinedVariables, true)
+	data, err := inventory.Data("develop", predefinedVariables, true, false)
 	if err != nil {
 		panic(err)
+	}
+
+	{
 	}
 
 	templateOutputPath := path.Join(outputPath, target)
@@ -58,22 +55,9 @@ func main() {
 
 	// execute templates  ----------------------------------------------------------------------------------
 
-	{
-		components, err := inventory.GetComponents(target)
-		if err != nil {
-			panic(err)
-		}
-
-		err = templater.ExecuteComponents(templateData, components, false)
-		if err != nil {
-			panic(err)
-		}
+	err = templater.ExecuteAll(templateData, false, nil)
+	if err != nil {
+		panic(err)
 	}
-	//for _, template := range templater.Files {
-	//	err := templater.Execute(template, templateData, false)
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//	log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
-	//}
+
 }
