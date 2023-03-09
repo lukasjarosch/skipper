@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/lukasjarosch/skipper v0.0.0-20220823200445-07585978767f
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/afero v1.9.2
 )
 

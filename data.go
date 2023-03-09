@@ -119,6 +119,8 @@ func (d *Data) SetPath(value interface{}, path ...interface{}) (err error) {
 		return fmt.Errorf("path cannot be empty")
 	}
 
+	// attempt to get the requested path if there is more than one path segment
+	// TODO: if the path does not exist, create it
 	i := len(path) - 1
 	if len(path) > 1 {
 		var tmp interface{}
@@ -128,8 +130,21 @@ func (d *Data) SetPath(value interface{}, path ...interface{}) (err error) {
 		}
 		tree = tmp
 	}
-
 	element := path[i]
+
+	// we have no idea what [value] is, but we can make sure that
+	// any yaml structtags are respected by shoving it through the yaml package.
+	{
+		out, err := yaml.Marshal(value)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.Unmarshal(out, &value)
+		if err != nil {
+			return err
+		}
+	}
 
 	switch node := tree.(type) {
 	case Data:
