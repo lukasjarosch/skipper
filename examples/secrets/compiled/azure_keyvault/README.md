@@ -1,2 +1,103 @@
 # Azure KeyVault
+{
+  "alphaNum": "test",
+  "azure": {
+    "common": {
+      "baz": "test",
+      "baz2": "test",
+      "foo": {
+        "bar": "test"
+      },
+      "from_target": "test_CHANGED",
+      "skipper": {
+        "copy": [
+          {
+            "source": "inventory.json",
+            "target": "something_else/foobar.json"
+          }
+        ]
+      },
+      "subscription_id": "INVALID DEFAULT VALUE",
+      "this": {
+        "complex": "object",
+        "is": "a",
+        "which": [
+          "I",
+          "WANT",
+          "TO",
+          "INCLUDE"
+        ]
+      }
+    },
+    "resources": {
+      "location": "westeurope",
+      "resource_group": {
+        "name": "rg-azure_keyvault-terraform-example-westeurope"
+      },
+      "vnet": {
+        "address_space": [
+          "10.1.0.0/16",
+          "10.2.0.0/16"
+        ],
+        "name": "vnet-azure_keyvault-terraform-example",
+        "subnets": {
+          "virtual_machines": {
+            "address_prefixes": [
+              "10.1.1.0/24"
+            ],
+            "name": "virtual_machines"
+          }
+        }
+      }
+    }
+  },
+  "import": {
+    "complex": "object",
+    "is": "a",
+    "which": [
+      "I",
+      "WANT",
+      "TO",
+      "INCLUDE"
+    ]
+  },
+  "secrets": {
+    "rsa": "Hallo Welt, das hab ich ganz alleine verschlüsselt"
+  },
+  "skipper": {
+    "components": [
+      {
+        "input_paths": [
+          "AzureReadme.md",
+          "inventory.json"
+        ],
+        "output_path": ".",
+        "rename": [
+          {
+            "filename": "README.md",
+            "input_path": "AzureReadme.md"
+          }
+        ]
+      }
+    ],
+    "copy": [
+      {
+        "source": "inventory.json",
+        "target": "something/foobar.json"
+      }
+    ],
+    "secrets": {
+      "drivers": {
+        "azurekv": {
+          "ignore_version": true,
+          "key_id": "https://kv-markhub-sandbox-lukas.vault.azure.net/keys/sandbox-lukas-secrets-key/e1dd7010c47247da8b57782cbb8c4668"
+        }
+      }
+    },
+    "use": [
+      "azure.*"
+    ]
+  },
+  "test": "azure_keyvault"
+}
 

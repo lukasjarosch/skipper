@@ -1,2 +1,3 @@
 # Azure KeyVault
+{{ .Inventory | toPrettyJson }}
 

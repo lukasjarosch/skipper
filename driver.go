@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	driver "github.com/lukasjarosch/skipper/internal/secret"
@@ -11,6 +12,11 @@ type SecretDriver interface {
 	Type() string
 	Encrypt(data string) (string, error)
 	Decrypt(encrypted string) (string, error)
+}
+
+type SecretFileEncrypter interface {
+	SecretDriver
+	EncryptFile(source io.Reader, sink io.Writer) error
 }
 
 type ConfigurableSecretDriver interface {
