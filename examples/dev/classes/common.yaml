@@ -1,0 +1,6 @@
+common:
+  skipper:
+    a: b
+  foo: bar
+  hello:
+    world: everyone
