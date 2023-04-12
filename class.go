@@ -14,7 +14,7 @@ var (
 )
 
 type ClassConfig struct {
-	Includes []Namespace `yaml:"use"`
+	Includes []Path `yaml:"use"`
 }
 
 //go:generate mockery --name DataProvider
@@ -43,7 +43,7 @@ type Class struct {
 // Otherwise, returns a pointer to a new Class instance.
 func NewClass(namespace Path, data DataProvider) (*Class, error) {
 	if len(namespace) == 0 {
-		return nil, ErrEmptyNamespace
+		return nil, ErrEmptyPath
 	}
 
 	if data == nil {

@@ -1,7 +1,12 @@
 package skipper
 
 import (
+	"errors"
 	"strings"
+)
+
+var (
+	ErrEmptyPath = errors.New("empty path")
 )
 
 // PathSeparator is the separator used for string representations of [Path].

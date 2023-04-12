@@ -13,7 +13,7 @@ import (
 func TestNewClass_EmptyNamespace(t *testing.T) {
 	class, err := skipper.NewClass(skipper.P(""), nil)
 	assert.Nil(t, class)
-	assert.ErrorIs(t, err, skipper.ErrEmptyNamespace)
+	assert.ErrorIs(t, err, skipper.ErrEmptyPath)
 }
 
 func TestNewClass_NilDataProvider(t *testing.T) {
