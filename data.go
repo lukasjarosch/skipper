@@ -64,13 +64,6 @@ func (data Data) GetPath(path Path) (tree interface{}, err error) {
 				return nil, fmt.Errorf("path segment not found: %s", pathSegment)
 			}
 
-		case map[interface{}]interface{}:
-			var ok bool
-			tree, ok = node[pathSegment]
-			if !ok {
-				return nil, fmt.Errorf("path segment not found: %v", pathSegment)
-			}
-
 		case []interface{}:
 			index, err := strconv.Atoi(fmt.Sprint(pathSegment))
 			if err != nil {
