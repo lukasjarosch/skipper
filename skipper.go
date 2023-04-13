@@ -7,16 +7,17 @@ import (
 )
 
 // FilePathToPath converts a file path from a filesystem to a skipper [Path] by
+// - removing any leading or trailing path separators in both args
+// - removing the commonPrefix from the filePath
 // - removing the file extension
 // - replacing path separators with [skipper.PathSeparator]
-// - removing the commonPrefix if it is not an empty string
 func FilePathToPath(filePath string, commonPrefix string) Path {
-	path := filePath[:len(filePath)-len(filepath.Ext(filePath))]
-	path = strings.ReplaceAll(path, string(os.PathSeparator), PathSeparator)
+	commonPrefix = strings.Trim(commonPrefix, string(os.PathSeparator))
+	path := strings.Trim(filePath, string(os.PathSeparator))
 
-	if len(commonPrefix) > 0 {
-		path = strings.Join(strings.Split(path, PathSeparator)[1:], PathSeparator)
-	}
+	path = strings.TrimLeft(path, commonPrefix)
+	path = path[:len(path)-len(filepath.Ext(path))]
+	path = strings.ReplaceAll(path, string(os.PathSeparator), PathSeparator)
 
 	return P(path)
 }
