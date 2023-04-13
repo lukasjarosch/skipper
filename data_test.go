@@ -176,3 +176,16 @@ func TestData_UnmarshalPath(t *testing.T) {
 		})
 	}
 }
+
+func TestDataKeys(t *testing.T) {
+	data := skipper.Data{
+		"name":   "John Doe",
+		"age":    30,
+		"gender": "male",
+	}
+
+	expectedKeys := []string{"name", "age", "gender"}
+	keys := data.Keys()
+
+	assert.ElementsMatch(t, expectedKeys, keys)
+}
