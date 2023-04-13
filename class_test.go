@@ -8,6 +8,7 @@ import (
 	"github.com/lukasjarosch/skipper"
 	"github.com/lukasjarosch/skipper/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestNewClass_EmptyNamespace(t *testing.T) {
@@ -29,9 +30,21 @@ func TestNewClass_InvalidRootKey(t *testing.T) {
 	mock := mocks.NewDataProvider(t)
 	mock.EXPECT().HasPath(skipper.P(rootKey)).Return(false)
 
-	class, err := skipper.NewClass(skipper.P("foo.bar"), mock)
+	class, err := skipper.NewClass(namespace, mock)
 	assert.Nil(t, class)
 	assert.ErrorContains(t, err, skipper.ErrInvalidRootKey.Error())
+}
+
+func TestNewClass_MultipleRootKeys(t *testing.T) {
+	namespace := skipper.P("foo.bar")
+
+	mockData := mocks.NewDataProvider(t)
+	mockData.EXPECT().HasPath(mock.AnythingOfType("skipper.Path")).Return(true)
+	mockData.EXPECT().Keys().Return([]string{"one", "two"})
+
+	class, err := skipper.NewClass(namespace, mockData)
+	assert.Nil(t, class)
+	assert.ErrorIs(t, err, skipper.ErrMultipleRootKeys)
 }
 
 func TestNewClass_NoConfiguration(t *testing.T) {
