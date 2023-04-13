@@ -9,9 +9,8 @@ import (
 )
 
 var (
-	yamlFileExtensions = []string{".yml", ".yaml", ""}
-	ErrFilePathEmpty   = fmt.Errorf("file path is empty")
-	ErrPathNotExists   = fmt.Errorf("path does not exist")
+	ErrFilePathEmpty    = fmt.Errorf("file path is empty")
+	ErrPathDoesNotExist = fmt.Errorf("path does not exist")
 )
 
 // File is just an arbitrary description of a path and the data of the File to which Path points to.
@@ -22,6 +21,8 @@ type File struct {
 	Bytes []byte
 }
 
+// NewFile creates a new [File] instance.
+// If the path is empty (nil, [ErrFilePathEmpty]) is returned.
 func NewFile(path string) (*File, error) {
 	if path == "" {
 		return nil, ErrFilePathEmpty
@@ -38,7 +39,7 @@ func LoadFile(path string, fs afero.Fs) (*File, error) {
 		return nil, err
 	}
 	if !f.Exists(fs) {
-		return nil, fmt.Errorf("%w: %s", ErrPathNotExists, path)
+		return nil, fmt.Errorf("%w: %s", ErrPathDoesNotExist, path)
 	}
 	err = f.Load(fs)
 	if err != nil {
@@ -96,7 +97,7 @@ func LoadYamlFile(path string, fs afero.Fs) (*YamlFile, error) {
 	}
 
 	if !f.Exists(fs) {
-		return nil, fmt.Errorf("%w: %s", ErrPathNotExists, path)
+		return nil, fmt.Errorf("%w: %s", ErrPathDoesNotExist, path)
 	}
 
 	err = f.Load(fs)
