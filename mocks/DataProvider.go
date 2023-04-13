@@ -116,6 +116,49 @@ func (_c *DataProvider_HasPath_Call) RunAndReturn(run func(skipper.Path) bool) *
 	return _c
 }
 
+// Keys provides a mock function with given fields:
+func (_m *DataProvider) Keys() []string {
+	ret := _m.Called()
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func() []string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	return r0
+}
+
+// DataProvider_Keys_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Keys'
+type DataProvider_Keys_Call struct {
+	*mock.Call
+}
+
+// Keys is a helper method to define mock.On call
+func (_e *DataProvider_Expecter) Keys() *DataProvider_Keys_Call {
+	return &DataProvider_Keys_Call{Call: _e.mock.On("Keys")}
+}
+
+func (_c *DataProvider_Keys_Call) Run(run func()) *DataProvider_Keys_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *DataProvider_Keys_Call) Return(_a0 []string) *DataProvider_Keys_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *DataProvider_Keys_Call) RunAndReturn(run func() []string) *DataProvider_Keys_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UnmarshalPath provides a mock function with given fields: path, target
 func (_m *DataProvider) UnmarshalPath(path skipper.Path, target interface{}) error {
 	ret := _m.Called(path, target)

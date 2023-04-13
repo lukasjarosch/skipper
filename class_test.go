@@ -40,6 +40,7 @@ func TestNewClass_NoConfiguration(t *testing.T) {
 
 	mock := mocks.NewDataProvider(t)
 	mock.EXPECT().HasPath(skipper.P(rootKey)).Return(true)
+	mock.EXPECT().Keys().Return([]string{"one-root-key"})
 	mock.EXPECT().HasPath(skipper.Path{rootKey, skipper.SkipperKey}).Return(false)
 
 	class, err := skipper.NewClass(skipper.P("foo.bar"), mock)
@@ -56,6 +57,7 @@ func TestNewClass_InvalidConfiguration(t *testing.T) {
 
 	mock := mocks.NewDataProvider(t)
 	mock.EXPECT().HasPath(skipper.P(rootKey)).Return(true)
+	mock.EXPECT().Keys().Return([]string{"one-root-key"})
 	mock.EXPECT().HasPath(configPath).Return(true)
 	mock.EXPECT().UnmarshalPath(configPath, target).Return(fmt.Errorf("an-error"))
 
@@ -72,6 +74,7 @@ func TestNewClass_ValidConfiguration(t *testing.T) {
 
 	mock := mocks.NewDataProvider(t)
 	mock.EXPECT().HasPath(skipper.P(rootKey)).Return(true)
+	mock.EXPECT().Keys().Return([]string{"one-root-key"})
 	mock.EXPECT().HasPath(configPath).Return(true)
 	mock.EXPECT().UnmarshalPath(configPath, target).Return(nil)
 
@@ -86,6 +89,7 @@ func setupClass(mock *mocks.DataProvider) *skipper.Class {
 	rootKey := namespace[len(namespace)-1]
 
 	mock.On("HasPath", skipper.P(rootKey)).Return(true)
+	mock.EXPECT().Keys().Return([]string{"one-root-key"})
 	mock.On("HasPath", skipper.Path{rootKey, skipper.SkipperKey}).Return(false)
 
 	class, _ := skipper.NewClass(skipper.P("foo.bar"), mock)
