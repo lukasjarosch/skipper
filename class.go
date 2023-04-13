@@ -21,7 +21,7 @@ type ClassConfig struct {
 type DataProvider interface {
 	GetPath(path Path) (interface{}, error)
 	HasPath(path Path) bool
-	UnmarshalPath(path Path, target interface{}) error
+	UnmarshalPath(path Path, target interface{}, strict bool) error
 	Keys() []string
 }
 
@@ -82,12 +82,11 @@ func NewClass(namespace Path, data DataProvider) (*Class, error) {
 // The configuration is expected to be accessible in the Data at the key `[RootKey].[SkipperKey]`.
 // If the configuration exists, it is unmarshaled into a ClassConfig struct and stored in
 // the class's Configuration field. If the configuration is not found the Configuration field remains nil and no error is returned.
-// If unmarshalling fails, an error is returned. This indicates that the raw input (yaml data) is wrong.
 func (class *Class) loadConfig() error {
 	configPath := Path{class.RootKey, SkipperKey}
 	if class.Data.HasPath(configPath) {
 		var config ClassConfig
-		err := class.Data.UnmarshalPath(configPath, &config)
+		err := class.Data.UnmarshalPath(configPath, &config, true)
 		if err != nil {
 			return fmt.Errorf("unable to load config with path '%s': %w", configPath.String(), err)
 		}

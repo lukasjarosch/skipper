@@ -1,6 +1,7 @@
 package skipper
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -96,7 +97,9 @@ func (data Data) HasPath(path Path) bool {
 //
 // Because [Data.GetPath] returns an interface, the data is first marshalled into YAML and
 // then unmarshalled into the target interface.
-func (data Data) UnmarshalPath(path Path, target interface{}) error {
+//
+// If the strict flag is true the unmarshalling enables KnownFields mode see: https://pkg.go.dev/gopkg.in/yaml.v3#Decoder.KnownFields
+func (data Data) UnmarshalPath(path Path, target interface{}, strict bool) error {
 	if reflect.ValueOf(target).Kind() != reflect.Ptr {
 		return fmt.Errorf("cannot unmarshal path '%s': target is not a pointer", path.String())
 	}
@@ -110,8 +113,12 @@ func (data Data) UnmarshalPath(path Path, target interface{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal data: %w", err)
 	}
+	buf := bytes.NewBuffer(tmpBytes)
 
-	err = yaml.Unmarshal(tmpBytes, target)
+	decoder := yaml.NewDecoder(buf)
+	decoder.KnownFields(strict)
+
+	err = decoder.Decode(target)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal data: %w", err)
 	}
