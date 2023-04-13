@@ -22,10 +22,12 @@ type DataProvider interface {
 	GetPath(path Path) (interface{}, error)
 	HasPath(path Path) bool
 	UnmarshalPath(path Path, target interface{}) error
+	Keys() []string
 }
 
 var (
-	ErrNilDataProvider = errors.New("DataProvider is nil")
+	ErrNilDataProvider  = errors.New("DataProvider is nil")
+	ErrMultipleRootKeys = errors.New("multiple root keys")
 )
 
 type Class struct {
@@ -50,12 +52,16 @@ func NewClass(namespace Path, data DataProvider) (*Class, error) {
 		return nil, ErrNilDataProvider
 	}
 
-	// The expected root key in data is the last segment
-	// of the namespace.
-	// Make sure it actually exists or throw an error.
+	// The expected root key in the [DataProvider] is the last segment of the namespace.
 	rootKey := namespace[len(namespace)-1]
 	if !data.HasPath(P(rootKey)) {
 		return nil, fmt.Errorf("%w: expected '%s'", ErrInvalidRootKey, rootKey)
+	}
+
+	// Because the root key is derived from the namespace a class can only have one root key.
+	// This also forces users to not shove everything into one file and actually use namespaces.
+	if len(data.Keys()) > 1 {
+		return nil, ErrMultipleRootKeys
 	}
 
 	class := Class{
