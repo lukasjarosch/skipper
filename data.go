@@ -8,11 +8,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Data is the core data abstraction used by Skipper.
+// Skipper is based on YAML data, hence [Data] is just a
+// raw representation of a yaml structure.
+//
+// Data allows accessing the map by path, without
+// Skipper needing to know the underlying structure.
+// This means we do not have to unmarshal the given [Data]
+// into a specific type and still work with it.
+//
+// As long as the user knows the structure of its
+// data, everything checks out.
 type Data map[string]interface{}
 
 // NewData attempts to convert any given interface{} into [Data].
-// This is done by first using `yaml.Marshal` and then `yaml.Unmarshal`.
-// If the given interface is compatible with [Data], these steps will succeed.
+// This is done by first using [yaml.Marshal] and then [yaml.Unmarshal].
+//
+// As long as the given input interface is compatible with yaml,
+// these steps will succeed and a valid [Data] will be returned.
+// In any other case, an error is returned.
 func NewData(input interface{}) (Data, error) {
 	outBytes, err := yaml.Marshal(input)
 	if err != nil {
@@ -31,9 +45,6 @@ func NewData(input interface{}) (Data, error) {
 // GetPath allows path based indexing into Data.
 // A path is a slice of interfaces which are used as keys in order.
 // Supports array indexing (arrays start at 0)
-// Examples of valid paths:
-//   - ["foo", "bar"]
-//   - ["foo", "bar", 0]
 func (data Data) GetPath(path Path) (tree interface{}, err error) {
 	tree = data
 
@@ -77,15 +88,20 @@ func (data Data) GetPath(path Path) (tree interface{}, err error) {
 	return tree, nil
 }
 
-// HasPath returns true if `GetPath` does not return an error for the given Path
+// HasPath returns true if [Data.GetPath] does not return an error for the given Path.
 func (data Data) HasPath(path Path) bool {
 	_, err := data.GetPath(path)
 	return err == nil
 }
 
 // UnmarshalPath can be used to YAML unmarshal a path into the given target.
-// The target must be a pointer.
-// Since `GetPath` returns an interface, the data is first marshalled into YAML and
+// This is useful if you want to map from [Data] into an actual type you provide.
+//
+// The target must be a pointer, otherwise an error is returned.
+//
+// Using structtags in your type is preferable to control the mapping of values.
+//
+// Because [Data.GetPath] returns an interface, the data is first marshalled into YAML and
 // then unmarshalled into the target interface.
 func (data Data) UnmarshalPath(path Path, target interface{}) error {
 	if reflect.ValueOf(target).Kind() != reflect.Ptr {
