@@ -118,3 +118,16 @@ func (data Data) UnmarshalPath(path Path, target interface{}) error {
 
 	return nil
 }
+
+// Keys returns all keys of [Data] map as string slice.
+func (data Data) Keys() []string {
+	keys := make([]string, len(data))
+
+	i := 0
+	for k := range data {
+		keys[i] = k
+		i++
+	}
+
+	return keys
+}
