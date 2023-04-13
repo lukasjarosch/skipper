@@ -73,6 +73,8 @@ func (f *File) Load(fs afero.Fs) (err error) {
 	return nil
 }
 
+// YamlFile extends [File] by adding the Data field.
+// It is used to represent YAMl files.
 type YamlFile struct {
 	File
 	Data map[string]interface{}
@@ -90,6 +92,7 @@ func NewYamlFile(path string) (*YamlFile, error) {
 	}, nil
 }
 
+// LoadYamlFile will create and load a file as yaml.
 func LoadYamlFile(path string, fs afero.Fs) (*YamlFile, error) {
 	f, err := NewYamlFile(path)
 	if err != nil {
