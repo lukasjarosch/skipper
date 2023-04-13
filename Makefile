@@ -41,6 +41,9 @@ lint-yaml: ## Lint all YAML files
 
 ## Docs
 
+serve-godoc:
+	pkgsite
+
 serve-docs:
 	@cd docs && $(MKDOCS) serve
 
