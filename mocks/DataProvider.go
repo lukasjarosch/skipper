@@ -159,13 +159,13 @@ func (_c *DataProvider_Keys_Call) RunAndReturn(run func() []string) *DataProvide
 	return _c
 }
 
-// UnmarshalPath provides a mock function with given fields: path, target
-func (_m *DataProvider) UnmarshalPath(path skipper.Path, target interface{}) error {
-	ret := _m.Called(path, target)
+// UnmarshalPath provides a mock function with given fields: path, target, strict
+func (_m *DataProvider) UnmarshalPath(path skipper.Path, target interface{}, strict bool) error {
+	ret := _m.Called(path, target, strict)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(skipper.Path, interface{}) error); ok {
-		r0 = rf(path, target)
+	if rf, ok := ret.Get(0).(func(skipper.Path, interface{}, bool) error); ok {
+		r0 = rf(path, target, strict)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -181,13 +181,14 @@ type DataProvider_UnmarshalPath_Call struct {
 // UnmarshalPath is a helper method to define mock.On call
 //   - path skipper.Path
 //   - target interface{}
-func (_e *DataProvider_Expecter) UnmarshalPath(path interface{}, target interface{}) *DataProvider_UnmarshalPath_Call {
-	return &DataProvider_UnmarshalPath_Call{Call: _e.mock.On("UnmarshalPath", path, target)}
+//   - strict bool
+func (_e *DataProvider_Expecter) UnmarshalPath(path interface{}, target interface{}, strict interface{}) *DataProvider_UnmarshalPath_Call {
+	return &DataProvider_UnmarshalPath_Call{Call: _e.mock.On("UnmarshalPath", path, target, strict)}
 }
 
-func (_c *DataProvider_UnmarshalPath_Call) Run(run func(path skipper.Path, target interface{})) *DataProvider_UnmarshalPath_Call {
+func (_c *DataProvider_UnmarshalPath_Call) Run(run func(path skipper.Path, target interface{}, strict bool)) *DataProvider_UnmarshalPath_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(skipper.Path), args[1].(interface{}))
+		run(args[0].(skipper.Path), args[1].(interface{}), args[2].(bool))
 	})
 	return _c
 }
@@ -197,7 +198,7 @@ func (_c *DataProvider_UnmarshalPath_Call) Return(_a0 error) *DataProvider_Unmar
 	return _c
 }
 
-func (_c *DataProvider_UnmarshalPath_Call) RunAndReturn(run func(skipper.Path, interface{}) error) *DataProvider_UnmarshalPath_Call {
+func (_c *DataProvider_UnmarshalPath_Call) RunAndReturn(run func(skipper.Path, interface{}, bool) error) *DataProvider_UnmarshalPath_Call {
 	_c.Call.Return(run)
 	return _c
 }
