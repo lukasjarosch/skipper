@@ -2,7 +2,11 @@ package skipper
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"strings"
+
+	"github.com/dominikbraun/graph"
 )
 
 var (
@@ -65,4 +69,66 @@ func (p Path) String() string {
 	path := P(pathString)
 
 	return strings.Join(path, PathSeparator)
+}
+
+var (
+	ErrPathAlreadyRegistered   error = errors.New("path already registered")
+	ErrDependencyAlreadyExists error = errors.New("dependency already exists")
+)
+
+type Resolver struct {
+	graph graph.Graph[string, string]
+}
+
+func NewResolver() *Resolver {
+	resolver := &Resolver{
+		graph: graph.New(graph.StringHash, graph.Directed(), graph.Acyclic()),
+	}
+
+	return resolver
+}
+
+func (r *Resolver) RegisterPath(path Path) error {
+	err := r.graph.AddVertex(path.String())
+	if err != nil {
+		if errors.Is(err, graph.ErrVertexAlreadyExists) {
+			return fmt.Errorf("%w: %s", ErrPathAlreadyRegistered, path)
+		}
+		return fmt.Errorf("resolve error: %w", err)
+	}
+
+	log.Println("registered path:", path)
+
+	return nil
+}
+
+func (r *Resolver) DependsOn(parent, child Path) error {
+	err := r.graph.AddEdge(parent.String(), child.String())
+	if err != nil {
+		if errors.Is(err, graph.ErrEdgeAlreadyExists) {
+			return fmt.Errorf("%w: %s --> %s", ErrDependencyAlreadyExists, parent, child)
+		}
+		return fmt.Errorf("resolve error: %w", err)
+	}
+
+	log.Printf("added dependency %s --> %s", parent, child)
+
+	return nil
+}
+
+func (r *Resolver) TopologicalSort() ([]Path, error) {
+	order, err := graph.TopologicalSort(r.graph)
+	if err != nil {
+		return nil, err
+	}
+
+	// convert order to [Path] while iterating in reverse
+	// we want the path with no dependency to be the first in the slice
+	// because thats the order we
+	var orderList []Path
+	for i := len(order) - 1; i >= 0; i-- {
+		orderList = append(orderList, P(order[i]))
+	}
+
+	return orderList, nil
 }
