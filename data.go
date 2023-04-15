@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -86,6 +87,13 @@ func (data Data) GetPath(path Path) (tree interface{}, err error) {
 func (data Data) HasPath(path Path) bool {
 	_, err := data.GetPath(path)
 	return err == nil
+}
+
+// Pretty uses [json.MarshalIndent] to pretty print the data
+// This is only used for debugging.
+func (data Data) Pretty() string {
+	out, _ := json.MarshalIndent(data, "", "    ")
+	return "\n" + string(out)
 }
 
 // UnmarshalPath can be used to YAML unmarshal a path into the given target.
