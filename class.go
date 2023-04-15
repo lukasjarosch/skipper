@@ -121,3 +121,17 @@ func (class *Class) Get(path Path) (interface{}, bool) {
 	}
 	return out, true
 }
+// HasConfig returns true if the class has a non-nil [Configuration]
+func (class *Class) HasConfig() bool {
+	return class.Configuration != nil
+}
+
+// Includes is a convenient function which returns all configured includes.
+// If the config is nil or no includes exist nil is returned.
+func (class *Class) Includes() []string {
+	if class.Configuration == nil || len(class.Configuration.Includes) == 0 {
+		return nil
+	}
+
+	return class.Configuration.Includes
+}
