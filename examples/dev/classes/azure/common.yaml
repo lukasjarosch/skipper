@@ -1,0 +1,5 @@
+common:
+  skipper:
+    use:
+      - azure.storage_account
+  tenant_id: "guid"

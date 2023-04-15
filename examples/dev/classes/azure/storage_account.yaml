@@ -1,0 +1,7 @@
+storage_account:
+  sku: "Premium" # default sku
+
+  # this value belongs to the storage_account class, but is currently not known
+  # it must be defined along the dependency graph (in another class or in the target)
+  # skipper does not allow having __undefined__ values in the target inventory.
+  resource_group_name: __undefined__ 

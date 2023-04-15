@@ -1,0 +1,32 @@
+sandbox:
+  skipper:
+    use:
+      - azure.storage_account
+      - azure.servicebus
+      - azure.common
+    overwrite:
+      # this might be very explicit, but since the
+      # config is also available in the target, 
+      # the target would also have to do this
+      # or have a second way (how we do it currently)
+      # 
+      # Another solution would be to also allow implicit
+      # overwrites in classes. This would keep consistency.
+      # (see below)
+      #
+      # We might need to rethink how to include classes in the first place
+      # Maybe using a namespace means that all keys are added to this class dynamically.
+      # That way the replacing would be even more consistent.
+      # 
+      # We need to be careful if this class is then used by another (or the tharget)
+      # to make sure that the changes are reflected.
+      # This is because the class would then have the path `sandbox.azure.storage_account`
+      # but it should actually be `azure.storage_account` since that's the namespace which was modified.
+      azure.storage_account.sku: "Standard"
+
+  azure:
+    storage_account:
+      sku: "Standard"
+      resource_group_name: foo-bar # this initially defines the value and overwrites the __undefined__ marker
+    common:
+      test: "hello"

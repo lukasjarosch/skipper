@@ -1,6 +1,7 @@
 common:
   skipper:
-    a: b
+    use:
+      - environments.sandbox
   foo: bar
   hello:
     world: everyone
