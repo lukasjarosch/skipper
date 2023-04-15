@@ -3,6 +3,7 @@ package skipper
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // SkipperKey is the expected key within [Data] under which
@@ -107,7 +108,16 @@ func (class *Class) loadConfig() error {
 func (class *Class) Get(path Path) (interface{}, bool) {
 	out, err := class.Data.GetPath(path)
 	if err != nil {
-		return nil, false
+
+		// attempt again, but strip this classes namespace from the path and re-add the root-key
+		// TODO: shouldn't this be the default?
+		newPath := P(strings.Replace(path.String(), class.Namespace.String(), "", 1))
+		newPath = P(strings.Join([]string{class.RootKey, newPath.String()}, PathSeparator))
+
+		out, err = class.Data.GetPath(newPath)
+		if err != nil {
+			return nil, false
+		}
 	}
 	return out, true
 }
