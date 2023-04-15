@@ -14,7 +14,11 @@ var (
 )
 
 type ClassConfig struct {
-	Includes []Path `yaml:"use"`
+	// Includes are class namespaces which are included by this class.
+	// If a class includes a namespace it becaomes available within the class.
+	// Say class `foo` includes `bar`, then `foo.bar` becomes available with the contents of `bar`.
+	// Note that includes are class-scoped. Outside of the class `foo` the path `foo.bar` is not valid.
+	Includes  []string `yaml:"use"`
 }
 
 //go:generate mockery --name DataProvider
