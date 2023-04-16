@@ -2,6 +2,12 @@ common:
   skipper:
     use:
       - environments.sandbox
+      - test.a
+      - test.b
+      - test.c
+      - test.d
   foo: bar
   hello:
     world: everyone
+  test: ${test.c.foo.bar}
+

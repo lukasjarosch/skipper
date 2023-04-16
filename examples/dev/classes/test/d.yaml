@@ -1,0 +1,10 @@
+d:
+  skipper:
+    use:
+      - test.b
+  foo: "bar"
+  transitive: ${test.c.foo.bar}
+  test:
+    c:
+      foo: test
+      bar: foo

@@ -1,0 +1,4 @@
+dev:
+  skipper:
+    use:
+      - common

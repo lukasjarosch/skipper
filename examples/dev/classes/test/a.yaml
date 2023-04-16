@@ -1,0 +1,5 @@
+a:
+  skipper:
+    use:
+      - test.c
+  foo: "bar"

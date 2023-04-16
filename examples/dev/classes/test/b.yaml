@@ -1,0 +1,9 @@
+b:
+  skipper:
+    use:
+      - test.c
+  foo: "bar"
+
+  test:
+    c:
+      hello: world
