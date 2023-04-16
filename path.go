@@ -141,3 +141,48 @@ func (r *Resolver) ReduceAndSort() ([]Path, error) {
 
 	return orderList, nil
 }
+
+func (r *Resolver) AllPaths(source, destination string) [][]string {
+	reduced, err := graph.TransitiveReduction(r.Graph)
+	if err != nil {
+		return nil
+	}
+
+	var paths [][]string
+
+	visited := make(map[string]bool) // all visited noded to avoid cycles
+	path := []string{source}         // current path being exploed
+
+	// recursive dfs function to find all paths
+	var dfs func(node string)
+	dfs = func(node string) {
+		if node == destination {
+			// found a path to B, so copy the current path and add it to the list of paths
+			newPath := make([]string, len(path))
+			copy(newPath, path)
+			paths = append(paths, newPath)
+			return
+		}
+
+		visited[node] = true
+
+		// explore all outgoing edges from this node
+		adjMap, _ := reduced.AdjacencyMap()
+		adjacent := adjMap[node] // get the next nodes from this node
+		for _, edge := range adjacent {
+			next := edge.Target
+			if !visited[next] {
+				// if the next node hasn't been visited yet, add it to the current path and explore it recursively
+				path = append(path, next)
+				dfs(next)
+				path = path[:len(path)-1] // remove the last node from the path once we've finished exploring it
+			}
+		}
+
+		visited[node] = false // unmark this node as visited to allow exploring it from other paths
+	}
+
+	dfs(source)
+
+	return paths
+}
