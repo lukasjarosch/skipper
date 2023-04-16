@@ -77,19 +77,23 @@ var (
 )
 
 type Resolver struct {
-	graph graph.Graph[string, string]
+	Graph graph.Graph[string, string]
 }
 
 func NewResolver() *Resolver {
 	resolver := &Resolver{
-		graph: graph.New(graph.StringHash, graph.Directed(), graph.Acyclic()),
+		Graph: graph.New(graph.StringHash, graph.Directed(), graph.Acyclic(), graph.Rooted()),
 	}
 
 	return resolver
 }
 
 func (r *Resolver) RegisterPath(path Path) error {
-	err := r.graph.AddVertex(path.String())
+	err := r.Graph.AddVertex(path.String(),
+		graph.VertexAttribute("colorscheme", "blues3"),
+		graph.VertexAttribute("style", "filled"),
+		graph.VertexAttribute("color", "2"),
+		graph.VertexAttribute("fillcolor", "1"))
 	if err != nil {
 		if errors.Is(err, graph.ErrVertexAlreadyExists) {
 			return fmt.Errorf("%w: %s", ErrPathAlreadyRegistered, path)
@@ -103,7 +107,7 @@ func (r *Resolver) RegisterPath(path Path) error {
 }
 
 func (r *Resolver) DependsOn(parent, child Path) error {
-	err := r.graph.AddEdge(parent.String(), child.String())
+	err := r.Graph.AddEdge(parent.String(), child.String())
 	if err != nil {
 		if errors.Is(err, graph.ErrEdgeAlreadyExists) {
 			return fmt.Errorf("%w: %s --> %s", ErrDependencyAlreadyExists, parent, child)
