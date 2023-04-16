@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -81,6 +82,41 @@ func (data Data) GetPath(path Path) (tree interface{}, err error) {
 	}
 
 	return tree, nil
+}
+
+func ListAllPaths(data interface{}, prefix string) []Path {
+	paths := []Path{}
+
+	switch val := data.(type) {
+	case Data:
+		for k, v := range val {
+			fullPath := strings.Join([]string{prefix, k}, PathSeparator)
+			if len(fullPath) == 0 {
+				continue
+			}
+			paths = append(paths, ListAllPaths(v, fullPath)...)
+		}
+	case map[string]interface{}:
+		for k, v := range val {
+			fullPath := strings.Join([]string{prefix, k}, PathSeparator)
+			if len(fullPath) == 0 {
+				continue
+			}
+			paths = append(paths, ListAllPaths(v, fullPath)...)
+		}
+	case []interface{}:
+		for i, v := range val {
+			fullPath := strings.Join([]string{prefix, fmt.Sprint(i)}, PathSeparator)
+			if len(fullPath) == 0 {
+				continue
+			}
+			paths = append(paths, ListAllPaths(v, fullPath)...)
+		}
+	default:
+		paths = append(paths, P(prefix))
+	}
+
+	return paths
 }
 
 // HasPath returns true if [Data.GetPath] does not return an error for the given Path.
