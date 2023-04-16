@@ -120,8 +120,13 @@ func (r *Resolver) DependsOn(parent, child Path) error {
 	return nil
 }
 
-func (r *Resolver) TopologicalSort() ([]Path, error) {
-	order, err := graph.TopologicalSort(r.graph)
+func (r *Resolver) ReduceAndSort() ([]Path, error) {
+	reduced, err := graph.TransitiveReduction(r.Graph)
+	if err != nil {
+		return nil, err
+	}
+
+	order, err := graph.TopologicalSort(reduced)
 	if err != nil {
 		return nil, err
 	}
