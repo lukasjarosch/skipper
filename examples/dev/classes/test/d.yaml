@@ -8,3 +8,4 @@ d:
     c:
       foo: test
       bar: foo
+      hello: "test"

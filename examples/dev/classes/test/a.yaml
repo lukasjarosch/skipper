@@ -3,3 +3,7 @@ a:
     use:
       - test.c
   foo: "bar"
+  baz: "${test.c.foo}"
+  test:
+    c:
+      hello: "bar"

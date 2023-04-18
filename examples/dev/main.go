@@ -1,12 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/dominikbraun/graph"
-	"github.com/dominikbraun/graph/draw"
 	"github.com/lukasjarosch/skipper"
 	"github.com/spf13/afero"
 )
@@ -61,15 +60,16 @@ func main() {
 	}
 
 	// create resolver and register class namespaces
-	resolver := skipper.NewResolver()
+	resolver := skipper.NewClassResolver()
 	for _, class := range classes {
-		err := resolver.RegisterPath(class.Namespace)
+		err := resolver.RegisterClass(class)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
 	// add dependencies to namespaces
+	// needs to be done after all classes are registered otherwise the included classes might be unknown
 	for _, class := range classes {
 		for _, includedClass := range class.Includes() {
 			err = resolver.DependsOn(class.Namespace, skipper.P(includedClass))
@@ -79,25 +79,27 @@ func main() {
 		}
 	}
 
-	file, _ := os.Create("/tmp/test.gv")
-	_ = draw.DOT(resolver.Graph, file,
-		draw.GraphAttribute("label", "before transitive reduction"),
-		draw.GraphAttribute("overlap", "false"),
-		draw.GraphAttribute("minlen", "5"))
+	// Graph visualization
+	{
+		err = skipper.VisualizeGraph(resolver.Graph, "/tmp/test.gv", "before graph reduction")
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	reduced, _ := graph.TransitiveReduction(resolver.Graph)
+		reduced, _ := graph.TransitiveReduction(resolver.Graph)
 
-	file2, _ := os.Create("/tmp/reduced.gv")
-	_ = draw.DOT(reduced, file2,
-		draw.GraphAttribute("label", "after transitive reduction"),
-		draw.GraphAttribute("overlap", "false"),
-		draw.GraphAttribute("minlen", "5"))
+		err = skipper.VisualizeGraph(reduced, "/tmp/reduced.gv", "after graph reduction")
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}
 
 	// sort the graph topologically to get the execution order
 	order, err := resolver.ReduceAndSort()
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	for i, path := range order {
 		log.Printf("Step %d: get class '%s'", i, path)
 		class := getClass(path)
@@ -168,47 +170,92 @@ func main() {
 		// This is fine initially, but if B and D both modify the same path (say `C.foo`),
 		// then the value for `C.foo` will be undefined in A.
 		// NOTE: maybe 'write' access should only be granted to classes which actually 'use' the class they write to
-		for _, leaf := range leafs {
-			paths := resolver.AllPaths(class.Namespace.String(), leaf)
-			log.Printf("--> found %d paths from '%s' to '%s'", len(paths), class.Namespace, leaf)
-			if len(paths) > 1 {
-				log.Printf("--> WARN: possible undefined values due to multiple paths")
 
-				for _, path := range paths {
-					log.Printf("---> path: %s", strings.Join(path, " -> "))
+		for _, leaf := range leafs {
+			dependencyPaths := resolver.AllPaths(class.Namespace.String(), leaf)
+
+			log.Printf("--> found %d paths from '%s' to '%s'", len(dependencyPaths), class.Namespace, leaf)
+			if len(dependencyPaths) > 1 {
+
+				// classWrites maps paths written to a class namespace to indicate which class writes which path.
+				// Note that only paths of included classes are part of this map.
+				// As soon as a class dependency attempts to register an existing key, there is a write conflict within the dependency graph.
+				classWrites := make(map[string]skipper.Path)
+
+				// function which returns whether testClass performs WRITE access on any path from sourceClass
+				// all written paths are returned as absolute paths.
+				// Absolute paths means that if the actual write happens in `my.class.anotherclass.value`,
+				// the paths returned absolute for the included class `anotherclass.value`.
+				writeAccess := func(testClass, sourceClass *skipper.Class) (writtenPaths []skipper.Path) {
+
+					// if testClass writes to sourceClass, this means that testClass must have a path
+					// which looks like: `[testClass.RootKey].[sourceClass.Namespace]`
+					writePathPrefix := strings.Join([]string{testClass.RootKey, sourceClass.Namespace.String()}, skipper.PathSeparator)
+
+					testClassPaths := skipper.ListAllPaths(testClass.Data, "")
+					for _, p := range testClassPaths {
+						if strings.HasPrefix(p.String(), writePathPrefix) {
+							absPath := p[len(fmt.Sprintf("%s", testClass.RootKey)):] // Note: we can use len() instead of len()-1 to include the '.' after the rootkey
+							writtenPaths = append(writtenPaths, absPath)
+						}
+					}
+
+					return writtenPaths
+				}
+
+				getWritesOnDependencyPath := func(pathToInvestigate []string, leafClass *skipper.Class) (writes map[string]skipper.Path) {
+					// FIXME: The path `targets.dev -> common -> test.d -> test.b -> test.c` is also found and evaluated
+					// But it is not a problem if `common` overwrites any path in `test.c` as the 'path-split' occurs right after and hence
+					// `common` would just overwrite any value anyway.
+
+					writes = make(map[string]skipper.Path)
+
+					for i := len(pathToInvestigate) - 1; i >= 0; i-- {
+						currentClass := getClass(skipper.P(pathToInvestigate[i]))
+						writtenPaths := writeAccess(currentClass, leafClass)
+						if writtenPaths == nil {
+							continue
+						}
+
+						for _, writtenPath := range writtenPaths {
+							writes[writtenPath.String()] = currentClass.Namespace
+						}
+
+						// paths := skipper.ListAllPaths(currentClass.Data, "")
+						// for _, path := range paths {
+						//
+						// 	path = path[1:] // remove the first key because that is the classes root key
+						// 	// log.Printf("WRITE ACCESS in '%s' on path '%s': '%s'", currentClass.Namespace, path, leafClass.Namespace)
+						//
+						// 	// NOTE: can you add a new path in an included class?
+						//
+						// 	if strings.HasPrefix(path.String(), leafClass.Namespace.String()) {
+						// 		log.Printf("WRITE ACCESS: class '%s' writes '%s'", currentClass.Namespace, path)
+						// 	}
+						// }
+					}
+					return writes
+				}
+
+				for _, depPath := range dependencyPaths {
+					log.Printf("---> path: %s", strings.Join(depPath, " -> "))
 
 					// Walk eath path from the back (from the leaf) and note each modification they perform (if they do).
 					// The first and last path segments can be skipped because source and destination nodes don't matter in this case.
 					// Source: Includes the path and may even overwrite stuff, but that does not affect how the value is defined downstream.
 					// Destination (leaf): does not have any dependencies and defines the initial data.
-					pathToInvestigate := path[1 : len(path)-1]
+					pathToInvestigate := depPath[1 : len(depPath)-1]
 
-					leafClass := getClass(skipper.P(path[len(path)-1]))
+					leafClass := getClass(skipper.P(depPath[len(depPath)-1]))
 
-					for i := len(pathToInvestigate) - 1; i > 0; i-- {
-						log.Println("investigating", pathToInvestigate[i])
-						currentClass := getClass(skipper.P(pathToInvestigate[i]))
-						log.Println(currentClass)
+					writtenPaths := getWritesOnDependencyPath(pathToInvestigate, leafClass)
 
-						// NOTE: this does not seem correct. `test.d` does only indirectly include `test.c`, why should `test.d.test.c` be a valid path?
-						// includePath := skipper.P(strings.Join([]string{currentClass.Namespace.String(), leafClass.Namespace.String()}, skipper.PathSeparator))
-
-						// log.Println(includePath)
-
-						paths := skipper.ListAllPaths(currentClass.Data, "")
-						for _, path := range paths {
-
-							path = path[1:] // remove the first key because that is the classes root key
-							// log.Printf("WRITE ACCESS in '%s' on path '%s': '%s'", currentClass.Namespace, path, leafClass.Namespace)
-
-							// NOTE: can you add a new path in an included class?
-
-							if strings.HasPrefix(path.String(), leafClass.Namespace.String()) {
-								log.Printf("WRITE ACCESS: class '%s' writes '%s'", currentClass.Namespace, path)
-							}
+					for wp, classNs := range writtenPaths {
+						if c, exists := classWrites[wp]; exists {
+							log.Fatalf("resolve error: multi-write: '%s' and '%s' write path '%s' on different dependency paths", c, classNs, wp)
 						}
+						classWrites[wp] = classNs
 					}
-
 				}
 			}
 		}
@@ -256,6 +303,7 @@ func main() {
 		// log.Println("newdata", class.Namespace, newData.(skipper.Data).Pretty())
 		// }
 		log.Printf("-> finished")
+		log.Println()
 	}
 
 	// _, err = skipper.NewInventory(classes)
