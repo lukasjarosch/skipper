@@ -79,14 +79,69 @@ func main() {
 		}
 	}
 
+	// If the resolver is in strict mode, we will not just silently reduce the graph.
+	// This behaviour can cause confusion which is why the strict mode was introduced.
+	// In strict mode, we compare the 'actual' graph created by the classes with the reduced graph.
+	// If the reduced graph has less edges than the actual graph, we return an error to let the user fix
+	// their dependencies (or be explit about them by using aliases) to create a minimal graph themselves.
+	//
+	// Reducing does not remove any nodes, only edges. Hence we 'just' need to compare the edges.
+	strictResolver := true
+	{
+		log.Printf("strict resolver mode: %t", strictResolver)
+		if !strictResolver {
+			goto afterStrictModeCheck
+		}
+
+		beforeGraph, _ := resolver.Graph.Clone()
+
+		// currently the [graph.Clone] func does not perform a deep-clone, so this is a workaround to get a copy of the graph
+		ng := graph.New(graph.StringHash, graph.Directed(), graph.Acyclic(), graph.Rooted())
+		reducedGraph, _ := graph.Union(ng, resolver.Graph)
+		reducedGraph, _ = graph.TransitiveReduction(reducedGraph) // NOTE: although otherwise stated, this call changes the original graph!
+
+		// if the edge-count (size) does not change when applying the transitive reduction, the graph is already reduced
+		graphSize, _ := beforeGraph.Size()
+		reducedGraphSize, _ := reducedGraph.Size()
+		if graphSize == reducedGraphSize {
+			log.Println("original and reduced graphs have the same amount of edges -> everything is fine")
+			goto afterStrictModeCheck
+		}
+
+		graphAdjMap, _ := beforeGraph.AdjacencyMap()
+		reducedAdjMap, _ := reducedGraph.AdjacencyMap()
+
+		// determine which edges are removed in the reduced graph
+		edgeErrStrings := make([]string, 0)
+		for node, outgoingEdges := range graphAdjMap {
+			for targetNode, edge := range outgoingEdges {
+				if _, ok := reducedAdjMap[node][targetNode]; !ok {
+					allPaths := resolver.AllPaths(edge.Source, edge.Target)
+					allPathStr := make([]string, 0)
+					for _, p := range allPaths {
+						allPathStr = append(allPathStr, fmt.Sprintf("[%s]", strings.Join(p, " -> ")))
+					}
+					edgeErrStrings = append(edgeErrStrings, fmt.Sprintf("class %s -> %s, already included via %s", edge.Source, edge.Target, strings.Join(allPathStr, " AND ")))
+				}
+			}
+		}
+
+		if len(edgeErrStrings) > 0 {
+			log.Fatalln(fmt.Errorf("classes include namespaces which are already transitively included\n%s", strings.Join(edgeErrStrings, "\n")))
+		}
+
+		return
+	}
+
+afterStrictModeCheck:
+
 	// Graph visualization
+	reduced, _ := graph.TransitiveReduction(resolver.Graph)
 	{
 		err = skipper.VisualizeGraph(resolver.Graph, "/tmp/test.gv", "before graph reduction")
 		if err != nil {
 			log.Fatalln(err)
 		}
-
-		reduced, _ := graph.TransitiveReduction(resolver.Graph)
 
 		err = skipper.VisualizeGraph(reduced, "/tmp/reduced.gv", "after graph reduction")
 		if err != nil {
@@ -115,15 +170,24 @@ func main() {
 		//    This ensures that another class can still include the original data set.
 		// 	  Otherwise class `foo` could modify `bar` by including it. Once `baz` attempts to include `bar` as well,
 		//    the data might've already changed
+		//
 		// 2. Includes are transitive.
 		//    If `A` includes `B`, and `B` includes `C`, then `A` includes `C` as well.
+		//    FIXME: What if A includes C explicitly as well? This would be removed by the graph reduction.
+		//    But maybe this should throw an error because it might be unexpected behaviour that the resolver ignores explicit includes.
+		//    This should be configurable! Also the user could resolve this two ways:
+		//        1. By removing the include and creating an ideal, reduced dependency graph himself
+		//        2. Or if the user WANTS to have access to the original data of C (because B modifies it), he can use an alias `use: A as OriginalA` for example
+		//
 		// 3. Modifications are passed 'up' the dependency graph.
 		//    If class `A` is included and modified by `B` which is then again included by `C`,
 		// 	  `C` will see the modifications made by `B`.
 		//    In order to see the original data, `B` has to include `A` directly.
+		//
 		// 4. If two classes `A` and `B` both include `C` and also set `C.value`, then
 		//    as soon as *both* classes are included together somewhere else, an error must occur.
 		//    If class `D` includes `A` and `B`, the path `C.value` is not properly defined anymore.
+		//
 		// 5. PATHS NEVER CHANGE.
 		//    If A includes B, A can use `A.foo` and not `B.A.Foo`. Maybe there is reason to allow both, but
 		//    the path to the original data (in this case B) does never change.
@@ -141,8 +205,6 @@ func main() {
 		//
 		// ===[ Workflow ]====
 		//
-
-		reduced, _ := graph.TransitiveReduction(resolver.Graph)
 
 		adjm, err := reduced.AdjacencyMap()
 		if err != nil {
