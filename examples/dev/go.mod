@@ -6,7 +6,7 @@ replace github.com/lukasjarosch/skipper => ../../
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/dominikbraun/graph v0.17.0
+	github.com/dominikbraun/graph v0.18.0
 	github.com/lukasjarosch/skipper v0.0.0-00010101000000-000000000000
 )
 
