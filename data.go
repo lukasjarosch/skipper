@@ -65,8 +65,8 @@ func (d Data) Get(key string) Data {
 // A path is a slice of interfaces which are used as keys in order.
 // Supports array indexing (arrays start at 0)
 // Examples of valid paths:
-//	- ["foo", "bar"]
-//	- ["foo", "bar", 0]
+//   - ["foo", "bar"]
+//   - ["foo", "bar", 0]
 func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 	tree = d
 
@@ -245,7 +245,7 @@ func (d Data) FindValues(valueFunc FindValueFunc, target *[]interface{}) (err er
 		case reflect.Map:
 			for _, key := range v.MapKeys() {
 				if v.MapIndex(key).IsNil() {
-					break
+					continue
 				}
 
 				err := walk(v.MapIndex(key), newPath(path, key.String()))
