@@ -85,6 +85,43 @@ func CopyFile(fs afero.Fs, sourcePath, targetPath string) error {
 	return nil
 }
 
+// CopyFileFsToFs will copy a file from the given sourceFs and sourcePath to the targetFs and targetPath
+func CopyFileFsToFs(sourceFs afero.Fs, targetFs afero.Fs, sourcePath, targetPath string) error {
+	sourceExists, err := afero.Exists(sourceFs, sourcePath)
+	if err != nil {
+		return fmt.Errorf("CopyFileFsToFs failed to check source file: %w", err)
+	}
+	if !sourceExists {
+		return fmt.Errorf("CopyFileFsToFs source path: %s: %w", sourcePath, os.ErrNotExist)
+	}
+
+	err = targetFs.MkdirAll(filepath.Dir(targetPath), 0755)
+	if err != nil {
+		return fmt.Errorf("CopyFileFsToFs failed to create path: %w", err)
+	}
+
+	sourceData, err := afero.ReadFile(sourceFs, sourcePath)
+	if err != nil {
+		return fmt.Errorf("CopyFileFsToFs failed to read source file: %w", err)
+	}
+
+	targetFile, err := targetFs.Create(targetPath)
+	if err != nil {
+		return fmt.Errorf("CopyFileFsToFs failed to create target file: %w", err)
+	}
+	defer targetFile.Close()
+
+	bytesWritten, err := targetFile.Write(sourceData)
+	if err != nil {
+		return fmt.Errorf("CopyFileFsToFs failed to write target file: %w", err)
+	}
+	if bytesWritten != len(sourceData) {
+		return fmt.Errorf("CopyFileFsToFs did not write all source file bytes into the target file, retry")
+	}
+
+	return nil
+}
+
 // WriteFile ensures that `targetPath` exists in the `fs` and then writes `data` into it.
 func WriteFile(fs afero.Fs, targetPath string, data []byte, mode fs.FileMode) error {
 	err := fs.MkdirAll(filepath.Dir(targetPath), 0755)
