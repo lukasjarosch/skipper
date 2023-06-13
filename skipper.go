@@ -3,6 +3,7 @@ package skipper
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 
 	"github.com/spf13/afero"
 )
@@ -11,10 +12,11 @@ import (
 const skipperKey string = "skipper"
 
 type SkipperConfig struct {
-	Classes    []string          `yaml:"use,omitempty"`
-	Components []ComponentConfig `mapstructure:"components,omitempty"`
-	Copies     []CopyConfig      `yaml:"copy,omitempty"`
-	Renames    []RenameConfig    `yaml:"rename,omitempty"`
+	Classes     []string          `yaml:"use,omitempty"`
+	Components  []ComponentConfig `mapstructure:"components,omitempty"`
+	Copies      []CopyConfig      `yaml:"copy,omitempty"`
+	IgnoreRegex []string          `yaml:"ignore_regex,omitempty"`
+	Renames     []RenameConfig    `yaml:"rename,omitempty"`
 }
 
 type CopyConfig struct {
@@ -51,6 +53,7 @@ func MergeSkipperConfig(merge ...*SkipperConfig) (mergedConfig *SkipperConfig) {
 		mergedConfig.Classes = append(mergedConfig.Classes, config.Classes...)
 		mergedConfig.Components = append(mergedConfig.Components, config.Components...)
 		mergedConfig.Copies = append(mergedConfig.Copies, config.Copies...)
+		mergedConfig.IgnoreRegex = append(mergedConfig.IgnoreRegex, config.IgnoreRegex...)
 		mergedConfig.Renames = append(mergedConfig.Renames, config.Renames...)
 	}
 	return mergedConfig
@@ -74,6 +77,13 @@ func LoadSkipperConfig(file *YamlFile, rootKey string) (*SkipperConfig, error) {
 	err := file.UnmarshalPath(&config, rootKey, skipperKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal SkipperConfig: %w", err)
+	}
+
+	for _, regex := range config.IgnoreRegex {
+		_, err := regexp.Compile(regex)
+		if err != nil {
+			return nil, fmt.Errorf("regex %s in ignore_regexp is not valid re2 regex", err)
+		}
 	}
 
 	return &config, nil

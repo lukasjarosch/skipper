@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -44,6 +45,7 @@ var customFuncs map[string]any = map[string]any{
 
 type Templater struct {
 	Files            []*File
+	IgnoreRegex      []*regexp.Regexp
 	templateRootPath string
 	outputRootPath   string
 	templateFs       afero.Fs
@@ -51,7 +53,7 @@ type Templater struct {
 	templateFuncs    template.FuncMap
 }
 
-func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, userFuncMap map[string]any) (*Templater, error) {
+func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, userFuncMap map[string]any, ignoreRegex []string) (*Templater, error) {
 	t := &Templater{
 		templateFs:    afero.NewBasePathFs(fileSystem, templateRootPath),
 		outputFs:      afero.NewBasePathFs(fileSystem, outputRootPath),
@@ -75,6 +77,12 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 	}
 	if !exists {
 		return nil, fmt.Errorf("templateRootPath does not exist: %s", templateRootPath)
+	}
+
+	// Save the regexp
+	for _, v := range ignoreRegex {
+		r := regexp.MustCompile(v)
+		t.IgnoreRegex = append(t.IgnoreRegex, r)
 	}
 
 	// discover all files in the templateRootPath
@@ -125,6 +133,15 @@ func (t *Templater) Execute(template *File, data any, allowNoValue bool, renameC
 }
 
 func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoValue bool) error {
+	for _, v := range t.IgnoreRegex {
+		if v.MatchString(tplFile.Path) {
+			err := CopyFileFsToFs(t.templateFs, t.outputFs, tplFile.Path, targetPath)
+			if err != nil {
+				return fmt.Errorf("could not copy file %s: %w", tplFile.Path, err)
+			}
+			return nil
+		}
+	}
 	err := tplFile.Load(t.templateFs)
 	if err != nil {
 		return err
@@ -217,4 +234,13 @@ func (t *Templater) getTemplateByPath(path string) *File {
 		}
 	}
 	return nil
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
