@@ -85,7 +85,7 @@ func CopyFile(fs afero.Fs, sourcePath, targetPath string) error {
 	return nil
 }
 
-// CopyFileFsToFs will copy the given sourcePath to the targetPath inside the passed afero.Fs.
+// CopyFileFsToFs will a file from the given sourceFs and sourcePath to the targetFs and targetPath
 func CopyFileFsToFs(sourceFs afero.Fs, targetFs afero.Fs, sourcePath, targetPath string) error {
 	sourceExists, err := afero.Exists(sourceFs, sourcePath)
 	if err != nil {

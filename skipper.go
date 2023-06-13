@@ -79,6 +79,7 @@ func LoadSkipperConfig(file *YamlFile, rootKey string) (*SkipperConfig, error) {
 		return nil, fmt.Errorf("failed to unmarshal SkipperConfig: %w", err)
 	}
 
+	// ensure ignore regex can be compiled
 	for _, regex := range config.IgnoreRegex {
 		_, err := regexp.Compile(regex)
 		if err != nil {

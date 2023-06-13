@@ -132,7 +132,11 @@ func (t *Templater) Execute(template *File, data any, allowNoValue bool, renameC
 	return t.execute(template, data, template.Path, allowNoValue)
 }
 
+// execute is the main rendering function for templates
 func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoValue bool) error {
+
+	// if the template matches any IgnoreRegex, just copy the file to the targetPath
+	// without rendering it as template
 	for _, v := range t.IgnoreRegex {
 		if v.MatchString(tplFile.Path) {
 			err := CopyFileFsToFs(t.templateFs, t.outputFs, tplFile.Path, targetPath)
@@ -142,6 +146,7 @@ func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoV
 			return nil
 		}
 	}
+
 	err := tplFile.Load(t.templateFs)
 	if err != nil {
 		return err
