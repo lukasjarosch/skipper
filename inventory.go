@@ -338,6 +338,7 @@ func (inv *Inventory) AddExternalClass(data map[string]any, classFilePath string
 	if err != nil {
 		return err
 	}
+	classFile.Load(inv.fs)
 
 	newClass, err := NewClass(classFile, classFilePath)
 	if err != nil {
