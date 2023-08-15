@@ -81,6 +81,9 @@ func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[st
 		return false
 	}
 
+	// variables can be ignored, they are stored here :)
+	ignoredVariables := []Variable{}
+
 	// TODO: gosh, make this a standalone function already
 	replaceVariable := func(variable Variable) error {
 		var targetValue interface{}
@@ -150,6 +153,15 @@ func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[st
 			return variable.FullName() != sourceValue
 		}
 
+		// At this point, the variable might still point to something unknown (targetValue == nil).
+		// This case might occur if one defines an inventory value which uses bash / environment variables, which
+		// look like skipper variables, but actually aren't.
+		// In this case, we ignore this variable.
+		if targetValue == nil {
+			ignoredVariables = append(ignoredVariables, variable)
+			return nil
+		}
+
 		// if the variable is not 'inline', we are going to 'attach' whatever the variable points to
 		// with the variable. This allows you to import a list from a different class for example.
 		// class-file:
@@ -186,6 +198,17 @@ func ReplaceVariables(data Data, classFiles []*Class, predefinedVariables map[st
 		variables, err = FindVariables(data)
 		if err != nil {
 			return err
+		}
+
+		// remove the ignored variables from the found variables
+		// otherwise we would end up in an endless loop.
+		for _, ignored := range ignoredVariables {
+			for i, variable := range variables {
+				if variable.Name == ignored.Name {
+					variables[i] = variables[len(variables)-1]
+					variables = variables[:len(variables)-1]
+				}
+			}
 		}
 
 		if len(variables) == 0 {
