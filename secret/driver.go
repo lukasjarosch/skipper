@@ -1,26 +1,26 @@
-package skipper
+package secret
 
 import (
 	"fmt"
 	"strings"
 
-	driver "github.com/lukasjarosch/skipper/internal/secret"
+	"github.com/lukasjarosch/skipper/secret/driver"
 )
 
-type SecretDriver interface {
+type Driver interface {
 	Type() string
 	Encrypt(data string) (string, error)
 	Decrypt(encrypted string) (string, error)
 }
 
-type ConfigurableSecretDriver interface {
-	SecretDriver
+type ConfigurableDriver interface {
+	Driver
 	Configure(config map[string]interface{}) error
 }
 
-var driverCache = map[string]SecretDriver{}
+var driverCache = map[string]Driver{}
 
-func SecretDriverFactory(name string) (secretDriver SecretDriver, err error) {
+func SecretDriverFactory(name string) (secretDriver Driver, err error) {
 	name = strings.ToLower(name)
 
 	// return a cached version of the driver if there is one
