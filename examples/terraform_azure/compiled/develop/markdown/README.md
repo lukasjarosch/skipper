@@ -20,7 +20,7 @@
       "common": {
         "absolute_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
         "local_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
-        "secret": "?{azurekv:targets/develop/some_secret||randomstring:64}",
+        "secret": "1_up5tshpIxHC2b0yh-nMbyIyVOa90Vhi2wGuQ1FdUte_Mo2c7mLTu6dvoNW1U1z",
         "subscription_id": "59efa773-ee54-47d6-a95a-eac3fca3bc24"
       },
       "foo": "bar",
@@ -146,11 +146,8 @@
       "secrets": {
         "drivers": {
           "azurekv": {
-            "vault_name": "kv-dev-edge"
+            "key_id": "https://skipperkeyvaultexample.vault.azure.net/keys/test1/4535327f31154de3b8de7d09115890a6"
           }
-        },
-        "keys": {
-          "azurekv": "test"
         }
       },
       "use": [

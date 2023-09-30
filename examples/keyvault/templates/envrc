@@ -1,1 +1,1 @@
-export ARM_SUBSCRIPTION_ID={{ .Inventory.target.azure.common.subscription_id }}
+export ARM_SUBSCRIPTION_ID={{ .Inventory.azure.common.subscription_id }}

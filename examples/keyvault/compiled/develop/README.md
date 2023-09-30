@@ -3,7 +3,7 @@
 
 It will create an `apply.sh` and a `destroy.sh` script which create/destroy a resource group and a key vault.
 
-- **Subscription:** `59efa773-ee54-47d6-a95a-eac3fca3bc24`
-- **Resource Group:** `skipper-example`
+- **Subscription:** `d62fd2d4-358f-4ddc-9373-7ac8a307f75b`
+- **Resource Group:** `skipper-keyvault-example`
 - **KeyVault:** `skipperkeyvaultexample`
 - **Location:** `westeurope`

@@ -1,12 +1,12 @@
 az group create \
   --location westeurope \
-  --name skipper-example \
-  --subscription 59efa773-ee54-47d6-a95a-eac3fca3bc24
+  --name skipper-keyvault-example \
+  --subscription d62fd2d4-358f-4ddc-9373-7ac8a307f75b
 
 az keyvault create \
   --location westeurope \
-  --subscription 59efa773-ee54-47d6-a95a-eac3fca3bc24 \
-  --resource-group skipper-example \
+  --subscription d62fd2d4-358f-4ddc-9373-7ac8a307f75b \
+  --resource-group skipper-keyvault-example \
   --name skipperkeyvaultexample
 
 az keyvault set-policy \
