@@ -20,7 +20,7 @@
       "common": {
         "absolute_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
         "local_variable": "59efa773-ee54-47d6-a95a-eac3fca3bc24",
-        "secret": "1_up5tshpIxHC2b0yh-nMbyIyVOa90Vhi2wGuQ1FdUte_Mo2c7mLTu6dvoNW1U1z",
+        "secret": "?{azurekv:targets/develop/some_secret||randomstring:64}",
         "subscription_id": "59efa773-ee54-47d6-a95a-eac3fca3bc24"
       },
       "foo": "bar",

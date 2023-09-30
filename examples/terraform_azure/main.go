@@ -3,10 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"os"
 	"path"
+	"path/filepath"
+	"strings"
+
+	"github.com/charmbracelet/log"
 
 	"github.com/lukasjarosch/skipper"
+	"github.com/lukasjarosch/skipper/codec"
+	"github.com/lukasjarosch/skipper/data"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/afero"
 )
@@ -42,7 +48,56 @@ func init() {
 }
 
 func main() {
-	log.Println(classPath)
+
+	// REFACTOR ZONE ===================================================
+	{
+
+		classFiles, err := skipper.DiscoverFiles(classPath, []string{".yml", ".yaml"})
+		if err != nil {
+			log.Fatal(fmt.Errorf("error discovering class files: %w", err))
+		}
+
+		var classContainer []*data.Container
+		for _, file := range classFiles {
+			class, err := data.NewContainer(file, codec.NewYamlCodec())
+			if err != nil {
+				log.Fatal(fmt.Errorf("cannot create data container from '%s': %w", file.Path(), err))
+			}
+			classContainer = append(classContainer, class)
+			log.Info("created container from file", "name", class.Name)
+		}
+
+		inventory, err := data.NewInventory()
+		if err != nil {
+			log.Fatal(fmt.Errorf("failed to create inventory: %w", err))
+		}
+
+		// register class containers
+		for _, container := range classContainer {
+
+			// The namespace of a container is calculated by the path of the underlying file.
+			// The classPath is removed as well as the filename.
+			// This is then used to create a [data.Path] which is the actual namespace of the container.
+			ns := container.File.Path()
+			ns = strings.Replace(ns, classPath, "", 1)
+			ns = strings.Trim(ns, string(os.PathSeparator))
+			ns = filepath.Dir(ns)
+			ns = strings.Trim(ns, ".")
+			namespace := data.NewPathFromOsPath(ns)
+
+			err := inventory.RegisterContainer(namespace, container)
+			if err != nil {
+				log.Fatalf("failed to register container: %s", err)
+			}
+			log.Info("registered container", "namespace", namespace, "name", container.Name)
+		}
+
+		_ = inventory
+
+	}
+	return
+	// =================================================================
+
 	inventory, err := skipper.NewInventory(fileSystem, classPath, targetPath, secretPath)
 	if err != nil {
 		panic(err)
@@ -54,7 +109,8 @@ func main() {
 	}
 
 	// Process the inventory, given the target name
-	data, err := inventory.Data(target, predefinedVariables, false, true)
+	reveal := false
+	data, err := inventory.Data(target, predefinedVariables, false, reveal)
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +133,6 @@ func main() {
 			panic(fmt.Errorf("failed to decode struct: %w", err))
 		}
 		log.Printf("%#v", ag)
-		log.Println(ag)
 
 		data.SetPath(ag, "common", "transformed")
 	}
