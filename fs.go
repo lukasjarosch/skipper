@@ -1,6 +1,7 @@
 package skipper
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -9,8 +10,51 @@ import (
 	"github.com/spf13/afero"
 )
 
+var (
+	ErrPathNotExists = fmt.Errorf("path does not exist")
+)
+
+// DiscoverFiles iterates over a given rootPath recursively, filters out all files with the appropriate file fileExtensions
+// and finally creates a File slice which is then returned.
+func DiscoverFiles(rootPath string, fileExtensions []string) ([]*File, error) {
+	if _, err := os.Stat(rootPath); os.IsNotExist(err) {
+		return nil, errors.Join(ErrPathNotExists, err)
+	}
+
+	matchesExtension := func(path string) bool {
+		ext := filepath.Ext(path)
+		for _, extension := range fileExtensions {
+			if extension == ext {
+				return true
+			}
+		}
+		return false
+	}
+
+	var files []*File
+	err := filepath.Walk(rootPath, func(path string, info fs.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		if matchesExtension(path) {
+			file, err := NewFile(path)
+			if err != nil {
+				return err
+			}
+			files = append(files, file)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed walking path: %w", err)
+	}
+
+	return files, nil
+}
+
 // DiscoverYamlFiles iterates over a given rootPath recursively, filters out all files with the appropriate file fileExtensions
 // and finally creates a YamlFile slice which is then returned.
+// TODO: get rid of this
 func DiscoverYamlFiles(fileSystem afero.Fs, rootPath string) ([]*YamlFile, error) {
 	exists, err := afero.Exists(fileSystem, rootPath)
 	if err != nil {
