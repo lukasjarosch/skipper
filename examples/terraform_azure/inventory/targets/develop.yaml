@@ -21,10 +21,7 @@ target:
     secrets:
       drivers:
         azurekv: 
-          vault_name: "%{env:AZURE_KEY_VAULT_NAME}"
-      keys:
-        azurekv: "test"
-
+          key_id: https://skipperkeyvaultexample.vault.azure.net/keys/test1/4535327f31154de3b8de7d09115890a6
   azure:
     common:
       subscription_id: "59efa773-ee54-47d6-a95a-eac3fca3bc24" # random uuid

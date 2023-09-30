@@ -46,12 +46,26 @@ serve-docs:
 
 
 ## Examples
-example-terraform-dev:
+example-terraform:
 	go run examples/terraform/main.go \
 		-data examples/terraform/inventory \
 		-templates examples/terraform/templates \
 		-output examples/terraform/compiled \
 		-target dev
+
+example-terraform-azure:
+	go run examples/terraform_azure/main.go \
+		-data examples/terraform_azure/inventory \
+		-templates examples/terraform_azure/templates \
+		-output examples/terraform_azure/compiled \
+		-target develop
+
+example-keyvault:
+	go run examples/keyvault/main.go \
+		-data examples/keyvault/inventory \
+		-templates examples/keyvault/templates \
+		-output examples/keyvault/compiled \
+		-target develop
 
 example-external-classes:
 	cd examples/external_classes && go run main.go

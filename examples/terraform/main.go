@@ -58,7 +58,7 @@ func main() {
 	}
 
 	templateOutputPath := path.Join(outputPath, target)
-	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, myTemplateFuncs)
+	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, myTemplateFuncs, []string{})
 	if err != nil {
 		panic(err)
 	}
@@ -74,7 +74,7 @@ func main() {
 		"year":         time.Now().Year(),
 	}
 
-	data, err := inventory.Data(target, predefinedVariables, false)
+	data, err := inventory.Data(target, predefinedVariables, false, false)
 	if err != nil {
 		panic(err)
 	}

@@ -1,4 +1,4 @@
-package secret
+package driver
 
 // Plain is the most basic secret driver.
 // It does not expect any encryption and will just return any data which exists in the secret files.

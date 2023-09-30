@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/lukasjarosch/skipper/secret"
 	"github.com/spf13/afero"
 )
 
@@ -249,12 +250,12 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 	if !skipSecretHandling {
 		// fetch and configure secret drivers configured by the target
 		for driverName, driverConfig := range target.Configuration.Secrets.Drivers {
-			driver, err := SecretDriverFactory(driverName)
+			driver, err := secret.SecretDriverFactory(driverName)
 			if err != nil {
 				return nil, fmt.Errorf("target contains invalid secret driver configuration: %w", err)
 			}
 
-			if drv, ok := driver.(ConfigurableSecretDriver); ok {
+			if drv, ok := driver.(secret.ConfigurableDriver); ok {
 				if config, ok := driverConfig.(map[string]interface{}); ok {
 					err = drv.Configure(config)
 					if err != nil {

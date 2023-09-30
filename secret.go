@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/lukasjarosch/skipper/secret"
 	"github.com/spf13/afero"
 )
 
@@ -15,7 +16,7 @@ var secretRegex = regexp.MustCompile(`\?\{(\w+)\:([\w\/\-\.\_]+)(\|\|([\w\-\_\.\
 
 type Secret struct {
 	*SecretFile
-	Driver          SecretDriver
+	Driver          secret.Driver
 	DriverName      string
 	AlternativeCall *Call
 	Identifier      []interface{}
@@ -69,18 +70,18 @@ func FindOrCreateSecrets(data Data, secretFiles SecretFileList, secretPath strin
 			return nil, fmt.Errorf("unexpected error during secret detection, file a bug report")
 		}
 
-		for _, secret := range vars {
+		for _, sec := range vars {
 
 			// ensure that the driver is loaded and assigned to every secret
-			driver, err := SecretDriverFactory(secret.DriverName)
+			driver, err := secret.SecretDriverFactory(sec.DriverName)
 			if err != nil {
-				return nil, fmt.Errorf("cannot get secret driver '%s': %w", secret.DriverName, err)
+				return nil, fmt.Errorf("cannot get secret driver '%s': %w", sec.DriverName, err)
 			}
-			secret.Driver = driver
+			sec.Driver = driver
 
 			// secrets which do not have a file associated are candidates for automatic creation
-			if secret.SecretFile.YamlFile == nil {
-				err = secret.attemptCreate(fs, secretPath)
+			if sec.SecretFile.YamlFile == nil {
+				err = sec.attemptCreate(fs, secretPath)
 				if err != nil {
 					return nil, fmt.Errorf("failed to auto-create secret: %w", err)
 				}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"path"
@@ -11,18 +12,37 @@ import (
 )
 
 var (
-	fileSystem    = afero.NewOsFs()
-	inventoryPath = "inventory"
-	classPath     = path.Join(inventoryPath, "classes")
-	targetPath    = path.Join(inventoryPath, "targets")
-	templatePath  = "templates"
-	secretPath    = path.Join(inventoryPath, "secrets")
-	outputPath    = "compiled"
+	fileSystem = afero.NewOsFs()
 
-	target = "develop"
+	inventoryPath string
+	templatePath  string
+	outputPath    string
+
+	targetPath string
+	classPath  string
+	secretPath string
+	target     string
 )
 
+func init() {
+	flag.StringVar(&inventoryPath, "data", "inventory", "path to the inventory folder")
+	flag.StringVar(&templatePath, "templates", "templates", "path to the templates folder")
+	flag.StringVar(&outputPath, "output", "compiled", "template output path")
+	flag.StringVar(&target, "target", "dev", "name of the target to use")
+	flag.Parse()
+
+	targetPath = path.Join(inventoryPath, "targets")
+	classPath = path.Join(inventoryPath, "classes")
+	secretPath = path.Join(inventoryPath, "secrets")
+
+	log.Printf("inventory path set to '%s'", inventoryPath)
+	log.Printf("template path set to '%s'", templatePath)
+	log.Printf("compiled path set to '%s'", outputPath)
+	log.Printf("desired target is '%s'", target)
+}
+
 func main() {
+	log.Println(classPath)
 	inventory, err := skipper.NewInventory(fileSystem, classPath, targetPath, secretPath)
 	if err != nil {
 		panic(err)
@@ -34,7 +54,7 @@ func main() {
 	}
 
 	// Process the inventory, given the target name
-	data, err := inventory.Data("develop", predefinedVariables, true, false)
+	data, err := inventory.Data(target, predefinedVariables, false, true)
 	if err != nil {
 		panic(err)
 	}
@@ -63,7 +83,7 @@ func main() {
 	}
 
 	templateOutputPath := path.Join(outputPath, target)
-	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, nil)
+	templater, err := skipper.NewTemplater(fileSystem, templatePath, templateOutputPath, nil, nil)
 	if err != nil {
 		panic(err)
 	}
