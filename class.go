@@ -48,7 +48,7 @@ func NewClass(file *YamlFile, relativeClassPath string) (*Class, error) {
 		return nil, fmt.Errorf("class '%s' has more than one root-key which is currently not supported. Root Keys: %v", name, val.MapKeys())
 	}
 
-	fileName := strings.Split(path.Base(file.Path), ".yaml")[0]
+	fileName := strings.Split(path.Base(file.Path()), ".yaml")[0]
 	if !strings.EqualFold(fileName, fmt.Sprint(val.MapKeys()[0].String())) {
 		return nil, fmt.Errorf("the root key in the '%s' class differs from the filename: %s", val.MapKeys()[0], fileName)
 	}

@@ -3,6 +3,8 @@ package skipper
 import (
 	"fmt"
 	"io/fs"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -18,9 +20,9 @@ var (
 // File is just an arbitrary description of a path and the data of the File to which Path points to.
 // Note that the used filesystem is not relevant, only at the time of loading a File.
 type File struct {
-	Path  string
-	Mode  fs.FileMode
-	Bytes []byte
+	path  string
+	mode  fs.FileMode
+	bytes []byte
 }
 
 func NewFile(path string) (*File, error) {
@@ -28,31 +30,45 @@ func NewFile(path string) (*File, error) {
 		return nil, ErrFilePathEmpty
 	}
 
-	return &File{Path: path}, nil
-}
-
-// Exists returns true if the File exists in the given filesystem, false otherwise.
-func (f *File) Exists(fs afero.Fs) bool {
-	exists, err := afero.Exists(fs, f.Path)
-	if err != nil {
-		return false
+	f := &File{path: path}
+	if err := f.load(); err != nil {
+		return nil, err
 	}
-	return exists
+
+	return f, nil
 }
 
 // Load will attempt to read the File from the given filesystem implementation.
 // The loaded data is stored in `File.Bytes`
-func (f *File) Load(fs afero.Fs) (err error) {
-	f.Bytes, err = afero.ReadFile(fs, f.Path)
+func (f *File) load() (err error) {
+	f.bytes, err = ioutil.ReadFile(f.path)
 	if err != nil {
-		return fmt.Errorf("failed to Load %s: %w", f.Path, err)
+		return fmt.Errorf("failed to Load %s: %w", f.path, err)
 	}
-	info, err := fs.Stat(f.Path)
+	info, err := os.Stat(f.path)
 	if err != nil {
-		return fmt.Errorf("unable to stat file %s: %w", f.Path, err)
+		return fmt.Errorf("unable to stat file %s: %w", f.path, err)
 	}
-	f.Mode = info.Mode()
+	f.mode = info.Mode()
+
 	return nil
+}
+
+func (f *File) Bytes() []byte {
+	return f.bytes
+}
+
+func (f *File) Path() string {
+	return f.path
+}
+
+func (f *File) Mode() fs.FileMode {
+	return f.mode
+}
+func (f *File) BaseName() string {
+	name := filepath.Base(f.path)
+	name = strings.TrimSuffix(name, filepath.Ext(name))
+	return name
 }
 
 // YamlFileLoaderFunc is a function used to create specific types from a YamlFile and a relative path to that file.
@@ -81,7 +97,7 @@ func YamlFileLoader(fileSystem afero.Fs, basePath string, loader YamlFileLoaderF
 			continue
 		}
 
-		relativePath := strings.ReplaceAll(yamlFile.Path, basePath, "")
+		relativePath := strings.ReplaceAll(yamlFile.Path(), basePath, "")
 		relativePath = strings.TrimLeft(relativePath, "/")
 
 		err = loader(yamlFile, relativePath)
@@ -131,13 +147,8 @@ func CreateNewYamlFile(fs afero.Fs, path string, data []byte) (*YamlFile, error)
 // Load will first load the underlying raw file-data and then attempt to `yaml.Unmarshal` it into `Data`
 // The resulting Data is stored in `YamlFile.Data`.
 func (f *YamlFile) Load(fs afero.Fs) error {
-	err := f.File.Load(fs)
-	if err != nil {
-		return err
-	}
-
 	var d Data
-	if err := yaml.Unmarshal(f.Bytes, &d); err != nil {
+	if err := yaml.Unmarshal(f.Bytes(), &d); err != nil {
 		return err
 	}
 	f.Data = d
@@ -170,13 +181,8 @@ type SecretFile struct {
 }
 
 func (sf *SecretFile) LoadSecretFileData(fs afero.Fs) error {
-	err := sf.File.Load(fs)
-	if err != nil {
-		return err
-	}
-
 	var d SecretFileData
-	if err := yaml.Unmarshal(sf.Bytes, &d); err != nil {
+	if err := yaml.Unmarshal(sf.Bytes(), &d); err != nil {
 		return err
 	}
 	sf.Data = d

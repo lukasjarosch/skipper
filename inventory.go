@@ -275,9 +275,10 @@ func (inv *Inventory) Data(targetName string, predefinedVariables map[string]int
 
 		// attempt load all secret files and replace the variables with the actual values if revealSecrets is true
 		for _, secret := range secrets {
-			if !secret.Exists(inv.fs) {
-				return nil, fmt.Errorf("undefined secret '%s': file does not exist: %s", secret.FullName(), secret.SecretFile.Path)
-			}
+			// TODO: can this check be removed alltogether?
+			// if !secret.Exists(inv.fs) {
+			// 	return nil, fmt.Errorf("undefined secret '%s': file does not exist: %s", secret.FullName(), secret.SecretFile.Path)
+			// }
 
 			err = secret.Load(inv.fs)
 			if err != nil {

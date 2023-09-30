@@ -124,12 +124,12 @@ func (t *Templater) Execute(template *File, data any, allowNoValue bool, renameC
 	// if a renameConfig exists, rename possible files accordingly
 	if renameConfig != nil {
 		for _, rename := range renameConfig {
-			if strings.EqualFold(template.Path, rename.InputPath) {
+			if strings.EqualFold(template.Path(), rename.InputPath) {
 				return t.execute(template, data, rename.Filename, allowNoValue)
 			}
 		}
 	}
-	return t.execute(template, data, template.Path, allowNoValue)
+	return t.execute(template, data, template.Path(), allowNoValue)
 }
 
 // execute is the main rendering function for templates
@@ -138,24 +138,19 @@ func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoV
 	// if the template matches any IgnoreRegex, just copy the file to the targetPath
 	// without rendering it as template
 	for _, v := range t.IgnoreRegex {
-		if v.MatchString(tplFile.Path) {
-			err := CopyFileFsToFs(t.templateFs, t.outputFs, tplFile.Path, targetPath)
+		if v.MatchString(tplFile.Path()) {
+			err := CopyFileFsToFs(t.templateFs, t.outputFs, tplFile.Path(), targetPath)
 			if err != nil {
-				return fmt.Errorf("could not copy file %s: %w", tplFile.Path, err)
+				return fmt.Errorf("could not copy file %s: %w", tplFile.Path(), err)
 			}
 			return nil
 		}
 	}
 
-	err := tplFile.Load(t.templateFs)
+	tpl := template.New(tplFile.Path()).Funcs(t.templateFuncs)
+	tpl, err := tpl.Parse(string(tplFile.Bytes()))
 	if err != nil {
-		return err
-	}
-
-	tpl := template.New(tplFile.Path).Funcs(t.templateFuncs)
-	tpl, err = tpl.Parse(string(tplFile.Bytes))
-	if err != nil {
-		return fmt.Errorf("failed to parse template %s: %w", tplFile.Path, err)
+		return fmt.Errorf("failed to parse template %s: %w", tplFile.Path(), err)
 	}
 
 	out := new(bytes.Buffer)
@@ -172,13 +167,13 @@ func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoV
 
 		for scanner.Scan() {
 			if strings.Contains(scanner.Text(), "<no value>") {
-				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", tplFile.Path, line)
+				return fmt.Errorf("template '%s' uses variables with undefined value on line %d (line number is based on the rendered output and might not be accurate)", tplFile.Path(), line)
 			}
 			line++
 		}
 	}
 
-	err = WriteFile(t.outputFs, targetPath, out.Bytes(), tplFile.Mode)
+	err = WriteFile(t.outputFs, targetPath, out.Bytes(), tplFile.Mode())
 	if err != nil {
 		return err
 	}
@@ -201,7 +196,7 @@ func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, al
 				continue
 			}
 
-			outputFileName := filepath.Base(file.Path)
+			outputFileName := filepath.Base(file.Path())
 
 			// if the input path has a rename config, we need to change the outputFileName accordingly
 			for _, rename := range component.Renames {
@@ -234,7 +229,7 @@ func (t *Templater) ExecuteAll(data any, allowNoValue bool, renameConfig []Renam
 
 func (t *Templater) getTemplateByPath(path string) *File {
 	for _, file := range t.Files {
-		if file.Path == path {
+		if file.Path() == path {
 			return file
 		}
 	}
