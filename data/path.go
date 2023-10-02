@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -150,4 +151,27 @@ func (p Path) String() string {
 	path := NewPath(pathString)
 
 	return strings.Join(path, PathSeparator)
+}
+
+// SortPaths sorts a slice of Paths alphabetically.
+func SortPaths(input []Path) {
+	less := func(p1, p2 Path) bool {
+		minLen := len(p1)
+		if len(p2) < minLen {
+			minLen = len(p2)
+		}
+
+		for i := 0; i < minLen; i++ {
+			if p1[i] < p2[i] {
+				return true
+			} else if p1[i] > p2[i] {
+				return false
+			}
+		}
+
+		return len(p1) < len(p2)
+	}
+	sort.Slice(input, func(i, j int) bool {
+		return less(input[i], input[j])
+	})
 }

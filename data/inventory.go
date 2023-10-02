@@ -174,6 +174,9 @@ func (inv *Inventory) RegisteredNamespaces() []Path {
 
 		namespaces = append(namespaces, NewPath(ns))
 	}
+
+	SortPaths(namespaces)
+
 	return namespaces
 }
 
@@ -182,6 +185,9 @@ func (inv *Inventory) RegisteredPaths() []Path {
 	for path := range inv.pathRegistry {
 		paths = append(paths, NewPath(path))
 	}
+
+	SortPaths(paths)
+
 	return paths
 }
 
