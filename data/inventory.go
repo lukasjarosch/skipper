@@ -20,7 +20,7 @@ type Scope struct {
 type Inventory struct {
 	// namespaces is a map of namespace strings to a map of container names -> [Container]
 	namespaces map[string]map[string]*Container
-	// pathRegistry is a map of [Path]s strings to a bool (true) used to quickly check the existence of a path
+	// pathRegistry is a map of [Path]s strings to a [Scope] in which the value is located.
 	pathRegistry map[string]Scope
 }
 
@@ -79,8 +79,10 @@ func (inv *Inventory) RegisterContainer(namespace Path, container *Container) er
 
 	return nil
 }
+
 type Value struct {
-	Raw interface{}
+	Raw   interface{}
+	Scope Scope
 }
 
 func (val Value) String() string {
@@ -102,6 +104,79 @@ func (inv *Inventory) GetValue(path Path) (Value, error) {
 	}
 
 	return Value{
-		Raw: raw,
+		Raw:   raw,
+		Scope: scope,
 	}, nil
+}
+
+// type ResolveResult struct {
+// 	Namespace Path
+// 	Container *Container
+// }
+//
+// func (inv *Inventory) ResolvePath(path Path) ([]ResolveResult, error) {
+// 	log.Warn("attempting to resolve path", "path", path)
+// 	log.SetLevel(log.DebugLevel)
+//
+// 	results := make([]ResolveResult, 0)
+//
+// 	for _, namespace := range inv.RegisteredNamespaces() {
+// 		if !path.HasPrefix(namespace) {
+// 			continue
+// 		}
+//
+// 		// If the namespace matches, the next segment of the remaining path must
+// 		// be a valid container name within that namespace
+// 		//
+// 		// e.g. If the path to resolve is 'foo.bar.baz' and the namespace 'foo' exists,
+// 		// then there must be a container named 'bar' which can resolve 'bar.baz' or 'baz'
+// 		// (should not matter as the container name must also be it's root key)
+// 		remainingPath := path.StripPrefix(namespace)
+// 		containerName := remainingPath.First()
+//
+// 		container, containerExists := inv.namespaces[namespace.String()][containerName]
+// 		if !containerExists {
+// 			continue
+// 		}
+//
+// 		// TODO: what if the namespace 'foo.bar' exists and contains a container named 'baz'?
+// 		// Is it valid at this point to resolve the whole container?
+// 		// This is to be decided in the callee. If [Inventory.GetValue], then addressing
+// 		// a whole container is invalid, if [Inventory.GetContainer], then addressing into containers may be invalid.
+//
+// 		if !container.HasPath(remainingPath) {
+// 			continue
+// 		}
+//
+// 		results = append(results, ResolveResult{
+// 			Namespace: namespace,
+// 			Container: container,
+// 		})
+// 	}
+//
+// 	// If the path 'foo.bar.baz' is to be resolved,
+// 	// the [RootNamespace] could contain a [Container] named 'foo'
+// 	// which can resolve the path `foo.bar.baz`.
+// 	if container, exists := inv.namespaces[RootNamespace.String()][path.First()]; exists {
+// 		log.Errorf("the root namespace has a container '%s'", path.First())
+// 		_ = container
+// 	}
+//
+// 	// TODO: consider the root namespace as candidate
+//
+// 	return nil, nil
+// }
+
+func (inv *Inventory) RegisteredNamespaces() []Path {
+	namespaces := make([]Path, 0)
+	for ns := range inv.namespaces {
+		// the root namespace is always registered
+		// is also empty, so there is not much use returning it here
+		if ns == RootNamespace.String() {
+			continue
+		}
+
+		namespaces = append(namespaces, NewPath(ns))
+	}
+	return namespaces
 }
