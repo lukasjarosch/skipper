@@ -85,6 +85,10 @@ func (p Path) Append(a string) Path {
 	return append(p, a)
 }
 
+func (p Path) AppendPath(appendPath Path) Path {
+	return append(p, appendPath...)
+}
+
 // Prepend prepends the provided segment to the beginning of the Path and returns the modified Path.
 func (p Path) Prepend(a string) Path {
 	return append(Path{a}, p...)
@@ -113,6 +117,27 @@ func (p Path) StripPrefix(prefix Path) Path {
 	}
 
 	return p[len(prefix):]
+}
+
+// HasPrefix checks if the current Path has the specified prefix.
+// It returns true if the Path has the prefix; otherwise, it returns false.
+func (p Path) HasPrefix(prefix Path) bool {
+	if len(prefix) > len(p) {
+		return false
+	}
+
+	// an empty prefix is always there :shrug:
+	if len(prefix) == 0 {
+		return true
+	}
+
+	for i := range prefix {
+		if p[i] != prefix[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // String returns a string representation of a Path.
