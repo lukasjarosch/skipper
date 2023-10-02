@@ -112,6 +112,23 @@ func (container *Container) Set(path Path, value interface{}) error {
 	return nil
 }
 
+// AllPaths traverses over all data of the container and returns all Paths to values.
+func (container *Container) AllPaths() []Path {
+	// we're using a map to avoid the pescy append slice behaviour
+	pathMap := make(map[string]bool)
+	container.Data.Walk(func(value interface{}, path Path) error {
+		pathMap[path.String()] = true
+		return nil
+	})
+
+	var paths []Path
+	for p := range pathMap {
+		paths = append(paths, NewPath(p))
+	}
+
+	return paths
+}
+
 func (container *Container) HasPath(path Path) bool {
 	if _, err := container.Get(path); err != nil {
 		return false
