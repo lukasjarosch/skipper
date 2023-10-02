@@ -18,16 +18,25 @@ type ValueContainer interface {
 	Get(Path) (interface{}, error)
 }
 
-type Scope struct {
+// ValueScope defines a scope in which a value is valid / defined.
+type ValueScope struct {
+	// Namespace in which the value resides
 	Namespace Path
+	// The path within the container which points to the value
+	ContainerPath Path
+	// The actual container
 	Container ValueContainer
+}
+
+func (scope *ValueScope) AbsolutePath() Path {
+	return scope.Namespace.AppendPath(scope.ContainerPath)
 }
 
 type Inventory struct {
 	// namespaces is a map of namespace strings to a map of container names -> [Container]
 	namespaces map[string]map[string]ValueContainer
 	// pathRegistry is a map of [Path]s strings to a [Scope] in which the value is located.
-	pathRegistry map[string]Scope
+	pathRegistry map[string]ValueScope
 }
 
 func NewInventory() (*Inventory, error) {
@@ -37,7 +46,7 @@ func NewInventory() (*Inventory, error) {
 
 	return &Inventory{
 		namespaces:   ns,
-		pathRegistry: make(map[string]Scope),
+		pathRegistry: make(map[string]ValueScope),
 	}, nil
 }
 
@@ -74,9 +83,10 @@ func (inv *Inventory) RegisterContainer(namespace Path, container ValueContainer
 				return fmt.Errorf("path is already registered in namespace '%s' by container '%s': %s", scope.Namespace, scope.Container.Name(), checkPath)
 			}
 
-			inv.pathRegistry[checkPath.String()] = Scope{
-				Namespace: namespace,
-				Container: container,
+			inv.pathRegistry[checkPath.String()] = ValueScope{
+				Namespace:     namespace,
+				ContainerPath: path,
+				Container:     container,
 			}
 		}
 	}
@@ -88,7 +98,7 @@ func (inv *Inventory) RegisterContainer(namespace Path, container ValueContainer
 
 type Value struct {
 	Raw   interface{}
-	Scope Scope
+	Scope ValueScope
 }
 
 func (val Value) String() string {
