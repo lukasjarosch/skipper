@@ -12,22 +12,28 @@ var (
 	ErrEmptyContainerName = fmt.Errorf("container name empty")
 )
 
+type ValueContainer interface {
+	Name() string
+	AllPaths() []Path
+	Get(Path) (interface{}, error)
+}
+
 type Scope struct {
 	Namespace Path
-	Container *Container
+	Container ValueContainer
 }
 
 type Inventory struct {
 	// namespaces is a map of namespace strings to a map of container names -> [Container]
-	namespaces map[string]map[string]*Container
+	namespaces map[string]map[string]ValueContainer
 	// pathRegistry is a map of [Path]s strings to a [Scope] in which the value is located.
 	pathRegistry map[string]Scope
 }
 
 func NewInventory() (*Inventory, error) {
 	// create namespace registry and always register the root namespace
-	ns := make(map[string]map[string]*Container)
-	ns[RootNamespace.String()] = make(map[string]*Container)
+	ns := make(map[string]map[string]ValueContainer)
+	ns[RootNamespace.String()] = make(map[string]ValueContainer)
 
 	return &Inventory{
 		namespaces:   ns,
@@ -35,8 +41,8 @@ func NewInventory() (*Inventory, error) {
 	}, nil
 }
 
-func (inv *Inventory) RegisterContainer(namespace Path, container *Container) error {
-	if len(container.Name) == 0 {
+func (inv *Inventory) RegisterContainer(namespace Path, container ValueContainer) error {
+	if len(container.Name()) == 0 {
 		return ErrEmptyContainerName
 	}
 
@@ -48,12 +54,12 @@ func (inv *Inventory) RegisterContainer(namespace Path, container *Container) er
 
 	// ensure the namespace exists
 	if _, exists := inv.namespaces[namespaceString]; !exists {
-		inv.namespaces[namespaceString] = make(map[string]*Container)
+		inv.namespaces[namespaceString] = make(map[string]ValueContainer)
 	}
 
 	// existing containers are not overwritten
-	if _, exists := inv.namespaces[namespaceString][container.Name]; exists {
-		return fmt.Errorf("%s: %w", container.Name, ErrContainerExists)
+	if _, exists := inv.namespaces[namespaceString][container.Name()]; exists {
+		return fmt.Errorf("%s: %w", container.Name(), ErrContainerExists)
 	}
 
 	// Value paths must stay unique within the [Inventory]
@@ -65,7 +71,7 @@ func (inv *Inventory) RegisterContainer(namespace Path, container *Container) er
 			checkPath := namespace.AppendPath(path)
 
 			if scope, exists := inv.pathRegistry[checkPath.String()]; exists {
-				return fmt.Errorf("path is already registered in namespace '%s' by container '%s': %s", scope.Namespace, scope.Container.Name, checkPath)
+				return fmt.Errorf("path is already registered in namespace '%s' by container '%s': %s", scope.Namespace, scope.Container.Name(), checkPath)
 			}
 
 			inv.pathRegistry[checkPath.String()] = Scope{
@@ -75,7 +81,7 @@ func (inv *Inventory) RegisterContainer(namespace Path, container *Container) er
 		}
 	}
 
-	inv.namespaces[namespace.String()][container.Name] = container
+	inv.namespaces[namespace.String()][container.Name()] = container
 
 	return nil
 }
@@ -111,7 +117,7 @@ func (inv *Inventory) GetValue(path Path) (Value, error) {
 
 // type ResolveResult struct {
 // 	Namespace Path
-// 	Container *Container
+// 	Container ValueContainer
 // }
 //
 // func (inv *Inventory) ResolvePath(path Path) ([]ResolveResult, error) {

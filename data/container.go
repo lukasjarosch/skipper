@@ -38,7 +38,7 @@ type FileCodec interface {
 // Container provides access to the underlying data within the file.
 type Container struct {
 	// Name of the data container the name of the underlying file without file extension
-	Name string
+	name string
 	// File is the underlying file representation
 	// which this container is based on.
 	File File
@@ -65,7 +65,7 @@ func NewContainer(file File, codec FileCodec) (*Container, error) {
 	name = name[:len(name)-len(filepath.Ext(name))]
 
 	container := &Container{
-		Name:    name,
+		name:    name,
 		File:    file,
 		Data:    data,
 		RootKey: file.BaseName(),
@@ -146,4 +146,8 @@ func (container *Container) HasPath(path Path) bool {
 		return false
 	}
 	return true
+}
+
+func (container *Container) Name() string {
+	return container.name
 }
