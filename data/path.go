@@ -8,9 +8,10 @@ import (
 
 var (
 	PathSeparator string = "."
-
-	ErrEmptyPath error = fmt.Errorf("empty path")
+	ErrEmptyPath  error  = fmt.Errorf("empty path")
 )
+
+const WildcardIdentifier = "*"
 
 // Path is used to uniquely identify a value within [Map]
 type Path []string

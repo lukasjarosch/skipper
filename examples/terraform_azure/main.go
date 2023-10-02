@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/lukasjarosch/skipper"
 	"github.com/lukasjarosch/skipper/codec"
@@ -51,6 +52,7 @@ func main() {
 
 	// REFACTOR ZONE ===================================================
 	{
+		log.SetLevel(log.DebugLevel)
 
 		classFiles, err := skipper.DiscoverFiles(classPath, []string{".yml", ".yaml"})
 		if err != nil {
@@ -66,6 +68,8 @@ func main() {
 			classContainer = append(classContainer, class)
 			log.Info("created container from file", "name", class.Name)
 		}
+
+		// TODO: validate the container agains rootKey rule and other skipper specific validations
 
 		inventory, err := data.NewInventory()
 		if err != nil {
@@ -92,7 +96,13 @@ func main() {
 			log.Info("registered container", "namespace", namespace, "name", container.Name)
 		}
 
-		_ = inventory
+		p := data.NewPath("components.documentation.skipper.components.0.output_path")
+		val, err := inventory.GetValue(p)
+		if err != nil {
+			log.Fatalf("cannot resolve path %s: %s", p, err)
+		}
+		log.Warnf("%s: %s", p, val)
+		spew.Dump(val.Scope.Container.Get(data.NewPath("*")))
 
 	}
 	return

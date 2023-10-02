@@ -87,6 +87,18 @@ func NewContainer(file File, codec FileCodec) (*Container, error) {
 
 // TODO: wildcard support (e.g. 'foo.*')
 func (container *Container) Get(path Path) (val interface{}, err error) {
+	// We support wildcard paths where the wildcard segment is the last path segment
+	// For example: `foo.bar.*` will return anything under `foo.bar`
+	// Currently inline wildcards (e.g. `foo.*.baz`) are not supported.
+	if path.Last() == WildcardIdentifier {
+		newPath := NewPathVar(path[:len(path)-1]...)
+		val, err := container.Data.GetPath(newPath)
+		if err != nil {
+			return nil, ErrPathNotFound{Path: path, Err: err}
+		}
+		return val, nil
+	}
+
 	val, err = container.Data.GetPath(path)
 	if err != nil {
 		return nil, ErrPathNotFound{Path: path, Err: err}
