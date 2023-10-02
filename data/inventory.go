@@ -37,7 +37,36 @@ func NewInventory() (*Inventory, error) {
 	}, nil
 }
 
-func (inv *Inventory) RegisterContainer(namespace Path, container Container) error {
+type RegisterOpts struct {
+	ReplaceExisting bool
+}
+type RegisterOption func(*RegisterOpts)
+
+func ReplaceContainer() RegisterOption {
+	return func(ro *RegisterOpts) {
+		ro.ReplaceExisting = true
+	}
+}
+
+func (inv *Inventory) UnregisterContainer(namespace Path, containerName string) {
+	if container, exists := inv.namespaces[namespace.String()][containerName]; exists {
+		for _, path := range container.AllPaths() {
+			delete(inv.pathRegistry, namespace.AppendPath(path).String())
+		}
+
+		delete(inv.namespaces[namespace.String()], containerName)
+	}
+}
+
+func (inv *Inventory) RegisterContainer(namespace Path, container Container, options ...RegisterOption) error {
+	// handle options
+	opts := RegisterOpts{
+		ReplaceExisting: false,
+	}
+	for _, opt := range options {
+		opt(&opts)
+	}
+
 	if len(container.Name()) == 0 {
 		return ErrEmptyContainerName
 	}
@@ -53,9 +82,13 @@ func (inv *Inventory) RegisterContainer(namespace Path, container Container) err
 		inv.namespaces[namespaceString] = make(map[string]Container)
 	}
 
-	// existing containers are not overwritten
+	// If the container already exists unregister it if the ReplaceExisting option is set,
+	// otherwise fail (default)
 	if _, exists := inv.namespaces[namespaceString][container.Name()]; exists {
-		return fmt.Errorf("%s: %w", container.Name(), ErrContainerExists)
+		if !opts.ReplaceExisting {
+			return fmt.Errorf("%s: %w", container.Name(), ErrContainerExists)
+		}
+		inv.UnregisterContainer(namespace, container.Name())
 	}
 
 	// Value paths must stay unique within the [Inventory]
@@ -112,6 +145,14 @@ func (inv *Inventory) RegisteredNamespaces() []Path {
 		namespaces = append(namespaces, NewPath(ns))
 	}
 	return namespaces
+}
+
+func (inv *Inventory) RegisteredPaths() []Path {
+	var paths []Path
+	for path := range inv.pathRegistry {
+		paths = append(paths, NewPath(path))
+	}
+	return paths
 }
 
 func (val Value) String() string {
