@@ -44,23 +44,17 @@ var (
 
 type RawContainer struct {
 	// Name of the data container the name of the underlying file without file extension
+	// The name must also be the root key within the data [Map] in order to be consistent.
 	name string
 	// Data is the decoded content of the file, represented as [Map].
 	Data Map
-	// A container can only have one root key which
-	// must match the filename (without extension) of the FileProvider.
-	// The RootKey is transparently added to all paths when working with the container.
-	RootKey string
 	// The Codec used to en-/decode the contents of the file into [Map].
 	Codec FileCodec
 }
 
-func NewRawContainer(name string, data Map, rootKey string, codec FileCodec) (*RawContainer, error) {
+func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContainer, error) {
 	if name == "" {
 		return nil, ErrEmptyContainerName
-	}
-	if rootKey == "" {
-		return nil, ErrEmptyRootKey
 	}
 	if data == nil {
 		return nil, ErrNilData
@@ -69,16 +63,21 @@ func NewRawContainer(name string, data Map, rootKey string, codec FileCodec) (*R
 		return nil, ErrNilCodec
 	}
 
+	dataByte, err := codec.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	dataMap, err := codec.Unmarshal(dataByte)
+
 	container := &RawContainer{
-		name:    name,
-		Codec:   codec,
-		Data:    data,
-		RootKey: rootKey,
+		name:  name,
+		Codec: codec,
+		Data:  dataMap,
 	}
 
-	err := data.Walk(func(value interface{}, path Path) error {
-		if !strings.EqualFold(path.First(), container.RootKey) {
-			return fmt.Errorf("invalid root key: expected '%s', got '%s'", container.RootKey, path.First())
+	err = dataMap.Walk(func(value interface{}, path Path) error {
+		if !strings.EqualFold(path.First(), container.name) {
+			return fmt.Errorf("invalid root key: expected '%s', got '%s'", container.name, path.First())
 		}
 		return nil
 	})
@@ -158,7 +157,7 @@ func NewFileContainer(file File, codec FileCodec) (*FileContainer, error) {
 	name := filepath.Base(file.Path())
 	name = name[:len(name)-len(filepath.Ext(name))]
 
-	rawContainer, err := NewRawContainer(name, data, file.BaseName(), codec)
+	rawContainer, err := NewRawContainer(name, data, codec)
 	if err != nil {
 		return nil, err
 	}
