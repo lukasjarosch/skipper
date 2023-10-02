@@ -8,41 +8,28 @@ var (
 	// RootNamespace is defined by an empty path
 	RootNamespace = make(Path, 0)
 
-	ErrContainerExists    = fmt.Errorf("container already exists")
-	ErrEmptyContainerName = fmt.Errorf("container name empty")
+	ErrContainerExists = fmt.Errorf("container already exists")
 )
 
-type ValueContainer interface {
+// Container defines an interface of a container holding values used by the [Inventory].
+// This can be a regular [FileContainer], a dynamic container or any custom implementation.
+type Container interface {
 	Name() string
 	AllPaths() []Path
 	Get(Path) (interface{}, error)
 }
 
-// ValueScope defines a scope in which a value is valid / defined.
-type ValueScope struct {
-	// Namespace in which the value resides
-	Namespace Path
-	// The path within the container which points to the value
-	ContainerPath Path
-	// The actual container
-	Container ValueContainer
-}
-
-func (scope *ValueScope) AbsolutePath() Path {
-	return scope.Namespace.AppendPath(scope.ContainerPath)
-}
-
 type Inventory struct {
 	// namespaces is a map of namespace strings to a map of container names -> [Container]
-	namespaces map[string]map[string]ValueContainer
+	namespaces map[string]map[string]Container
 	// pathRegistry is a map of [Path]s strings to a [Scope] in which the value is located.
 	pathRegistry map[string]ValueScope
 }
 
 func NewInventory() (*Inventory, error) {
 	// create namespace registry and always register the root namespace
-	ns := make(map[string]map[string]ValueContainer)
-	ns[RootNamespace.String()] = make(map[string]ValueContainer)
+	ns := make(map[string]map[string]Container)
+	ns[RootNamespace.String()] = make(map[string]Container)
 
 	return &Inventory{
 		namespaces:   ns,
@@ -50,7 +37,7 @@ func NewInventory() (*Inventory, error) {
 	}, nil
 }
 
-func (inv *Inventory) RegisterContainer(namespace Path, container ValueContainer) error {
+func (inv *Inventory) RegisterContainer(namespace Path, container Container) error {
 	if len(container.Name()) == 0 {
 		return ErrEmptyContainerName
 	}
@@ -63,7 +50,7 @@ func (inv *Inventory) RegisterContainer(namespace Path, container ValueContainer
 
 	// ensure the namespace exists
 	if _, exists := inv.namespaces[namespaceString]; !exists {
-		inv.namespaces[namespaceString] = make(map[string]ValueContainer)
+		inv.namespaces[namespaceString] = make(map[string]Container)
 	}
 
 	// existing containers are not overwritten
@@ -96,25 +83,13 @@ func (inv *Inventory) RegisterContainer(namespace Path, container ValueContainer
 	return nil
 }
 
-type Value struct {
-	Raw   interface{}
-	Scope ValueScope
-}
-
-func (val Value) String() string {
-	return fmt.Sprint(val.Raw)
-}
-
 func (inv *Inventory) GetValue(path Path) (Value, error) {
 	scope, exists := inv.pathRegistry[path.String()]
 	if !exists {
 		return Value{}, fmt.Errorf("path does not exist: %s", path)
 	}
 
-	// remove the namespace from the path in order to query the container itself
-	searchPath := path.StripPrefix(scope.Namespace)
-
-	raw, err := scope.Container.Get(searchPath)
+	raw, err := scope.Container.Get(scope.ContainerPath)
 	if err != nil {
 		return Value{}, err
 	}
@@ -124,64 +99,6 @@ func (inv *Inventory) GetValue(path Path) (Value, error) {
 		Scope: scope,
 	}, nil
 }
-
-// type ResolveResult struct {
-// 	Namespace Path
-// 	Container ValueContainer
-// }
-//
-// func (inv *Inventory) ResolvePath(path Path) ([]ResolveResult, error) {
-// 	log.Warn("attempting to resolve path", "path", path)
-// 	log.SetLevel(log.DebugLevel)
-//
-// 	results := make([]ResolveResult, 0)
-//
-// 	for _, namespace := range inv.RegisteredNamespaces() {
-// 		if !path.HasPrefix(namespace) {
-// 			continue
-// 		}
-//
-// 		// If the namespace matches, the next segment of the remaining path must
-// 		// be a valid container name within that namespace
-// 		//
-// 		// e.g. If the path to resolve is 'foo.bar.baz' and the namespace 'foo' exists,
-// 		// then there must be a container named 'bar' which can resolve 'bar.baz' or 'baz'
-// 		// (should not matter as the container name must also be it's root key)
-// 		remainingPath := path.StripPrefix(namespace)
-// 		containerName := remainingPath.First()
-//
-// 		container, containerExists := inv.namespaces[namespace.String()][containerName]
-// 		if !containerExists {
-// 			continue
-// 		}
-//
-// 		// TODO: what if the namespace 'foo.bar' exists and contains a container named 'baz'?
-// 		// Is it valid at this point to resolve the whole container?
-// 		// This is to be decided in the callee. If [Inventory.GetValue], then addressing
-// 		// a whole container is invalid, if [Inventory.GetContainer], then addressing into containers may be invalid.
-//
-// 		if !container.HasPath(remainingPath) {
-// 			continue
-// 		}
-//
-// 		results = append(results, ResolveResult{
-// 			Namespace: namespace,
-// 			Container: container,
-// 		})
-// 	}
-//
-// 	// If the path 'foo.bar.baz' is to be resolved,
-// 	// the [RootNamespace] could contain a [Container] named 'foo'
-// 	// which can resolve the path `foo.bar.baz`.
-// 	if container, exists := inv.namespaces[RootNamespace.String()][path.First()]; exists {
-// 		log.Errorf("the root namespace has a container '%s'", path.First())
-// 		_ = container
-// 	}
-//
-// 	// TODO: consider the root namespace as candidate
-//
-// 	return nil, nil
-// }
 
 func (inv *Inventory) RegisteredNamespaces() []Path {
 	namespaces := make([]Path, 0)
@@ -195,4 +112,8 @@ func (inv *Inventory) RegisteredNamespaces() []Path {
 		namespaces = append(namespaces, NewPath(ns))
 	}
 	return namespaces
+}
+
+func (val Value) String() string {
+	return fmt.Sprint(val.Raw)
 }

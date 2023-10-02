@@ -35,13 +35,16 @@ type FileCodec interface {
 	Marshal(in interface{}) ([]byte, error)
 }
 
-// Container provides access to the underlying data within the file.
-type Container struct {
+var (
+	ErrEmptyContainerName = fmt.Errorf("container name empty")
+	ErrEmptyRootKey       = fmt.Errorf("empty root key")
+	ErrNilData            = fmt.Errorf("data is nil")
+	ErrNilCodec           = fmt.Errorf("codec is nil")
+)
+
+type RawContainer struct {
 	// Name of the data container the name of the underlying file without file extension
 	name string
-	// File is the underlying file representation
-	// which this container is based on.
-	File File
 	// Data is the decoded content of the file, represented as [Map].
 	Data Map
 	// A container can only have one root key which
@@ -52,27 +55,28 @@ type Container struct {
 	Codec FileCodec
 }
 
-// NewContainer creates a new container based on the given DataFileProvider.
-// The referenceDirs are used to resolve YAML aliases and anchors
-func NewContainer(file File, codec FileCodec) (*Container, error) {
-	data, err := codec.Unmarshal(file.Bytes())
-	if err != nil {
-		return nil, err
+func NewRawContainer(name string, data Map, rootKey string, codec FileCodec) (*RawContainer, error) {
+	if name == "" {
+		return nil, ErrEmptyContainerName
+	}
+	if rootKey == "" {
+		return nil, ErrEmptyRootKey
+	}
+	if data == nil {
+		return nil, ErrNilData
+	}
+	if codec == nil {
+		return nil, ErrNilCodec
 	}
 
-	// name of the container is the basename of the file
-	name := filepath.Base(file.Path())
-	name = name[:len(name)-len(filepath.Ext(name))]
-
-	container := &Container{
+	container := &RawContainer{
 		name:    name,
-		File:    file,
-		Data:    data,
-		RootKey: file.BaseName(),
 		Codec:   codec,
+		Data:    data,
+		RootKey: rootKey,
 	}
 
-	err = data.Walk(func(value interface{}, path Path) error {
+	err := data.Walk(func(value interface{}, path Path) error {
 		if !strings.EqualFold(path.First(), container.RootKey) {
 			return fmt.Errorf("invalid root key: expected '%s', got '%s'", container.RootKey, path.First())
 		}
@@ -85,8 +89,7 @@ func NewContainer(file File, codec FileCodec) (*Container, error) {
 	return container, nil
 }
 
-// TODO: wildcard support (e.g. 'foo.*')
-func (container *Container) Get(path Path) (val interface{}, err error) {
+func (container *RawContainer) Get(path Path) (val interface{}, err error) {
 	// We support wildcard paths where the wildcard segment is the last path segment
 	// For example: `foo.bar.*` will return anything under `foo.bar`
 	// Currently inline wildcards (e.g. `foo.*.baz`) are not supported.
@@ -107,25 +110,8 @@ func (container *Container) Get(path Path) (val interface{}, err error) {
 	return val, nil
 }
 
-// TODO: if the first path segment is NOT the root key, make sure to append it (maybe this should be part of the container)
-func (container *Container) Set(path Path, value interface{}) error {
-
-	//
-	byteValue, err := container.Codec.Marshal(value)
-	if err != nil {
-		return err
-	}
-	mapValue, err := container.Codec.Unmarshal(byteValue)
-	if err != nil {
-		return err
-	}
-	_ = mapValue
-
-	return nil
-}
-
 // AllPaths traverses over all data of the container and returns all Paths to values.
-func (container *Container) AllPaths() []Path {
+func (container *RawContainer) AllPaths() []Path {
 	// we're using a map to avoid the pescy append slice behaviour
 	pathMap := make(map[string]bool)
 	container.Data.Walk(func(value interface{}, path Path) error {
@@ -141,13 +127,63 @@ func (container *Container) AllPaths() []Path {
 	return paths
 }
 
-func (container *Container) HasPath(path Path) bool {
+func (container *RawContainer) HasPath(path Path) bool {
 	if _, err := container.Get(path); err != nil {
 		return false
 	}
 	return true
 }
 
-func (container *Container) Name() string {
+func (container *RawContainer) Name() string {
 	return container.name
+}
+
+// FileContainer provides access to the underlying data within the file.
+type FileContainer struct {
+	*RawContainer
+	// File is the underlying file representation
+	// which this container is based on.
+	File File
+}
+
+// NewFileContainer creates a new container based on the given DataFileProvider.
+// The referenceDirs are used to resolve YAML aliases and anchors
+func NewFileContainer(file File, codec FileCodec) (*FileContainer, error) {
+	data, err := codec.Unmarshal(file.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	// name of the container is the basename of the file
+	name := filepath.Base(file.Path())
+	name = name[:len(name)-len(filepath.Ext(name))]
+
+	rawContainer, err := NewRawContainer(name, data, file.BaseName(), codec)
+	if err != nil {
+		return nil, err
+	}
+
+	container := &FileContainer{
+		RawContainer: rawContainer,
+		File:         file,
+	}
+
+	return container, nil
+}
+
+// TODO: if the first path segment is NOT the root key, make sure to append it (maybe this should be part of the container)
+func (container *FileContainer) Set(path Path, value interface{}) error {
+
+	//
+	byteValue, err := container.Codec.Marshal(value)
+	if err != nil {
+		return err
+	}
+	mapValue, err := container.Codec.Unmarshal(byteValue)
+	if err != nil {
+		return err
+	}
+	_ = mapValue
+
+	return nil
 }
