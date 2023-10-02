@@ -79,3 +79,29 @@ func (inv *Inventory) RegisterContainer(namespace Path, container *Container) er
 
 	return nil
 }
+type Value struct {
+	Raw interface{}
+}
+
+func (val Value) String() string {
+	return fmt.Sprint(val.Raw)
+}
+
+func (inv *Inventory) GetValue(path Path) (Value, error) {
+	scope, exists := inv.pathRegistry[path.String()]
+	if !exists {
+		return Value{}, fmt.Errorf("path does not exist: %s", path)
+	}
+
+	// remove the namespace from the path in order to query the container itself
+	searchPath := path.StripPrefix(scope.Namespace)
+
+	raw, err := scope.Container.Get(searchPath)
+	if err != nil {
+		return Value{}, err
+	}
+
+	return Value{
+		Raw: raw,
+	}, nil
+}
