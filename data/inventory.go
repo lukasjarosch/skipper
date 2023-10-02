@@ -25,6 +25,8 @@ type Inventory struct {
 	namespaces map[string]map[string]Container
 	// pathRegistry is a map of [Path]s strings to a [ValueScope] in which the value is located.
 	pathRegistry map[string]ValueScope
+	// prefix all paths with this, if len==0 this is disabled
+	prefix Path
 }
 
 func NewInventory() (*Inventory, error) {
@@ -36,6 +38,14 @@ func NewInventory() (*Inventory, error) {
 		namespaces:   ns,
 		pathRegistry: make(map[string]ValueScope),
 	}, nil
+}
+
+func (inv *Inventory) Scoped(prefix Path) *Inventory {
+	return &Inventory{
+		namespaces:   inv.namespaces,
+		pathRegistry: inv.pathRegistry,
+		prefix:       prefix,
+	}
 }
 
 type RegisterOpts struct {
@@ -56,7 +66,16 @@ func Patch() RegisterOption {
 	}
 }
 
+func (inv *Inventory) prefixed(path Path) Path {
+	if len(inv.prefix) == 0 {
+		return path
+	}
+	return inv.prefix.AppendPath(path)
+}
+
 func (inv *Inventory) UnregisterContainer(namespace Path, containerName string) {
+	namespace = inv.prefixed(namespace)
+
 	if container, exists := inv.namespaces[namespace.String()][containerName]; exists {
 		for _, path := range container.AllPaths() {
 			delete(inv.pathRegistry, namespace.AppendPath(path).String())
@@ -67,6 +86,8 @@ func (inv *Inventory) UnregisterContainer(namespace Path, containerName string) 
 }
 
 func (inv *Inventory) RegisterContainer(namespace Path, container Container, options ...RegisterOption) error {
+	namespace = inv.prefixed(namespace)
+
 	if container == nil {
 		return ErrNilContainer
 	}
@@ -85,7 +106,7 @@ func (inv *Inventory) RegisterContainer(namespace Path, container Container, opt
 
 	// just to be explicit about it, if the namespace is of length 0, it is always the root namespace
 	if len(namespace) == 0 {
-		namespace = RootNamespace
+		namespace = inv.prefixed(RootNamespace)
 	}
 	namespaceString := namespace.String()
 
@@ -112,11 +133,11 @@ func (inv *Inventory) RegisterContainer(namespace Path, container Container, opt
 	{
 		for _, path := range container.AllPaths() {
 			// we're only interested in the absolute paths (namespace + path within container)
-			absPath := namespace.AppendPath(path)
+			absPath := inv.prefixed(namespace).AppendPath(path)
 
 			if scope, exists := inv.pathRegistry[absPath.String()]; exists {
 				if !opts.Patch {
-					return fmt.Errorf("path is already registered in namespace '%s' by container '%s': %s", scope.Namespace, scope.Container.Name(), absPath)
+					return fmt.Errorf("path is already registered in namespace '%s' by container '%s': %s", inv.prefixed(scope.Namespace), scope.Container.Name(), absPath)
 				}
 
 				// the path exists, but the patch option is set
@@ -147,6 +168,8 @@ func (inv *Inventory) MustGetValue(path Path) Value {
 }
 
 func (inv *Inventory) GetValue(path Path) (Value, error) {
+	path = inv.prefixed(path)
+
 	scope, exists := inv.pathRegistry[path.String()]
 	if !exists {
 		return Value{}, fmt.Errorf("path does not exist: %s", path)
@@ -166,13 +189,24 @@ func (inv *Inventory) GetValue(path Path) (Value, error) {
 func (inv *Inventory) RegisteredNamespaces() []Path {
 	namespaces := make([]Path, 0)
 	for ns := range inv.namespaces {
+		nsp := NewPath(ns)
+
+		// if we are in a scoped inventory all namespaces without the prefix
+		// must be removed and those with the prefix must have it removed
+		if len(inv.prefix) > 0 {
+			if !nsp.HasPrefix(inv.prefix) {
+				continue
+			}
+			nsp = nsp.StripPrefix(inv.prefix)
+		}
+
 		// the root namespace is always registered
 		// is also empty, so there is not much use returning it here
-		if ns == RootNamespace.String() {
+		if nsp.String() == RootNamespace.String() {
 			continue
 		}
 
-		namespaces = append(namespaces, NewPath(ns))
+		namespaces = append(namespaces, nsp)
 	}
 
 	SortPaths(namespaces)
@@ -183,7 +217,18 @@ func (inv *Inventory) RegisteredNamespaces() []Path {
 func (inv *Inventory) RegisteredPaths() []Path {
 	var paths []Path
 	for path := range inv.pathRegistry {
-		paths = append(paths, NewPath(path))
+		ppath := NewPath(path)
+
+		// if we are in a scoped inventory all paths without the prefix
+		// must be removed and those with the prefix must have it removed
+		if len(inv.prefix) > 0 {
+			if !ppath.HasPrefix(inv.prefix) {
+				continue
+			}
+			ppath = ppath.StripPrefix(inv.prefix)
+		}
+
+		paths = append(paths, ppath)
 	}
 
 	SortPaths(paths)
