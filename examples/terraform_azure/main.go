@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/davecgh/go-spew/spew"
 
 	"github.com/lukasjarosch/skipper"
 	"github.com/lukasjarosch/skipper/codec"
@@ -59,14 +58,14 @@ func main() {
 			log.Fatal(fmt.Errorf("error discovering class files: %w", err))
 		}
 
-		var classContainer []*data.Container
+		var classContainer []*data.FileContainer
 		for _, file := range classFiles {
-			class, err := data.NewContainer(file, codec.NewYamlCodec())
+			class, err := data.NewFileContainer(file, codec.NewYamlCodec())
 			if err != nil {
 				log.Fatal(fmt.Errorf("cannot create data container from '%s': %w", file.Path(), err))
 			}
 			classContainer = append(classContainer, class)
-			log.Info("created container from file", "name", class.Name)
+			log.Info("created container from file", "name", class.Name())
 		}
 
 		// TODO: validate the container agains rootKey rule and other skipper specific validations
@@ -93,18 +92,92 @@ func main() {
 			if err != nil {
 				log.Fatalf("failed to register container: %s", err)
 			}
-			log.Info("registered container", "namespace", namespace, "name", container.Name)
+			log.Info("registered container", "namespace", namespace, "name", container.Name())
 		}
 
-		p := data.NewPath("components.documentation.skipper.components.0.output_path")
-		val, err := inventory.GetValue(p)
-		if err != nil {
-			log.Fatalf("cannot resolve path %s: %s", p, err)
-		}
-		log.Warnf("%s: %s", p, val)
-		spew.Dump(val.Scope.Container.Get(data.NewPath("*")))
+		// p := data.NewPath("components.documentation.skipper.components.0.output_path")
+		// val, err := inventory.GetValue(p)
+		// if err != nil {
+		// 	log.Fatalf("cannot resolve path %s: %s", p, err)
+		// }
+		// log.Warnf("%s: %s", p, val)
+		// spew.Dump(val.Scope.Container.Get(data.NewPath("*")))
 
+		// overwrite container tests
+		{
+			// test := struct {
+			// 	Foo data.Map `yaml:"common"`
+			// }{
+			// 	Foo: data.Map{
+			// 		"bar": "baz",
+			// 	},
+			// }
+			//
+			// container, err := data.NewRawContainer("common", test, codec.NewYamlCodec())
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
+			//
+			// namespace := data.NewPath("azure")
+			// err = inventory.RegisterContainer(namespace, container, data.ReplaceContainer())
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
+			// log.Info("registered container", "namespace", namespace, "name", container.Name(), "replace", true)
+			// spew.Dump(inventory.GetValue(data.NewPath("azure.common.bar")))
+		}
+
+		type Dummy struct {
+			Data data.Map `yaml:"data"`
+		}
+
+		// container patching
+		{
+			originalData := Dummy{
+				Data: data.Map{
+					"foo": data.Map{
+						"bar": data.Map{
+							"baz": "qux",
+							"old": "hello",
+						},
+					},
+				},
+			}
+			patchedData := Dummy{
+				Data: data.Map{
+					"foo": data.Map{
+						"bar": data.Map{
+							"baz": "CHANGED",
+							"new": "ADDED",
+						},
+					},
+				},
+			}
+
+			originalContainer, _ := data.NewRawContainer("data", originalData, codec.NewYamlCodec())
+			patchedContainer, _ := data.NewRawContainer("data", patchedData, codec.NewYamlCodec())
+
+			// register original (to be patched) container
+			err = inventory.RegisterContainer(data.NewPath("patch"), originalContainer)
+			if err != nil {
+				log.Error(err)
+			}
+			log.Warn(inventory.MustGetValue(data.NewPath("patch.data.foo.bar.baz")))
+
+			// patch the original container with the patchedContainer
+			err = inventory.RegisterContainer(data.NewPath("patch"), patchedContainer, data.Patch())
+			if err != nil {
+				log.Error(err)
+			}
+			log.Warn(inventory.MustGetValue(data.NewPath("patch.data.foo.bar.baz")))
+			log.Warn(inventory.MustGetValue(data.NewPath("patch.data.foo.bar.new")))
+			log.Warn(inventory.MustGetValue(data.NewPath("patch.data.foo.bar.old")))
+
+			// TODO: now patch the container with a different (different name, different namespace) container
+
+		}
 	}
+
 	return
 	// =================================================================
 
