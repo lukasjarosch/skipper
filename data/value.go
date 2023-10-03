@@ -1,10 +1,16 @@
 package data
 
+import "fmt"
+
 // Value represents any value within the [Inventory]
 // It has a [ValueScope] which determines the scope in which the value is defined.
 type Value struct {
 	Raw   interface{}
 	Scope ValueScope
+}
+
+func (val Value) String() string {
+	return fmt.Sprint(val.Raw)
 }
 
 // ValueScope defines a scope in which a value is valid / defined.
@@ -21,6 +27,9 @@ type ValueScope struct {
 // AbsolutePath returns the absolute path to this value.
 // This is the namespace + ContainerPath.
 // The AbsolutePath can be used to retrieve the value from the [Inventory]
-func (scope *ValueScope) AbsolutePath() Path {
+//
+// Note that the absolute path does not work with a scoped Inventory, only with the root Inventory.
+// If you want to use it in a scoped inventory you need to strip the prefix yourself.
+func (scope ValueScope) AbsolutePath() Path {
 	return scope.Namespace.AppendPath(scope.ContainerPath)
 }

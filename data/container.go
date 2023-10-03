@@ -36,10 +36,11 @@ type FileCodec interface {
 }
 
 var (
-	ErrEmptyContainerName = fmt.Errorf("container name empty")
-	ErrEmptyRootKey       = fmt.Errorf("empty root key")
-	ErrNilData            = fmt.Errorf("data is nil")
-	ErrNilCodec           = fmt.Errorf("codec is nil")
+	ErrEmptyContainerName      = fmt.Errorf("container name empty")
+	ErrEmptyRootKey            = fmt.Errorf("empty root key")
+	ErrNilData                 = fmt.Errorf("data is nil")
+	ErrNilCodec                = fmt.Errorf("codec is nil")
+	ErrCannotSetNewPathTooDeep = fmt.Errorf("cannot set path with new path longer than one path segment")
 )
 
 type RawContainer struct {
@@ -133,6 +134,34 @@ func (container *RawContainer) HasPath(path Path) bool {
 	return true
 }
 
+// TODO: if the first path segment is NOT the root key, make sure to append it (maybe this should be part of the container)
+func (container *RawContainer) Set(path Path, value interface{}) error {
+	if !container.Data.CanSetPath(path) {
+		return fmt.Errorf("%w: %s", ErrCannotSetNewPathTooDeep, path)
+	}
+
+	// attempt to marshal and unmarshal the value in case
+	// it is a complex type which needs to be encoded properly
+	// this function will not return an error but only the unmodified input value
+	encode := func(in interface{}) interface{} {
+		byteValue, err := container.Codec.Marshal(value)
+		if err != nil {
+			return in
+		}
+		mapValue, err := container.Codec.Unmarshal(byteValue)
+		if err != nil {
+			return in
+		}
+		return mapValue
+	}
+
+	err := container.Data.SetPath(path, encode(value))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (container *RawContainer) Name() string {
 	return container.name
 }
@@ -168,21 +197,4 @@ func NewFileContainer(file File, codec FileCodec) (*FileContainer, error) {
 	}
 
 	return container, nil
-}
-
-// TODO: if the first path segment is NOT the root key, make sure to append it (maybe this should be part of the container)
-func (container *FileContainer) Set(path Path, value interface{}) error {
-
-	//
-	byteValue, err := container.Codec.Marshal(value)
-	if err != nil {
-		return err
-	}
-	mapValue, err := container.Codec.Unmarshal(byteValue)
-	if err != nil {
-		return err
-	}
-	_ = mapValue
-
-	return nil
 }

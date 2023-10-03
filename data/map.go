@@ -91,6 +91,25 @@ func (data Map) GetPath(path Path) (tree interface{}, err error) {
 	return tree, nil
 }
 
+// CanSetPath determines whether the given Path can be used within [SetPath]
+// to write to [Map].
+// We currently only allow setting one more segment than any existing paths.
+// This has to do with the tremendous amount of edge-cases if one allows more.
+// So if one wants to set `foo.bar.baz`, the path `foo.bar` must already exist.
+// This function returns true if said path exist, otherwise it returns false.
+func (data Map) CanSetPath(path Path) bool {
+	// Get the parent node of the path (all but the last segment)
+	parentPath := path[:len(path)-1]
+
+	// SetPath will not create any paths except for the last segment (which is either a map key or an array index).
+	// So if the parentPath does not exist, we cannot continue.
+	_, err := data.GetPath(parentPath)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 // SetPath sets a value at the specified path within the Map.
 func (data Map) SetPath(path Path, value interface{}) error {
 	if len(path) == 0 {

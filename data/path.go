@@ -101,9 +101,19 @@ func (p Path) First() string {
 	return p[0]
 }
 
+// FirstSegment returns the first segment of the path as Path
+func (p Path) FirstSegment() Path {
+	return NewPath(p.First())
+}
+
 // Last returns the last segment of the Path.
 func (p Path) Last() string {
 	return p[len(p)-1]
+}
+
+// LastSegment returns the last segment of the path as Path
+func (p Path) LastSegment() Path {
+	return NewPath(p.Last())
 }
 
 // StripPrefix removes the specified prefix Path from the current Path.
@@ -119,6 +129,21 @@ func (p Path) StripPrefix(prefix Path) Path {
 	}
 
 	return p[len(prefix):]
+}
+
+// StripSuffix removes the specified suffix Path from the current Path.
+func (p Path) StripSuffix(suffix Path) Path {
+	if len(suffix) > len(p) {
+		return p
+	}
+
+	for i := 0; i < len(suffix); i++ {
+		if p[len(p)-1-i] != suffix[len(suffix)-1-i] {
+			return p
+		}
+	}
+
+	return p[:len(p)-len(suffix)]
 }
 
 // HasPrefix checks if the current Path has the specified prefix.
@@ -174,4 +199,83 @@ func SortPaths(input []Path) {
 	sort.Slice(input, func(i, j int) bool {
 		return less(input[i], input[j])
 	})
+}
+
+// FindLongestMatchingPath finds the longest matching path within a list of paths for a given search path.
+// Say that the list is: {"foo.bar.qux", "hello.world", "foo"}
+// and search is {"foo.bar.baz"}
+// Then FindLongestMatchingPath will return {"foo", "bar"} as this is the longest matching path.
+func FindLongestMatchingPath(list []Path, search Path) Path {
+	var longestMatch Path
+
+	for _, path := range list {
+		matchLength := 0
+		for i := 0; i < len(path) && i < len(search); i++ {
+			if path[i] != search[i] {
+				break
+			}
+			matchLength++
+		}
+
+		if matchLength > len(longestMatch) {
+			longestMatch = path[:matchLength]
+		}
+	}
+
+	return longestMatch
+}
+
+// FindMostSimilarPath finds the most similar path within a list of paths for a given search path.
+// Say that the list is: {"foo.bar.qux", "hello.world", "foo"}
+// and search is {"foo.bar.baz"}
+// Then FindLongestMatchingPath will return {"foo", "bar", "qux"} as this is the most similar path.
+func FindMostSimilarPath(list []Path, search Path) Path {
+	var mostSimilarPath Path
+	longestMatchLength := 0
+
+	for _, path := range list {
+		matchLength := 0
+		for i := 0; i < len(path) && i < len(search); i++ {
+			if path[i] != search[i] {
+				break
+			}
+			matchLength++
+		}
+
+		if matchLength > longestMatchLength {
+			longestMatchLength = matchLength
+			mostSimilarPath = path
+		}
+	}
+
+	return mostSimilarPath
+}
+
+// FindLongestPrefixMatch finds the path within a list of paths that has the longest matching prefix with the search path.
+func FindLongestPrefixMatch(list []Path, search Path) Path {
+	var longestMatch Path
+	longestMatchLength := 0
+
+	for _, path := range list {
+		matchLength := 0
+		minLength := len(path)
+
+		if len(search) < minLength {
+			minLength = len(search)
+		}
+
+		for i := 0; i < minLength; i++ {
+			if path[i] != search[i] {
+				break
+			}
+			matchLength++
+		}
+
+		if matchLength > longestMatchLength {
+			longestMatchLength = matchLength
+			longestMatch = path
+		}
+	}
+
+	return longestMatch
 }
