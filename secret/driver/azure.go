@@ -82,6 +82,14 @@ func (driver *Azure) Encrypt(input string) (string, error) {
 	if driver.config.IgnoreVersion {
 		version = ""
 	}
+
+	// execute a get first because 'encrypt' produces weird errors if one does not
+	// have access to the vault/key. At least `GetKey` produces a somewhat more usable error like a 401.
+	_, err := driver.client.GetKey(context.TODO(), driver.config.KeyName, version, nil)
+	if err != nil {
+		return "", err
+	}
+
 	res, err := driver.client.Encrypt(context.TODO(), driver.config.KeyName, version, encryptParams, nil)
 	if err != nil {
 		return "", err
@@ -91,6 +99,7 @@ func (driver *Azure) Encrypt(input string) (string, error) {
 }
 
 func (driver *Azure) Decrypt(input string) (string, error) {
+
 	decoded, err := base64.RawStdEncoding.DecodeString(input)
 	if err != nil {
 		return "", err
@@ -105,6 +114,14 @@ func (driver *Azure) Decrypt(input string) (string, error) {
 	if driver.config.IgnoreVersion {
 		version = ""
 	}
+
+	// execute a get first because 'decrypt' produces weird errors if one does not
+	// have access to the vault/key. At least `GetKey` produces a somewhat more usable error like a 401.
+	_, err = driver.client.GetKey(context.TODO(), driver.config.KeyName, version, nil)
+	if err != nil {
+		return "", err
+	}
+
 	res, err := driver.client.Decrypt(context.TODO(), driver.config.KeyName, version, encryptParams, nil)
 	if err != nil {
 		return "", err
