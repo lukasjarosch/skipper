@@ -1,16 +1,67 @@
 package data
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-// Value represents any value within the [Inventory]
-// It has a [ValueScope] which determines the scope in which the value is defined.
 type Value struct {
-	Raw   interface{}
-	Scope ValueScope
+	Raw interface{}
+}
+
+func NewValue(raw interface{}) Value {
+	return Value{Raw: raw}
 }
 
 func (val Value) String() string {
 	return fmt.Sprint(val.Raw)
+}
+
+func (val Value) Map() (Map, error) {
+	m, ok := val.Raw.(Map)
+	if !ok {
+		return nil, fmt.Errorf("cannot convert value to Map: %s", val)
+	}
+	return m, nil
+}
+
+func (val Value) Duration() (time.Duration, error) {
+	dur, err := time.ParseDuration(val.String())
+	if err != nil {
+		return 0, err
+	}
+	return dur, nil
+}
+
+func (val Value) Int() (int, error) {
+	i, ok := val.Raw.(int)
+	if !ok {
+		return 0, fmt.Errorf("cannot convert value to int: %s", val)
+	}
+	return i, nil
+}
+
+func (val Value) Int32() (int32, error) {
+	i, ok := val.Raw.(int32)
+	if !ok {
+		return 0, fmt.Errorf("cannot convert value to int32: %s", val)
+	}
+	return i, nil
+}
+
+func (val Value) Int64() (int64, error) {
+	i, ok := val.Raw.(int64)
+	if !ok {
+		return 0, fmt.Errorf("cannot convert value to int64: %s", val)
+	}
+	return i, nil
+}
+
+// InventoryValue represents any value within the [Inventory]
+// It has a [ValueScope] which determines the scope in which the value is defined.
+type InventoryValue struct {
+	Value
+	Scope ValueScope
 }
 
 // ValueScope defines a scope in which a value is valid / defined.
