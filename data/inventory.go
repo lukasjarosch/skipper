@@ -18,7 +18,7 @@ var (
 // This can be a regular [FileContainer], a dynamic container or any custom implementation.
 type Container interface {
 	Name() string
-	AllPaths() []Path
+	ValuePaths() []Path
 	Get(Path) (interface{}, error)
 	Set(Path, interface{}) error
 }
@@ -63,7 +63,7 @@ func Patch() RegisterOption {
 // This will remove it from the namespace map as well as the pathRegistry.
 func (inv *Inventory) UnregisterContainer(namespace Path, containerName string) {
 	if container, exists := inv.namespaces[namespace.String()][containerName]; exists {
-		for _, path := range container.AllPaths() {
+		for _, path := range container.ValuePaths() {
 			delete(inv.pathRegistry, namespace.AppendPath(path).String())
 		}
 
@@ -116,7 +116,7 @@ func (inv *Inventory) RegisterContainer(namespace Path, container Container, opt
 	// If one requests the value at 'foo.bar.baz', it cannot resolve to two different values.
 	// For this we need to build up a path registry which allows us to quickly check for existing paths.
 	{
-		for _, path := range container.AllPaths() {
+		for _, path := range container.ValuePaths() {
 			// we're only interested in the absolute paths (namespace + path within container)
 			absPath := namespace.AppendPath(path)
 
@@ -222,7 +222,7 @@ func (inv *Inventory) SetValue(path Path, value interface{}) error {
 // refreshPathRegistry is used to update the path registry for a single container
 // existing paths will be skipped and new paths will be added
 func (inv *Inventory) refreshPathRegistry(namespace Path, container Container) {
-	for _, path := range container.AllPaths() {
+	for _, path := range container.ValuePaths() {
 		// we're only interested in the absolute paths (namespace + path within container)
 		absPath := namespace.AppendPath(path)
 

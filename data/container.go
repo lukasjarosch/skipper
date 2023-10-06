@@ -110,8 +110,8 @@ func (container *RawContainer) Get(path Path) (val interface{}, err error) {
 	return val, nil
 }
 
-// AllPaths traverses over all data of the container and returns all Paths to values.
-func (container *RawContainer) AllPaths() []Path {
+// ValuePaths traverses over all data of the container and returns all Paths to values.
+func (container *RawContainer) ValuePaths() []Path {
 	// we're using a map to avoid the pescy append slice behaviour
 	pathMap := make(map[string]bool)
 	container.Data.Walk(func(value interface{}, path Path) error {
