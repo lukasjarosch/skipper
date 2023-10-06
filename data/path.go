@@ -116,6 +116,21 @@ func (p Path) LastSegment() Path {
 	return NewPath(p.Last())
 }
 
+// Equals returns true if the current path is equal to the provided path.
+func (p Path) Equals(other Path) bool {
+	if len(p) != len(other) {
+		return false
+	}
+
+	for i := range p {
+		if p[i] != other[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 // StripPrefix removes the specified prefix Path from the current Path.
 func (p Path) StripPrefix(prefix Path) Path {
 	if len(prefix) > len(p) {
