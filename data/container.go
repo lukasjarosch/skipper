@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -122,6 +124,37 @@ func (container *RawContainer) ValuePaths() []Path {
 	var paths []Path
 	for p := range pathMap {
 		paths = append(paths, NewPath(p))
+	}
+
+	return paths
+}
+
+// AllPaths traverses over every existing path in [Map]
+func AllPaths(m Map, pathPrefix Path) []Path {
+	paths := make([]Path, 0)
+
+	for key, value := range m {
+		// Build the current path for the current key
+		currentPath := pathPrefix.Append(key)
+
+		switch v := value.(type) {
+		case Map:
+			// If the value is another map, recursively traverse it
+			paths = append(paths, currentPath)
+			paths = append(paths, AllPaths(v, currentPath)...)
+		case []interface{}:
+			// If the value is a slice, iterate over elements and include numeric indices in the path
+			for i, elem := range v {
+				elemPath := currentPath.Append(strconv.Itoa(i))
+				paths = append(paths, elemPath)
+				if reflect.TypeOf(elem).Kind() == reflect.Map {
+					paths = append(paths, AllPaths(elem.(Map), elemPath)...)
+				}
+			}
+		default:
+			// If the value is a leaf node, add the current path to the list of paths
+			paths = append(paths, currentPath)
+		}
 	}
 
 	return paths
