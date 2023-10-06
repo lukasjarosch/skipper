@@ -136,7 +136,7 @@ func TestSetPath(t *testing.T) {
 			value:               "new",
 			expectedMap:         Map{"foo": "value"},
 			errExpected:         true,
-			errExpectedContains: "unexpected node type",
+			errExpectedContains: "cannot set path wich creates a child segment on an existing value path",
 		},
 		{
 			name:        "Set a value at a deeply nested path",
@@ -170,7 +170,7 @@ func TestSetPath(t *testing.T) {
 			value:               "new",
 			expectedMap:         Map{"foo": Map{}},
 			errExpected:         true,
-			errExpectedContains: "parent path does not exist",
+			errExpectedContains: "cannot set path which creates more than one new path segment",
 		},
 		{
 			name:                "Attempt to set a value at an invalid path segment with error",
@@ -179,7 +179,7 @@ func TestSetPath(t *testing.T) {
 			value:               "new",
 			expectedMap:         Map{"foo": "value"},
 			errExpected:         true,
-			errExpectedContains: "unexpected node type",
+			errExpectedContains: "cannot set path wich creates a child segment on an existing value path",
 		},
 	}
 
