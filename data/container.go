@@ -47,8 +47,8 @@ type RawContainer struct {
 	// Name of the data container the name of the underlying file without file extension
 	// The name must also be the root key within the data [Map] in order to be consistent.
 	name string
-	// Data is the decoded content of the file, represented as [Map].
-	Data Map
+	// data is the decoded content of the file, represented as [Map].
+	data Map
 	// The Codec used to en-/decode the contents of the file into [Map].
 	Codec FileCodec
 }
@@ -73,7 +73,7 @@ func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContai
 	container := &RawContainer{
 		name:  name,
 		Codec: codec,
-		Data:  dataMap,
+		data:  dataMap,
 	}
 
 	// the only allowed root key of the underlying [Map] must be the same as the container name
@@ -100,14 +100,14 @@ func (container *RawContainer) Get(path Path) (val interface{}, err error) {
 	// Currently inline wildcards (e.g. `foo.*.baz`) are not supported.
 	if path.Last() == WildcardIdentifier {
 		newPath := NewPathVar(path[:len(path)-1]...)
-		val, err := container.Data.Get(newPath)
+		val, err := container.data.Get(newPath)
 		if err != nil {
 			return nil, ErrPathNotFound{Path: path, Err: err}
 		}
 		return val, nil
 	}
 
-	val, err = container.Data.Get(path)
+	raw, err := container.data.Get(path)
 	if err != nil {
 		return nil, ErrPathNotFound{Path: path, Err: err}
 	}
@@ -123,7 +123,7 @@ func (container *RawContainer) HasPath(path Path) bool {
 }
 
 func (container *RawContainer) ValuePaths() []Path {
-	return container.Data.ValuePaths()
+	return container.data.ValuePaths()
 }
 
 // attemptEncode will attempt to marshal and subsequently unmarshal the given interface
