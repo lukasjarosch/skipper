@@ -157,7 +157,6 @@ func (container *RawContainer) attemptEncode(in interface{}) interface{} {
 	return mapValue
 }
 
-// TODO: if the first path segment is NOT the root key, make sure to append it (maybe this should be part of the container)
 func (container *RawContainer) Set(path Path, value Value) error {
 	if path.First() != container.name {
 		path = path.Prepend(container.name)
