@@ -56,7 +56,7 @@ func TestNewPathFromFilePath(t *testing.T) {
 				t.Errorf("Expected %v, but got %v", test.expected, actual)
 			}
 
-			if !equalPaths(actual, test.expected) {
+			if !actual.Equals(test.expected) {
 				t.Errorf("Paths are not equal. Expected '%+v' but got '%+v'", test.expected, actual)
 			}
 		})
@@ -94,7 +94,7 @@ func TestPathAppend(t *testing.T) {
 
 	appended := p.Append("baz")
 	expected := Path{"foo", "bar", "baz"}
-	if !equalPaths(appended, expected) {
+	if !appended.Equals(expected) {
 		t.Errorf("Expected %v, but got %v", expected, appended)
 	}
 }
@@ -104,7 +104,7 @@ func TestPathPrepend(t *testing.T) {
 
 	prepended := p.Prepend("foo")
 	expected := Path{"foo", "bar", "baz"}
-	if !equalPaths(prepended, expected) {
+	if !prepended.Equals(expected) {
 		t.Errorf("Expected %v, but got %v", expected, prepended)
 	}
 }
@@ -134,7 +134,7 @@ func TestPathStripPrefix(t *testing.T) {
 
 	stripped := p.StripPrefix(Path{"foo", "bar"})
 	expected := Path{"baz", "qux"}
-	if !equalPaths(stripped, expected) {
+	if !stripped.Equals(expected) {
 		t.Errorf("Expected %v, but got %v", expected, stripped)
 	}
 }
@@ -149,15 +149,252 @@ func TestPathString(t *testing.T) {
 	}
 }
 
-// equalPaths checks if two Paths are equal by comparing their elements.
-func equalPaths(p1, p2 Path) bool {
-	if len(p1) != len(p2) {
+func TestEquals(t *testing.T) {
+	tests := []struct {
+		path1   Path
+		path2   Path
+		isEqual bool
+	}{
+		{NewPath("foo.bar"), NewPath("foo.bar"), true},
+		{NewPath("foo.bar"), NewPath("foo.baz"), false},
+		{NewPath(""), NewPath(""), true},
+	}
+
+	for _, test := range tests {
+		isEqual := test.path1.Equals(test.path2)
+		if isEqual != test.isEqual {
+			t.Errorf("Expected %v to be equal to %v: %v", test.path1, test.path2, test.isEqual)
+		}
+	}
+}
+
+func TestStripPrefix(t *testing.T) {
+	tests := []struct {
+		path     Path
+		prefix   Path
+		expected Path
+	}{
+		{NewPath("foo.bar.qux"), NewPath("foo.bar"), NewPath("qux")},
+		{NewPath("foo.bar.qux"), NewPath("baz"), NewPath("foo.bar.qux")},
+		{NewPath("foo.bar.qux"), NewPath(""), NewPath("foo.bar.qux")},
+	}
+
+	for _, test := range tests {
+		stripped := test.path.StripPrefix(test.prefix)
+		if stripped.String() != test.expected.String() {
+			t.Errorf("Expected StripPrefix(%v, %v) to be %v, but got %v", test.path, test.prefix, test.expected, stripped)
+		}
+	}
+}
+
+func TestHasPrefix(t *testing.T) {
+	tests := []struct {
+		path      Path
+		prefix    Path
+		hasPrefix bool
+	}{
+		{NewPath("foo.bar.qux"), NewPath("foo.bar"), true},
+		{NewPath("foo.bar.qux"), NewPath("foo.baz"), false},
+		{NewPath("foo.bar.qux"), NewPath(""), true}, // Empty prefix is always present
+		{NewPath(""), NewPath("foo.bar"), false},    // Empty path cannot have a prefix
+	}
+
+	for _, test := range tests {
+		hasPrefix := test.path.HasPrefix(test.prefix)
+		if hasPrefix != test.hasPrefix {
+			t.Errorf("Expected HasPrefix(%v, %v) to be %v, but got %v", test.path, test.prefix, test.hasPrefix, hasPrefix)
+		}
+	}
+}
+
+func TestSortPaths(t *testing.T) {
+	tests := []struct {
+		unsortedPaths []Path
+		sortedPaths   []Path
+	}{
+		{
+			[]Path{
+				NewPath("foo.bar.qux"),
+				NewPath("foo.baz"),
+				NewPath("baz.bar.foo"),
+			},
+			[]Path{
+				NewPath("baz.bar.foo"),
+				NewPath("foo.bar.qux"),
+				NewPath("foo.baz"),
+			},
+		},
+		{
+			[]Path{},
+			[]Path{},
+		},
+		{
+			[]Path{
+				NewPath("z"),
+				NewPath("a"),
+				NewPath("b"),
+			},
+			[]Path{
+				NewPath("a"),
+				NewPath("b"),
+				NewPath("z"),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		SortPaths(test.unsortedPaths)
+		if !arePathsEqual(test.unsortedPaths, test.sortedPaths) {
+			t.Errorf("Expected SortPaths(%v) to be %v, but got %v", test.unsortedPaths, test.sortedPaths, test.unsortedPaths)
+		}
+	}
+}
+
+func TestFindLongestMatchingPath(t *testing.T) {
+	tests := []struct {
+		paths         []Path
+		searchPath    Path
+		expectedMatch Path
+	}{
+		{
+			[]Path{
+				NewPath("foo.bar.qux"),
+				NewPath("foo.bar.baz"),
+				NewPath("baz.bar.foo"),
+				NewPath("hello.world"),
+			},
+			NewPath("foo.bar.baz.qux"),
+			NewPath("foo.bar.baz"),
+		},
+		{
+			[]Path{
+				NewPath("abc.def"),
+				NewPath("abc"),
+				NewPath("xyz"),
+				NewPath("xyz.abc.def"),
+			},
+			NewPath("xyz.abc.def.ghi"),
+			NewPath("xyz.abc.def"),
+		},
+		{
+			[]Path{
+				NewPath("path.to.some.value"),
+				NewPath("path.to"),
+				NewPath("another.path"),
+			},
+			NewPath("yet.another.path"),
+			NewPath(""),
+		},
+	}
+
+	for _, test := range tests {
+		match := FindLongestMatchingPath(test.paths, test.searchPath)
+		if !match.Equals(test.expectedMatch) {
+			t.Errorf("Expected FindLongestMatchingPath(%v, %v) to be %v, but got %v", test.paths, test.searchPath, test.expectedMatch, match)
+		}
+	}
+}
+
+func TestFindMostSimilarPath(t *testing.T) {
+	tests := []struct {
+		paths         []Path
+		searchPath    Path
+		expectedMatch Path
+	}{
+		{
+			[]Path{
+				NewPath("foo.bar.qux"),
+				NewPath("foo.baz.bar"),
+				NewPath("hello.world"),
+			},
+			NewPath("foo.bar.baz.qux"),
+			NewPath("foo.bar.qux"),
+		},
+		{
+			[]Path{
+				NewPath("abc.def"),
+				NewPath("abc"),
+				NewPath("xyz"),
+				NewPath("xyz.abc.def"),
+			},
+			NewPath("xyz.abc.def.ghi"),
+			NewPath("xyz.abc.def"),
+		},
+		{
+			[]Path{
+				NewPath("path.to.some.value"),
+				NewPath("path.to"),
+				NewPath("another.path"),
+			},
+			NewPath("another.path.test"),
+			NewPath("another.path"),
+		},
+	}
+
+	for _, test := range tests {
+		match := FindMostSimilarPath(test.paths, test.searchPath)
+		if !match.Equals(test.expectedMatch) {
+			t.Errorf("Expected FindMostSimilarPath(%v, %v) to be %v, but got %v", test.paths, test.searchPath, test.expectedMatch, match)
+		}
+	}
+}
+
+func TestFindLongestPrefixMatch(t *testing.T) {
+	tests := []struct {
+		paths         []Path
+		searchPath    Path
+		expectedMatch Path
+	}{
+		{
+			[]Path{
+				NewPath("foo.bar.qux"),
+				NewPath("foo.bar.baz"),
+				NewPath("baz.bar.foo"),
+				NewPath("hello.world"),
+			},
+			NewPath("foo.bar.baz.qux"),
+			NewPath("foo.bar.baz"),
+		},
+		{
+			[]Path{
+				NewPath("abc.def"),
+				NewPath("abc"),
+				NewPath("xyz"),
+				NewPath("xyz.abc.def"),
+			},
+			NewPath("xyz.abc.def.ghi"),
+			NewPath("xyz.abc.def"),
+		},
+		{
+			[]Path{
+				NewPath("path.to.some.value"),
+				NewPath("path.to"),
+				NewPath("another.path"),
+			},
+			NewPath("yet.another.path"),
+			NewPath(""),
+		},
+	}
+
+	for _, test := range tests {
+		match := FindLongestPrefixMatch(test.paths, test.searchPath)
+		if !match.Equals(test.expectedMatch) {
+			t.Errorf("Expected FindLongestPrefixMatch(%v, %v) to be %v, but got %v", test.paths, test.searchPath, test.expectedMatch, match)
+		}
+	}
+}
+
+// Helper function to compare two slices of paths
+func arePathsEqual(paths1, paths2 []Path) bool {
+	if len(paths1) != len(paths2) {
 		return false
 	}
-	for i := range p1 {
-		if p1[i] != p2[i] {
+
+	for i := range paths1 {
+		if paths1[i].String() != paths2[i].String() {
 			return false
 		}
 	}
+
 	return true
 }
