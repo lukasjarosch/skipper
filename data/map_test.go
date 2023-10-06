@@ -89,7 +89,7 @@ func TestGetPath(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.path.String(), func(t *testing.T) {
-			actual, err := data.GetPath(test.path)
+			actual, err := data.Get(test.path)
 			if err != nil {
 				if test.expected != nil {
 					t.Errorf("Expected %v, but got an error: %v", test.expected, err)
@@ -185,7 +185,7 @@ func TestSetPath(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.inputMap.SetPath(tc.path, tc.value)
+			err := tc.inputMap.Set(tc.path, tc.value)
 
 			if !assert.Equal(t, tc.expectedMap, tc.inputMap) {
 				t.Errorf("Expected map %v, got %v", tc.expectedMap, tc.inputMap)

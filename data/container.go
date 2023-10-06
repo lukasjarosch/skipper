@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"reflect"
-	"strconv"
 	"strings"
 )
 
@@ -78,6 +76,7 @@ func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContai
 		Data:  dataMap,
 	}
 
+	// the only allowed root key of the underlying [Map] must be the same as the container name
 	err = dataMap.Walk(func(value interface{}, path Path) error {
 		if !strings.EqualFold(path.First(), container.name) {
 			return fmt.Errorf("invalid root key: expected '%s', got '%s'", container.name, path.First())
@@ -92,72 +91,28 @@ func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContai
 }
 
 func (container *RawContainer) Get(path Path) (val interface{}, err error) {
+	if path.First() != container.name {
+		path = path.Prepend(container.name)
+	}
+
 	// We support wildcard paths where the wildcard segment is the last path segment
 	// For example: `foo.bar.*` will return anything under `foo.bar`
 	// Currently inline wildcards (e.g. `foo.*.baz`) are not supported.
 	if path.Last() == WildcardIdentifier {
 		newPath := NewPathVar(path[:len(path)-1]...)
-		val, err := container.Data.GetPath(newPath)
+		val, err := container.Data.Get(newPath)
 		if err != nil {
 			return nil, ErrPathNotFound{Path: path, Err: err}
 		}
 		return val, nil
 	}
 
-	val, err = container.Data.GetPath(path)
+	val, err = container.Data.Get(path)
 	if err != nil {
 		return nil, ErrPathNotFound{Path: path, Err: err}
 	}
 
 	return val, nil
-}
-
-// ValuePaths traverses over all data of the container and returns all Paths to values.
-func (container *RawContainer) ValuePaths() []Path {
-	// we're using a map to avoid the pescy append slice behaviour
-	pathMap := make(map[string]bool)
-	container.Data.Walk(func(value interface{}, path Path) error {
-		pathMap[path.String()] = true
-		return nil
-	})
-
-	var paths []Path
-	for p := range pathMap {
-		paths = append(paths, NewPath(p))
-	}
-
-	return paths
-}
-
-// AllPaths traverses over every existing path in [Map]
-func AllPaths(m Map, pathPrefix Path) []Path {
-	paths := make([]Path, 0)
-
-	for key, value := range m {
-		// Build the current path for the current key
-		currentPath := pathPrefix.Append(key)
-
-		switch v := value.(type) {
-		case Map:
-			// If the value is another map, recursively traverse it
-			paths = append(paths, currentPath)
-			paths = append(paths, AllPaths(v, currentPath)...)
-		case []interface{}:
-			// If the value is a slice, iterate over elements and include numeric indices in the path
-			for i, elem := range v {
-				elemPath := currentPath.Append(strconv.Itoa(i))
-				paths = append(paths, elemPath)
-				if reflect.TypeOf(elem).Kind() == reflect.Map {
-					paths = append(paths, AllPaths(elem.(Map), elemPath)...)
-				}
-			}
-		default:
-			// If the value is a leaf node, add the current path to the list of paths
-			paths = append(paths, currentPath)
-		}
-	}
-
-	return paths
 }
 
 func (container *RawContainer) HasPath(path Path) bool {
@@ -167,28 +122,32 @@ func (container *RawContainer) HasPath(path Path) bool {
 	return true
 }
 
+func (container *RawContainer) ValuePaths() []Path {
+	return container.Data.ValuePaths()
+}
+
+// attemptEncode will attempt to marshal and subsequently unmarshal the given interface
+// into a [Map].
+// If any of those operations fail, the input value is returned.
+func (container *RawContainer) attemptEncode(in interface{}) interface{} {
+	byteValue, err := container.Codec.Marshal(in)
+	if err != nil {
+		return in
+	}
+	mapValue, err := container.Codec.Unmarshal(byteValue)
+	if err != nil {
+		return in
+	}
+	return mapValue
+}
+
 // TODO: if the first path segment is NOT the root key, make sure to append it (maybe this should be part of the container)
 func (container *RawContainer) Set(path Path, value interface{}) error {
-	if !container.Data.CanSetPath(path) {
-		return fmt.Errorf("%w: %s", ErrCannotSetNewPathTooDeep, path)
+	if path.First() != container.name {
+		path = path.Prepend(container.name)
 	}
 
-	// attempt to marshal and unmarshal the value in case
-	// it is a complex type which needs to be encoded properly
-	// this function will not return an error but only the unmodified input value
-	encode := func(in interface{}) interface{} {
-		byteValue, err := container.Codec.Marshal(value)
-		if err != nil {
-			return in
-		}
-		mapValue, err := container.Codec.Unmarshal(byteValue)
-		if err != nil {
-			return in
-		}
-		return mapValue
-	}
-
-	err := container.Data.SetPath(path, encode(value))
+	err := container.Data.Set(path, container.attemptEncode(value))
 	if err != nil {
 		return err
 	}
@@ -199,7 +158,7 @@ func (container *RawContainer) Name() string {
 	return container.name
 }
 
-// FileContainer provides access to the underlying data within the file.
+// FileContainer is a [RawContainer] which is based on a [File].
 type FileContainer struct {
 	*RawContainer
 	// File is the underlying file representation

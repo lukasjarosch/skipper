@@ -64,7 +64,7 @@ func main() {
 	}
 
 	for _, template := range templater.Files {
-		log.Println("discovered template", template.Path)
+		log.Println("discovered template", template.Path())
 	}
 
 	// render inventory data based on target ----------------------------------------------------------------------------------

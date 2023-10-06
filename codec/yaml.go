@@ -54,7 +54,7 @@ func (codec YamlCodec) UnmarshalPath(in []byte, path data.Path, target interface
 		return err
 	}
 
-	tree, err := out.GetPath(path)
+	tree, err := out.Get(path)
 	if err != nil {
 		return err
 	}

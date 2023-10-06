@@ -4,3 +4,8 @@ common:
   subscription_id: "INVALID DEFAULT VALUE" 
   local_variable: ${subscription_id}
   absolute_variable: ${azure:common:subscription_id}
+  foo:
+    bar:
+      - "test"
+      - something:
+          nice: hello

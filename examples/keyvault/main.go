@@ -88,6 +88,6 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path))
+		log.Printf("executed template '%s' into: %s'", template.Path, path.Join(templateOutputPath, template.Path()))
 	}
 }

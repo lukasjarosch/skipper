@@ -60,6 +60,13 @@ example-terraform-azure:
 		-output examples/terraform_azure/compiled \
 		-target develop
 
+example-terraform-azure_debug:
+	dlv debug examples/terraform_azure/main.go -- \
+		-data examples/terraform_azure/inventory \
+		-templates examples/terraform_azure/templates \
+		-output examples/terraform_azure/compiled \
+		-target develop
+
 example-keyvault:
 	go run examples/keyvault/main.go \
 		-data examples/keyvault/inventory \

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/lukasjarosch/skipper"
 	"github.com/lukasjarosch/skipper/codec"
@@ -47,6 +48,10 @@ func init() {
 	log.Printf("desired target is '%s'", target)
 }
 
+func Path(s string) data.Path {
+	return data.NewPath(s)
+}
+
 func main() {
 
 	// REFACTOR ZONE ===================================================
@@ -57,15 +62,22 @@ func main() {
 		if err != nil {
 			log.Fatal(fmt.Errorf("error discovering class files: %w", err))
 		}
+		targetFiles, err := skipper.DiscoverFiles(targetPath, []string{".yml", ".yaml"})
+		if err != nil {
+			log.Fatal(fmt.Errorf("error discovering target files: %w", err))
+		}
 
-		var classContainer []*data.FileContainer
-		for _, file := range classFiles {
-			class, err := data.NewFileContainer(file, codec.NewYamlCodec())
+		allFiles := classFiles
+		allFiles = append(allFiles, targetFiles...)
+
+		var fileContainerList []*data.FileContainer
+		for _, file := range allFiles {
+			container, err := data.NewFileContainer(file, codec.NewYamlCodec())
 			if err != nil {
 				log.Fatal(fmt.Errorf("cannot create data container from '%s': %w", file.Path(), err))
 			}
-			classContainer = append(classContainer, class)
-			log.Info("created container from file", "name", class.Name())
+			fileContainerList = append(fileContainerList, container)
+			log.Info("created container from file", "name", container.Name())
 		}
 
 		// TODO: validate the container agains rootKey rule and other skipper specific validations
@@ -76,13 +88,13 @@ func main() {
 		}
 
 		// register class containers
-		for _, container := range classContainer {
+		for _, container := range fileContainerList {
 
 			// The namespace of a container is calculated by the path of the underlying file.
 			// The classPath is removed as well as the filename.
 			// This is then used to create a [data.Path] which is the actual namespace of the container.
 			ns := container.File.Path()
-			ns = strings.Replace(ns, classPath, "", 1)
+			ns = strings.Replace(ns, inventoryPath, "", 1)
 			ns = strings.Trim(ns, string(os.PathSeparator))
 			ns = filepath.Dir(ns)
 			ns = strings.Trim(ns, ".")
@@ -95,13 +107,28 @@ func main() {
 			log.Info("registered container", "namespace", namespace, "name", container.Name())
 		}
 
-		// p := data.NewPath("components.documentation.skipper.components.0.output_path")
+		val, err := inventory.GetValue(Path("classes.azure.common.subscription_id"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		spew.Dump(val.Scope.Container.(*data.FileContainer).Data.AllPaths())
+		spew.Dump(val.Scope.Container.Get(Path("test")))
+		val.Scope.Container.Set(Path("test"), "change")
+		spew.Dump(val.Scope.Container.Get(Path("test")))
+		spew.Dump(val.Scope.Container.(*data.FileContainer).Data.Set(Path("common.foo.bar.1.something.test.foo"), "change"))
+		// spew.Dump(val.Scope.Container.(*data.FileContainer).Data.GetPath(Path("common.foo.bar.1.something.1")))
+		spew.Dump(val.Scope.Container.(*data.FileContainer).Data.AllPaths())
+		spew.Dump(val.Scope.Container.(*data.FileContainer).Data)
+
+		// classInventory := inventory.Scoped(Path("classes"))
+
+		// p := Path("components.documentation.skipper.components.0.output_path")
 		// val, err := inventory.GetValue(p)
 		// if err != nil {
 		// 	log.Fatalf("cannot resolve path %s: %s", p, err)
 		// }
 		// log.Warnf("%s: %s", p, val)
-		// spew.Dump(val.Scope.Container.Get(data.NewPath("*")))
+		// spew.Dump(val.Scope.Container.Get(Path("*")))
 
 		// overwrite container tests
 		{
@@ -118,13 +145,13 @@ func main() {
 			// 	log.Fatal(err)
 			// }
 			//
-			// namespace := data.NewPath("azure")
+			// namespace := Path("azure")
 			// err = inventory.RegisterContainer(namespace, container, data.ReplaceContainer())
 			// if err != nil {
 			// 	log.Fatal(err)
 			// }
 			// log.Info("registered container", "namespace", namespace, "name", container.Name(), "replace", true)
-			// spew.Dump(inventory.GetValue(data.NewPath("azure.common.bar")))
+			// spew.Dump(inventory.GetValue(Path("azure.common.bar")))
 		}
 
 		type Dummy struct {
@@ -158,24 +185,53 @@ func main() {
 			patchedContainer, _ := data.NewRawContainer("data", patchedData, codec.NewYamlCodec())
 
 			// register original (to be patched) container
-			err = inventory.RegisterContainer(data.NewPath("patch"), originalContainer)
+			err = inventory.RegisterContainer(Path("patch"), originalContainer)
 			if err != nil {
 				log.Error(err)
 			}
-			log.Warn(inventory.MustGetValue(data.NewPath("patch.data.foo.bar.baz")))
+			log.Warn(inventory.MustGetValue(Path("patch.data.foo.bar.baz")))
 
 			// patch the original container with the patchedContainer
-			err = inventory.RegisterContainer(data.NewPath("patch"), patchedContainer, data.Patch())
+			err = inventory.RegisterContainer(Path("patch"), patchedContainer, data.Patch())
 			if err != nil {
 				log.Error(err)
 			}
-			log.Warn(inventory.MustGetValue(data.NewPath("patch.data.foo.bar.baz")))
-			log.Warn(inventory.MustGetValue(data.NewPath("patch.data.foo.bar.new")))
-			log.Warn(inventory.MustGetValue(data.NewPath("patch.data.foo.bar.old")))
+			log.Warn(inventory.MustGetValue(Path("patch.data.foo.bar.baz")))
+			log.Warn(inventory.MustGetValue(Path("patch.data.foo.bar.new")))
+			log.Warn(inventory.MustGetValue(Path("patch.data.foo.bar.old")))
 
 			// TODO: now patch the container with a different (different name, different namespace) container
 
 		}
+
+		targetPath := data.NewPathVar("targets", "develop")
+		classPath := Path("classes")
+		targetPaths := inventory.RegisteredPrefixedPaths(targetPath)
+
+		for _, p := range targetPaths {
+
+			if p.First() == "skipper" {
+				continue
+			}
+
+			sourceValue, _ := inventory.GetValue(classPath.AppendPath(p))
+			log.Debug("attempt to set value from target",
+				"path", classPath.AppendPath(p),
+				"targetValue", inventory.MustGetValue(targetPath.AppendPath(p)),
+				"sourceValue", sourceValue,
+			)
+			err = inventory.SetValue(classPath.AppendPath(p), inventory.MustGetValue(targetPath.AppendPath(p)).Raw)
+			if err != nil {
+				log.Error(fmt.Errorf("failed to set value: %w", err))
+				continue
+			}
+
+			log.Info("set value from target",
+				"path", classPath.AppendPath(p),
+				"value", inventory.MustGetValue(targetPath.AppendPath(p)),
+			)
+		}
+
 	}
 
 	return

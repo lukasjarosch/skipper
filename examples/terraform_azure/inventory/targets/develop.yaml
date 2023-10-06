@@ -1,5 +1,5 @@
 ---
-target:
+develop:
   skipper:
     use: 
       - common
@@ -32,3 +32,9 @@ target:
   terraform:
     identifiers:
       resource_group: "changed_identifier"
+      foo: SCHINKENPIZZA
+      bar:
+        baz: hello
+
+  pizza:
+    schinken: true
