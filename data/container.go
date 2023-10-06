@@ -90,29 +90,45 @@ func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContai
 	return container, nil
 }
 
-func (container *RawContainer) Get(path Path) (val interface{}, err error) {
+func (container *RawContainer) MustGet(path Path) Value {
+	val, err := container.Get(path)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
+func (container *RawContainer) Get(path Path) (val Value, err error) {
+	// If the path consists only of a WildcardIdentifier, return the whole data map
+	if len(path) == 1 && path.First() == WildcardIdentifier {
+		return NewValue(container.data), nil
+	}
+
+	// For all other cases, make sure the containerName is the first path segment
+	// in order to properly index into the data.
+	// This also means that one can omit the containerName in the path
 	if path.First() != container.name {
 		path = path.Prepend(container.name)
 	}
 
-	// We support wildcard paths where the wildcard segment is the last path segment
+	// Wildcard paths in which the wildcard segment is the last path segment are also supported
 	// For example: `foo.bar.*` will return anything under `foo.bar`
 	// Currently inline wildcards (e.g. `foo.*.baz`) are not supported.
 	if path.Last() == WildcardIdentifier {
 		newPath := NewPathVar(path[:len(path)-1]...)
 		val, err := container.data.Get(newPath)
 		if err != nil {
-			return nil, ErrPathNotFound{Path: path, Err: err}
+			return Value{}, ErrPathNotFound{Path: path, Err: err}
 		}
-		return val, nil
+		return NewValue(val), nil
 	}
 
 	raw, err := container.data.Get(path)
 	if err != nil {
-		return nil, ErrPathNotFound{Path: path, Err: err}
+		return Value{}, ErrPathNotFound{Path: path, Err: err}
 	}
 
-	return val, nil
+	return NewValue(raw), nil
 }
 
 func (container *RawContainer) HasPath(path Path) bool {
@@ -142,12 +158,14 @@ func (container *RawContainer) attemptEncode(in interface{}) interface{} {
 }
 
 // TODO: if the first path segment is NOT the root key, make sure to append it (maybe this should be part of the container)
-func (container *RawContainer) Set(path Path, value interface{}) error {
+func (container *RawContainer) Set(path Path, value Value) error {
 	if path.First() != container.name {
 		path = path.Prepend(container.name)
 	}
 
-	err := container.Data.Set(path, container.attemptEncode(value))
+	value.Raw = container.attemptEncode(value.Raw)
+
+	err := container.data.Set(path, value)
 	if err != nil {
 		return err
 	}
