@@ -172,6 +172,49 @@ func (container *RawContainer) Set(path Path, value Value) error {
 	return nil
 }
 
+// SetRaw works just like [RawContainer.Set] with the difference that it accepts
+// a raw interface to set at the specified path.
+// The function will also NOT attempt to encode the value with the configured codec.
+func (container *RawContainer) SetRaw(path Path, value interface{}) error {
+	if path.First() != container.name {
+		path = path.Prepend(container.name)
+	}
+
+	err := container.data.Set(path, value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// TODO: this has a lot of edge cases and needs heavy testing
+func (container *RawContainer) Merge(path Path, data Map) error {
+	val, err := container.Get(path)
+	if err != nil {
+		return err
+	}
+
+	valMap, err := val.Map()
+	if err != nil {
+		return err
+	}
+
+	replaced := valMap.MergeReplace(data)
+
+	// In case the path is a wildcard path, remove the identifier before
+	// setting the path again because [RawContainer.SetRaw] does not support it.
+	if path.Last() == WildcardIdentifier {
+		path = path.StripSuffix(NewPath(WildcardIdentifier))
+	}
+
+	err = container.SetRaw(path, replaced)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (container *RawContainer) Name() string {
 	return container.name
 }
