@@ -77,10 +77,34 @@ func main() {
 				log.Fatal(fmt.Errorf("cannot create data container from '%s': %w", file.Path(), err))
 			}
 			fileContainerList = append(fileContainerList, container)
-			log.Info("created container from file", "name", container.Name())
+			log.Info("created container from file", "name", container.Name(), "file", file.Path())
 		}
 
-		// TODO: validate the container agains rootKey rule and other skipper specific validations
+		findContainerByName := func(name string) data.Container {
+			for _, container := range fileContainerList {
+				if container.Name() == name {
+					return container
+				}
+			}
+			return nil
+		}
+
+		target := findContainerByName("develop")
+		tfIdentifiers := findContainerByName("identifiers")
+
+		spew.Dump(target.MustGet(Path("develop.terraform.identifiers.*")).Map())
+		spew.Dump(tfIdentifiers.MustGet(Path("identifiers.*")).Map())
+
+		mergeData, err := target.MustGet(Path("develop.terraform.identifiers")).Map()
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Warn(tfIdentifiers.Merge(Path("identifiers.*"), mergeData))
+		spew.Dump(tfIdentifiers.MustGet(Path("identifiers.*")).Map())
+		tfIdentifiers.Set(Path("identifiers.vnet"), data.NewValue("GEILES VNET"))
+		spew.Dump(tfIdentifiers.MustGet(Path("identifiers.")).Map())
+
+		return
 
 		inventory, err := data.NewInventory()
 		if err != nil {
@@ -106,19 +130,6 @@ func main() {
 			}
 			log.Info("registered container", "namespace", namespace, "name", container.Name())
 		}
-
-		val, err := inventory.GetValue(Path("classes.azure.common.subscription_id"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		spew.Dump(val.Scope.Container.(*data.FileContainer).Data.AllPaths())
-		spew.Dump(val.Scope.Container.Get(Path("test")))
-		val.Scope.Container.Set(Path("test"), "change")
-		spew.Dump(val.Scope.Container.Get(Path("test")))
-		spew.Dump(val.Scope.Container.(*data.FileContainer).Data.Set(Path("common.foo.bar.1.something.test.foo"), "change"))
-		// spew.Dump(val.Scope.Container.(*data.FileContainer).Data.GetPath(Path("common.foo.bar.1.something.1")))
-		spew.Dump(val.Scope.Container.(*data.FileContainer).Data.AllPaths())
-		spew.Dump(val.Scope.Container.(*data.FileContainer).Data)
 
 		// classInventory := inventory.Scoped(Path("classes"))
 

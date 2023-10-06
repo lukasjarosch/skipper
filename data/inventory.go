@@ -19,8 +19,10 @@ var (
 type Container interface {
 	Name() string
 	ValuePaths() []Path
-	Get(Path) (interface{}, error)
-	Set(Path, interface{}) error
+	MustGet(Path) Value
+	Get(Path) (Value, error)
+	Set(Path, Value) error
+	Merge(Path, Map) error
 }
 
 type Inventory struct {
@@ -169,7 +171,7 @@ func (inv *Inventory) ResolvePath(path Path) (Path, Container, error) {
 	return nil, nil, fmt.Errorf("%w: %s", ErrResolveNoContainer, path)
 }
 
-func (inv *Inventory) MustGetValue(path Path) Value {
+func (inv *Inventory) MustGetValue(path Path) InventoryValue {
 	val, err := inv.GetValue(path)
 	if err != nil {
 		panic(err)
@@ -177,19 +179,21 @@ func (inv *Inventory) MustGetValue(path Path) Value {
 	return val
 }
 
-func (inv *Inventory) GetValue(path Path) (Value, error) {
+func (inv *Inventory) GetValue(path Path) (InventoryValue, error) {
 	scope, exists := inv.pathRegistry[path.String()]
 	if !exists {
-		return Value{}, fmt.Errorf("path does not exist: %s", path)
+		return InventoryValue{}, fmt.Errorf("path does not exist: %s", path)
 	}
 
 	raw, err := scope.Container.Get(scope.ContainerPath)
 	if err != nil {
-		return Value{}, err
+		return InventoryValue{}, err
 	}
 
-	return Value{
-		Raw:   raw,
+	return InventoryValue{
+		Value: Value{
+			Raw: raw,
+		},
 		Scope: scope,
 	}, nil
 }
@@ -209,7 +213,7 @@ func (inv *Inventory) SetValue(path Path, value interface{}) error {
 		return fmt.Errorf("failed to resolve path: %w", err)
 	}
 
-	err = container.Set(path.StripPrefix(namespace), value)
+	err = container.Set(path.StripPrefix(namespace), NewValue(value))
 	if err != nil {
 		return err
 	}
