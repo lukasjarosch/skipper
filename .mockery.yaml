@@ -1,0 +1,9 @@
+with-expecter: True
+dir: "mocks/{{.PackageName}}"
+filename: "{{ .InterfaceNameSnake }}.go"
+packages:
+  github.com/lukasjarosch/skipper/data:
+    interfaces:
+      File:
+      FileCodec:
+
