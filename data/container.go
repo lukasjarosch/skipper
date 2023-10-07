@@ -38,9 +38,8 @@ type FileCodec interface {
 var (
 	ErrEmptyContainerName      = fmt.Errorf("container name empty")
 	ErrEmptyRootKey            = fmt.Errorf("empty root key")
-	ErrNilData                 = fmt.Errorf("data is nil")
-	ErrNilCodec                = fmt.Errorf("codec is nil")
 	ErrCannotSetNewPathTooDeep = fmt.Errorf("cannot set path with new path longer than one path segment")
+	ErrInlineWildcard          = fmt.Errorf("inline wildcard paths are not supported")
 )
 
 type RawContainer struct {
@@ -57,18 +56,16 @@ func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContai
 	if name == "" {
 		return nil, ErrEmptyContainerName
 	}
-	if data == nil {
-		return nil, ErrNilData
-	}
-	if codec == nil {
-		return nil, ErrNilCodec
-	}
 
 	dataByte, err := codec.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
+
 	dataMap, err := codec.Unmarshal(dataByte)
+	if err != nil {
+		return nil, err
+	}
 
 	container := &RawContainer{
 		name:  name,
@@ -90,15 +87,11 @@ func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContai
 	return container, nil
 }
 
-func (container *RawContainer) MustGet(path Path) Value {
-	val, err := container.Get(path)
-	if err != nil {
-		panic(err)
-	}
-	return val
-}
-
 func (container *RawContainer) Get(path Path) (val Value, err error) {
+	if len(path) == 0 {
+		return Value{}, ErrEmptyPath
+	}
+
 	// If the path consists only of a WildcardIdentifier, return the whole data map
 	if len(path) == 1 && path.First() == WildcardIdentifier {
 		return NewValue(container.data), nil
@@ -113,14 +106,20 @@ func (container *RawContainer) Get(path Path) (val Value, err error) {
 
 	// Wildcard paths in which the wildcard segment is the last path segment are also supported
 	// For example: `foo.bar.*` will return anything under `foo.bar`
-	// Currently inline wildcards (e.g. `foo.*.baz`) are not supported.
 	if path.Last() == WildcardIdentifier {
-		newPath := NewPathVar(path[:len(path)-1]...)
+		newPath := path.StripSuffix(path.LastSegment())
 		val, err := container.data.Get(newPath)
 		if err != nil {
 			return Value{}, ErrPathNotFound{Path: path, Err: err}
 		}
 		return NewValue(val), nil
+	}
+
+	// Inline wildcards (e.g. `foo.*.baz`) are not supported.
+	// Check if a [WildcardIdentifier] appears anywhere inside the Path except the last segment.
+	if path.SegmentIndex(WildcardIdentifier) > 0 &&
+		path.SegmentIndex(WildcardIdentifier) != len(path)-1 {
+		return Value{}, ErrInlineWildcard
 	}
 
 	raw, err := container.data.Get(path)
@@ -129,6 +128,14 @@ func (container *RawContainer) Get(path Path) (val Value, err error) {
 	}
 
 	return NewValue(raw), nil
+}
+
+func (container *RawContainer) MustGet(path Path) Value {
+	val, err := container.Get(path)
+	if err != nil {
+		panic(err)
+	}
+	return val
 }
 
 func (container *RawContainer) HasPath(path Path) bool {
