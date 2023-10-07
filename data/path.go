@@ -193,6 +193,15 @@ func (p Path) String() string {
 	return strings.Join(path, PathSeparator)
 }
 
+func (p Path) SegmentIndex(segment string) int {
+	for i, seg := range p {
+		if seg == segment {
+			return i
+		}
+	}
+	return -1
+}
+
 // SortPaths sorts a slice of Paths alphabetically.
 func SortPaths(input []Path) {
 	less := func(p1, p2 Path) bool {
