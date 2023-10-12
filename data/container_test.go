@@ -740,10 +740,6 @@ func TestRawContainer_Set_complex(t *testing.T) {
 func TestRawContainer_SetRaw(t *testing.T) {
 	containerName := "test"
 
-	type testInterface interface {
-		Test()
-	}
-
 	tests := []struct {
 		name        string
 		data        Map
