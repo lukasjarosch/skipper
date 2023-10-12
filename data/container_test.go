@@ -783,7 +783,39 @@ func TestRawContainer_SetRaw(t *testing.T) {
 			},
 			path:        NewPath("foo.bar.baz"),
 			value:       NewValue(func() error { return fmt.Errorf("whoops") }),
+			errExpected: true,
+			err:         fmt.Errorf("cannot set function as value"),
+		},
+		{
+			name: "nested map",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       NewValue(Map{"hello": Map{"test": "chicken"}}),
 			errExpected: false,
+		},
+		{
+			name: "struct",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       NewValue(struct{ Name string }{Name: "John"}),
+			errExpected: true,
+			err:         fmt.Errorf("cannot set struct as value"),
 		},
 	}
 
