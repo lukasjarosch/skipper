@@ -38,6 +38,8 @@ type FileCodec interface {
 var (
 	ErrEmptyContainerName      = fmt.Errorf("container name empty")
 	ErrEmptyRootKey            = fmt.Errorf("empty root key")
+	ErrNilData                 = fmt.Errorf("data is nil")
+	ErrNilCodec                = fmt.Errorf("codec is nil")
 	ErrCannotSetNewPathTooDeep = fmt.Errorf("cannot set path with new path longer than one path segment")
 	ErrInlineWildcard          = fmt.Errorf("inline wildcard paths are not supported")
 )
@@ -55,6 +57,12 @@ type RawContainer struct {
 func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContainer, error) {
 	if name == "" {
 		return nil, ErrEmptyContainerName
+	}
+	if data == nil {
+		return nil, ErrNilData
+	}
+	if codec == nil {
+		return nil, ErrNilCodec
 	}
 
 	dataByte, err := codec.Marshal(data)
@@ -153,11 +161,21 @@ func (container *RawContainer) ValuePaths() []Path {
 // into a [Map].
 // If any of those operations fail, the input value is returned.
 func (container *RawContainer) attemptEncode(in interface{}) interface{} {
-	byteValue, err := container.Codec.Marshal(in)
+	if in == nil {
+		return nil
+	}
+	byteSlice, err := container.Codec.Marshal(in)
 	if err != nil {
 		return in
 	}
-	mapValue, err := container.Codec.Unmarshal(byteValue)
+
+	// if we get an empty byte slice 'Unmarshall' will
+	// either return nothing usable to just nothin at all, abort here
+	if len(byteSlice) == 0 {
+		return in
+	}
+
+	mapValue, err := container.Codec.Unmarshal(byteSlice)
 	if err != nil {
 		return in
 	}
@@ -165,13 +183,15 @@ func (container *RawContainer) attemptEncode(in interface{}) interface{} {
 }
 
 func (container *RawContainer) Set(path Path, value Value) error {
+	if len(path) == 0 {
+		return ErrEmptyPath
+	}
+
 	if path.First() != container.name {
 		path = path.Prepend(container.name)
 	}
 
-	value.Raw = container.attemptEncode(value.Raw)
-
-	err := container.data.Set(path, value)
+	err := container.data.Set(path, container.attemptEncode(value.Raw))
 	if err != nil {
 		return err
 	}
@@ -181,12 +201,16 @@ func (container *RawContainer) Set(path Path, value Value) error {
 // SetRaw works just like [RawContainer.Set] with the difference that it accepts
 // a raw interface to set at the specified path.
 // The function will also NOT attempt to encode the value with the configured codec.
-func (container *RawContainer) SetRaw(path Path, value interface{}) error {
+func (container *RawContainer) SetRaw(path Path, value Value) error {
+	if len(path) == 0 {
+		return ErrEmptyPath
+	}
+
 	if path.First() != container.name {
 		path = path.Prepend(container.name)
 	}
 
-	err := container.data.Set(path, value)
+	err := container.data.Set(path, value.Raw)
 	if err != nil {
 		return err
 	}
@@ -213,7 +237,7 @@ func (container *RawContainer) Merge(path Path, data Map) error {
 		path = path.StripSuffix(NewPath(WildcardIdentifier))
 	}
 
-	err = container.SetRaw(path, replaced)
+	err = container.SetRaw(path, NewValue(replaced))
 	if err != nil {
 		return err
 	}
