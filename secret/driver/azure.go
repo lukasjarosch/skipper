@@ -64,7 +64,10 @@ func (driver *Azure) Configure(config map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	driver.client = azkeys.NewClient(driver.vaultBaseUrl, cred, nil)
+	driver.client, err = azkeys.NewClient(driver.vaultBaseUrl, cred, nil)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
