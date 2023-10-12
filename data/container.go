@@ -37,6 +37,7 @@ type FileCodec interface {
 
 var (
 	ErrEmptyContainerName      = fmt.Errorf("container name empty")
+	ErrCannotSetRootKey        = fmt.Errorf("cannot set the root key of a container")
 	ErrEmptyRootKey            = fmt.Errorf("empty root key")
 	ErrNilData                 = fmt.Errorf("data is nil")
 	ErrNilCodec                = fmt.Errorf("codec is nil")
@@ -182,32 +183,23 @@ func (container *RawContainer) attemptEncode(in interface{}) interface{} {
 	return mapValue
 }
 
-func (container *RawContainer) Set(path Path, value Value) error {
+func (container *RawContainer) set(path Path, value Value, attemptEncode bool) error {
 	if len(path) == 0 {
 		return ErrEmptyPath
+	}
+
+	// we do not allow setting the whole container data
+	// as it may change the rootKey which must match the containerName
+	if len(path) == 1 && path.First() == WildcardIdentifier {
+		return ErrCannotSetRootKey
 	}
 
 	if path.First() != container.name {
 		path = path.Prepend(container.name)
 	}
 
-	err := container.data.Set(path, container.attemptEncode(value.Raw))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// SetRaw works just like [RawContainer.Set] with the difference that it accepts
-// a raw interface to set at the specified path.
-// The function will also NOT attempt to encode the value with the configured codec.
-func (container *RawContainer) SetRaw(path Path, value Value) error {
-	if len(path) == 0 {
-		return ErrEmptyPath
-	}
-
-	if path.First() != container.name {
-		path = path.Prepend(container.name)
+	if attemptEncode {
+		value.Raw = container.attemptEncode(value.Raw)
 	}
 
 	err := container.data.Set(path, value.Raw)
@@ -215,6 +207,17 @@ func (container *RawContainer) SetRaw(path Path, value Value) error {
 		return err
 	}
 	return nil
+}
+
+func (container *RawContainer) Set(path Path, value Value) error {
+	return container.set(path, value, true)
+}
+
+// SetRaw works just like [RawContainer.Set] with the difference that it accepts
+// a raw interface to set at the specified path.
+// The function will also NOT attempt to encode the value with the configured codec.
+func (container *RawContainer) SetRaw(path Path, value Value) error {
+	return container.set(path, value, false)
 }
 
 // TODO: this has a lot of edge cases and needs heavy testing
@@ -233,7 +236,9 @@ func (container *RawContainer) Merge(path Path, data Map) error {
 
 	// In case the path is a wildcard path, remove the identifier before
 	// setting the path again because [RawContainer.SetRaw] does not support it.
-	if path.Last() == WildcardIdentifier {
+	// We're only handling paths with length > 1. If the path
+	// only consists of a WildcardIdentifier, the [Container.set] function wil handle it.
+	if len(path) > 1 && path.Last() == WildcardIdentifier {
 		path = path.StripSuffix(NewPath(WildcardIdentifier))
 	}
 
