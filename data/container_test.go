@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/lukasjarosch/skipper/codec"
 	. "github.com/lukasjarosch/skipper/data"
 	dataMocks "github.com/lukasjarosch/skipper/mocks/data"
@@ -964,6 +963,46 @@ func TestRawContainer_Merge(t *testing.T) {
 			},
 		},
 		{
+			name: "wildcard path",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path: NewPath("foo.bar.*"),
+			mergeMap: Map{
+				"baz": "CHANGED",
+			},
+			mergedContainerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "CHANGED",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "invalid wildcard path",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.*.baz"),
+			errExpected: true,
+			err:         ErrInlineWildcard,
+		},
+		{
 			name: "full container data replace",
 			containerData: Map{
 				"test": Map{
@@ -1009,6 +1048,118 @@ func TestRawContainer_Merge(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "complex map replace",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path: NewPath("test"),
+			mergeMap: Map{
+				"foo": Map{
+					"hello": []interface{}{
+						"one", "two", "three",
+					},
+					"bar": Map{
+						"baz": "REPLACED",
+						"qux": Map{
+							"hello": []interface{}{"just", "another", "one"},
+						},
+						"pizza": "rocks",
+					},
+				},
+			},
+			mergedContainerData: Map{
+				"test": Map{
+					"foo": Map{
+						"hello": []interface{}{
+							"one", "two", "three",
+						},
+						"bar": Map{
+							"baz": "REPLACED",
+							"qux": Map{
+								"hello": []interface{}{"just", "another", "one"},
+							},
+							"pizza": "rocks",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "slice append",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": []interface{}{
+							"one",
+							"two",
+							"three",
+						},
+					},
+				},
+			},
+			path: NewPath("test"),
+			mergeMap: Map{
+				"foo": Map{
+					"bar": []interface{}{
+						"four",
+						"five",
+						"six",
+					},
+				},
+			},
+			mergedContainerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": []interface{}{
+							"one",
+							"two",
+							"three",
+							"four",
+							"five",
+							"six",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "slice replace with map",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": []interface{}{
+							"one",
+							"two",
+							"three",
+						},
+					},
+				},
+			},
+			path: NewPath("test"),
+			mergeMap: Map{
+				"foo": Map{
+					"bar": Map{
+						"nuked": "away",
+					},
+				},
+			},
+			mergedContainerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"nuked": "away",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1033,8 +1184,6 @@ func TestRawContainer_Merge(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.Equal(t, tt.mergedContainerData, afterData)
-
-			spew.Dump(afterData)
 		})
 	}
 }
