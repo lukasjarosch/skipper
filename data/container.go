@@ -39,8 +39,10 @@ var (
 	ErrEmptyContainerName      = fmt.Errorf("container name empty")
 	ErrCannotSetRootKey        = fmt.Errorf("cannot set the root key of a container")
 	ErrEmptyRootKey            = fmt.Errorf("empty root key")
+	ErrNilFile                 = fmt.Errorf("file is nil")
 	ErrNilData                 = fmt.Errorf("data is nil")
 	ErrNilCodec                = fmt.Errorf("codec is nil")
+	ErrNoRootKey               = fmt.Errorf("data has no root key (empty)")
 	ErrCannotSetNewPathTooDeep = fmt.Errorf("cannot set path with new path longer than one path segment")
 	ErrInlineWildcard          = fmt.Errorf("inline wildcard paths are not supported")
 )
@@ -74,6 +76,12 @@ func NewRawContainer(name string, data interface{}, codec FileCodec) (*RawContai
 	dataMap, err := codec.Unmarshal(dataByte)
 	if err != nil {
 		return nil, err
+	}
+
+	// if the map is empty, it cannot be valid container data
+	// because we require at least the containerName as the map root key
+	if len(dataMap) == 0 {
+		return nil, ErrNoRootKey
 	}
 
 	container := &RawContainer{
@@ -265,6 +273,13 @@ type FileContainer struct {
 // NewFileContainer creates a new container based on the given DataFileProvider.
 // The referenceDirs are used to resolve YAML aliases and anchors
 func NewFileContainer(file File, codec FileCodec) (*FileContainer, error) {
+	if file == nil {
+		return nil, ErrNilFile
+	}
+	if codec == nil {
+		return nil, ErrNilCodec
+	}
+
 	data, err := codec.Unmarshal(file.Bytes())
 	if err != nil {
 		return nil, err
