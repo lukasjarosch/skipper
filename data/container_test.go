@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	_ "github.com/charmbracelet/log"
+	"github.com/lukasjarosch/skipper/codec"
 	. "github.com/lukasjarosch/skipper/data"
 	dataMocks "github.com/lukasjarosch/skipper/mocks/data"
 	"github.com/stretchr/testify/assert"
@@ -16,14 +16,30 @@ func TestNewRawContainer_EmptyContainerName(t *testing.T) {
 	assert.Error(t, err, ErrEmptyContainerName)
 }
 
+func TestNewRawContainer_NilData(t *testing.T) {
+	_, err := NewRawContainer("name", nil, nil)
+	assert.ErrorIs(t, err, ErrNilData)
+}
+
+func TestNewRawContainer_EmptyData(t *testing.T) {
+	_, err := NewRawContainer("name", Map{}, codec.NewYamlCodec())
+	assert.NoError(t, err)
+}
+
+func TestNewRawContainer_NilCodec(t *testing.T) {
+	_, err := NewRawContainer("name", Map{}, nil)
+	assert.ErrorIs(t, err, ErrNilCodec)
+}
+
 func TestNewRawContainer_MarshalError(t *testing.T) {
 	expectedError := fmt.Errorf("an error")
 
 	mockCodec := &dataMocks.MockFileCodec{}
 	mockCodec.On("Marshal", mock.Anything).Return([]byte{}, expectedError)
 
-	_, err := NewRawContainer("name", nil, mockCodec)
+	_, err := NewRawContainer("name", Map{}, mockCodec)
 	assert.Error(t, err, expectedError)
+	mockCodec.AssertExpectations(t)
 }
 
 func TestNewRawContainer_UnmarshalError(t *testing.T) {
@@ -33,8 +49,9 @@ func TestNewRawContainer_UnmarshalError(t *testing.T) {
 	mockCodec.On("Marshal", mock.Anything).Return([]byte{}, nil)
 	mockCodec.On("Unmarshal", mock.Anything).Return(Map{}, expectedError)
 
-	_, err := NewRawContainer("name", nil, mockCodec)
+	_, err := NewRawContainer("name", Map{}, mockCodec)
 	assert.ErrorIs(t, err, expectedError)
+	mockCodec.AssertExpectations(t)
 }
 
 func TestNewRawContainer_InvalidRootKey(t *testing.T) {
@@ -51,6 +68,7 @@ func TestNewRawContainer_InvalidRootKey(t *testing.T) {
 
 	_, err := NewRawContainer("name", data, mockCodec)
 	assert.ErrorContains(t, err, expectedError.Error())
+	mockCodec.AssertExpectations(t)
 }
 
 func TestNewRawContainer_Valid(t *testing.T) {
@@ -67,6 +85,7 @@ func TestNewRawContainer_Valid(t *testing.T) {
 	rawContainer, err := NewRawContainer("name", data, mockCodec)
 	assert.NoError(t, err)
 	assert.NotNil(t, rawContainer)
+	mockCodec.AssertExpectations(t)
 }
 
 func TestRawContainer_Get(t *testing.T) {
@@ -166,13 +185,16 @@ func TestRawContainer_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.test, func(t *testing.T) {
+
+			// setup container
 			mockCodec := &dataMocks.MockFileCodec{}
 			mockCodec.On("Marshal", mock.Anything).Return([]byte{}, nil)
 			mockCodec.On("Unmarshal", mock.Anything).Return(defaultMap, nil)
-
 			container, err := NewRawContainer(containerName, defaultMap, mockCodec)
 			assert.NoError(t, err)
+			mockCodec.AssertExpectations(t)
 
+			// test
 			value, err := container.Get(tt.path)
 			if tt.errExpected {
 				assert.ErrorContains(t, err, tt.err.Error())
@@ -275,13 +297,15 @@ func TestRawContainer_MustGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.test, func(t *testing.T) {
+			// setup container
 			mockCodec := &dataMocks.MockFileCodec{}
 			mockCodec.On("Marshal", mock.Anything).Return([]byte{}, nil)
 			mockCodec.On("Unmarshal", mock.Anything).Return(defaultMap, nil)
-
 			container, err := NewRawContainer(containerName, defaultMap, mockCodec)
 			assert.NoError(t, err)
+			mockCodec.AssertExpectations(t)
 
+			// test
 			if tt.panicExpected {
 				assert.Panics(t, func() {
 					container.MustGet(tt.path)
@@ -376,14 +400,417 @@ func TestRawContainer_HasPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.test, func(t *testing.T) {
+			// setup container
 			mockCodec := &dataMocks.MockFileCodec{}
 			mockCodec.On("Marshal", mock.Anything).Return([]byte{}, nil)
 			mockCodec.On("Unmarshal", mock.Anything).Return(defaultMap, nil)
-
 			container, err := NewRawContainer(containerName, defaultMap, mockCodec)
 			assert.NoError(t, err)
+			mockCodec.AssertExpectations(t)
 
+			// test
 			assert.Equal(t, tt.hasPath, container.HasPath(tt.path))
+		})
+	}
+}
+
+func TestRawContainer_Set(t *testing.T) {
+	containerName := "test"
+
+	tests := []struct {
+		name        string
+		data        Map
+		path        Path
+		value       Value
+		errExpected bool
+		err         error
+	}{
+		{
+			name: "empty path",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath(""),
+			value:       NewValue("changed"),
+			errExpected: true,
+			err:         ErrEmptyPath,
+		},
+		{
+			name: "nil value",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       NewValue(nil),
+			errExpected: false,
+		},
+		{
+			name: "empty value",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       Value{},
+			errExpected: false,
+		},
+		{
+			name: "invalid path",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("invalid.path"),
+			value:       NewValue("foo"),
+			errExpected: true,
+			err:         fmt.Errorf("cannot set path which creates more than one new path"),
+		},
+		{
+			name: "overwrite existing path",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       NewValue("changed"),
+			errExpected: false,
+		},
+		{
+			name: "add one path segment",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.qux"),
+			value:       NewValue("new"),
+			errExpected: false,
+		},
+		{
+			name: "add path segment to value path",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz.new"),
+			value:       NewValue("new"),
+			errExpected: true,
+			err:         fmt.Errorf("cannot set path which creates a child segment on an existing value path"),
+		},
+		{
+			name: "add slice to new path",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       NewValue([]string{"hello", "world"}),
+			errExpected: false,
+		},
+		{
+			name: "overwrite value with slice",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       NewValue([]string{"hello", "world"}),
+			errExpected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// setup container
+			mockCodec := &dataMocks.MockFileCodec{}
+			mockCodec.On("Marshal", tt.data).Return([]byte("mocked"), nil)
+			mockCodec.On("Unmarshal", []byte("mocked")).Return(tt.data, nil)
+			container, err := NewRawContainer(containerName, tt.data, mockCodec)
+			assert.NoError(t, err)
+			mockCodec.AssertExpectations(t)
+
+			// test
+
+			// attemptEncode will only call marshal for non nil values
+			// additionally, we are not testing complex types so we let
+			// marshal return an error which causes attemptEncode to return immediately
+			if tt.value.Raw != nil {
+				mockCodec.On("Marshal", tt.value.Raw).Return(nil, fmt.Errorf("no marshal"))
+			}
+
+			err = container.Set(tt.path, tt.value)
+
+			if tt.errExpected {
+				assert.ErrorContains(t, err, tt.err.Error())
+				return
+			}
+			mockCodec.AssertExpectations(t)
+			assert.NoError(t, err)
+
+			afterValue, err := container.Get(tt.path)
+			assert.NotNil(t, afterValue)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.value.Raw, afterValue.Raw)
+		})
+	}
+}
+
+func TestRawContainer_Set_complex(t *testing.T) {
+	containerName := "test"
+
+	type TestData struct {
+		Name     string
+		Location string
+	}
+
+	type TestDataComplex struct {
+		TestData
+		Something string
+		Else      []string
+	}
+
+	tests := []struct {
+		name               string
+		data               Map
+		path               Path
+		value              Value
+		pathExistsAfter    Path
+		valueExpectedAfter Value
+		errExpected        bool
+		err                error
+	}{
+		{
+			name: "set struct without codec modify",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:               NewPath("foo.bar.baz"),
+			value:              NewValue(TestData{Name: "John", Location: "Home"}),
+			valueExpectedAfter: NewValue(Map{"Name": "John", "Location": "Home"}),
+			errExpected:        false,
+		},
+		{
+			name: "set struct with codec modify",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:               NewPath("foo.bar.baz"),
+			value:              NewValue(TestData{Name: "John", Location: "Home"}),
+			valueExpectedAfter: NewValue(Map{"name": "John", "location": "Home"}),
+			errExpected:        false,
+		},
+		{
+			name: "set complex struct without codec modify",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path: NewPath("foo.bar.baz"),
+			value: NewValue(TestDataComplex{
+				TestData: TestData{
+					Name:     "John",
+					Location: "Home",
+				},
+				Something: "Hello",
+				Else:      []string{"foo", "bar", "baz"},
+			}),
+			valueExpectedAfter: NewValue(Map{
+				"TestData": Map{
+					"Name":     "John",
+					"Location": "Home",
+				},
+				"Something": "Hello",
+				"Else":      []string{"foo", "bar", "baz"},
+			}),
+			errExpected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			// create new container
+			mockCodec := &dataMocks.MockFileCodec{}
+			mockCodec.On("Marshal", tt.data).Return([]byte("initial"), nil)
+			mockCodec.On("Unmarshal", []byte("initial")).Return(tt.data, nil)
+			container, err := NewRawContainer(containerName, tt.data, mockCodec)
+			mockCodec.AssertExpectations(t)
+			assert.NoError(t, err)
+
+			// set the data
+			mockCodec.On("Marshal", tt.value.Raw).Return([]byte("attemptEncode"), nil)
+			mockCodec.On("Unmarshal", []byte("attemptEncode")).Return(tt.valueExpectedAfter.Raw, nil)
+			err = container.Set(tt.path, tt.value)
+			if tt.errExpected {
+				assert.ErrorContains(t, err, tt.err.Error())
+				mockCodec.AssertExpectations(t)
+				return
+			}
+			assert.NoError(t, err)
+			mockCodec.AssertExpectations(t)
+
+			// assert changed data
+			afterValue, err := container.Get(tt.path)
+			assert.NotNil(t, afterValue)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.valueExpectedAfter.Raw, afterValue.Raw)
+		})
+	}
+}
+
+func TestRawContainer_SetRaw(t *testing.T) {
+	containerName := "test"
+
+	tests := []struct {
+		name        string
+		data        Map
+		path        Path
+		value       Value
+		errExpected bool
+		err         error
+	}{
+		{
+			name:        "empty path",
+			data:        nil,
+			path:        Path{},
+			value:       Value{},
+			errExpected: true,
+			err:         ErrEmptyPath,
+		},
+		{
+			name: "empty value",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       Value{},
+			errExpected: false,
+		},
+		{
+			name: "string value",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       NewValue("changed value"),
+			errExpected: false,
+		},
+		{
+			name: "function definition",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("foo.bar.baz"),
+			value:       NewValue(func() error { return fmt.Errorf("whoops") }),
+			errExpected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			// create new container
+			mockCodec := &dataMocks.MockFileCodec{}
+			mockCodec.On("Marshal", tt.data).Return([]byte("initial"), nil)
+			mockCodec.On("Unmarshal", []byte("initial")).Return(tt.data, nil)
+			container, err := NewRawContainer(containerName, tt.data, mockCodec)
+			mockCodec.AssertExpectations(t)
+			assert.NoError(t, err)
+
+			// set the data
+			err = container.SetRaw(tt.path, tt.value)
+			if tt.errExpected {
+				assert.ErrorContains(t, err, tt.err.Error())
+				return
+			}
+			assert.NoError(t, err)
+
+			// assert changed data
+			afterValue, err := container.Get(tt.path)
+			assert.NotNil(t, afterValue)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.value.Raw, afterValue.Raw)
 		})
 	}
 }
