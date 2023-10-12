@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/lukasjarosch/skipper/codec"
 	. "github.com/lukasjarosch/skipper/data"
 	dataMocks "github.com/lukasjarosch/skipper/mocks/data"
@@ -518,6 +519,22 @@ func TestRawContainer_Set(t *testing.T) {
 			errExpected: false,
 		},
 		{
+			name: "wildcard only path",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath(WildcardIdentifier),
+			value:       NewValue("changed"),
+			errExpected: true,
+			err:         ErrCannotSetRootKey,
+		},
+		{
 			name: "add path segment to value path",
 			data: Map{
 				"test": Map{
@@ -724,6 +741,10 @@ func TestRawContainer_Set_complex(t *testing.T) {
 func TestRawContainer_SetRaw(t *testing.T) {
 	containerName := "test"
 
+	type testInterface interface {
+		Test()
+	}
+
 	tests := []struct {
 		name        string
 		data        Map
@@ -754,6 +775,22 @@ func TestRawContainer_SetRaw(t *testing.T) {
 			path:        NewPath("foo.bar.baz"),
 			value:       Value{},
 			errExpected: false,
+		},
+		{
+			name: "wildcard only path",
+			data: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath(WildcardIdentifier),
+			value:       NewValue("changed value"),
+			errExpected: true,
+			err:         ErrCannotSetRootKey,
 		},
 		{
 			name: "string value",
@@ -843,6 +880,161 @@ func TestRawContainer_SetRaw(t *testing.T) {
 			assert.NotNil(t, afterValue)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.value.Raw, afterValue.Raw)
+		})
+	}
+}
+
+func TestRawContainer_Merge(t *testing.T) {
+	containerName := "test"
+	tests := []struct {
+		name                string
+		path                Path
+		containerData       Map
+		mergeMap            Map
+		mergedContainerData Map
+		errExpected         bool
+		err                 error
+	}{
+		{
+			name:        "empty path",
+			errExpected: true,
+			err:         ErrEmptyPath,
+		},
+		{
+			name: "empty merge data",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:     NewPath("foo.bar"),
+			mergeMap: Map{},
+			mergedContainerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "invalid merge path",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath("this.path.does.not.exist"),
+			errExpected: true,
+			err:         ErrPathNotFound{},
+		},
+		{
+			name: "single value replace",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path: NewPath("foo.bar"),
+			mergeMap: Map{
+				"baz": "CHANGED",
+			},
+			mergedContainerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "CHANGED",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "full container data replace",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path:        NewPath(WildcardIdentifier),
+			errExpected: true,
+			err:         ErrCannotSetRootKey,
+		},
+		{
+			name: "nested value replace",
+			containerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "hello",
+						},
+					},
+				},
+			},
+			path: NewPath("test"),
+			mergeMap: Map{
+				"foo": Map{
+					"bar": Map{
+						"baz": "REPLACED",
+						"qux": "ADDED",
+					},
+				},
+			},
+			mergedContainerData: Map{
+				"test": Map{
+					"foo": Map{
+						"bar": Map{
+							"baz": "REPLACED",
+							"qux": "ADDED",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// create new container
+			mockCodec := &dataMocks.MockFileCodec{}
+			mockCodec.On("Marshal", tt.containerData).Return([]byte("initial"), nil)
+			mockCodec.On("Unmarshal", []byte("initial")).Return(tt.containerData, nil)
+			container, err := NewRawContainer(containerName, tt.containerData, mockCodec)
+			mockCodec.AssertExpectations(t)
+			assert.NoError(t, err)
+
+			// merge
+			err = container.Merge(tt.path, tt.mergeMap)
+			if tt.errExpected {
+				assert.ErrorContains(t, err, tt.err.Error())
+				return
+			}
+			assert.NoError(t, err)
+
+			afterData, err := container.MustGet(NewPath(WildcardIdentifier)).Map()
+			assert.NoError(t, err)
+
+			assert.Equal(t, tt.mergedContainerData, afterData)
+
+			spew.Dump(afterData)
 		})
 	}
 }
