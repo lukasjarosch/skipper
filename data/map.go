@@ -87,6 +87,18 @@ func (data Map) Set(path Path, value interface{}) error {
 		return err
 	}
 
+	// value gatekeeper
+	if value != nil {
+		kind := reflect.TypeOf(value).Kind()
+
+		switch kind {
+		case reflect.Func:
+			return fmt.Errorf("cannot set function as value")
+		case reflect.Struct:
+			return fmt.Errorf("cannot set struct as value")
+		}
+	}
+
 	// Get the parent node of the path (all but the last segment)
 	parentPath := path[:len(path)-1]
 
