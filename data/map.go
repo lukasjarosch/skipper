@@ -71,7 +71,7 @@ func (data Map) CanSet(path Path) error {
 	// in case the parentPath is already a value path (e.g. points to a scalar value)
 	// we cannot add another path segment
 	if data.IsValuePath(parentPath) {
-		return fmt.Errorf("cannot set path wich creates a child segment on an existing value path")
+		return fmt.Errorf("cannot set path which creates a child segment on an existing value path")
 	}
 
 	return nil
