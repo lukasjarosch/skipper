@@ -46,21 +46,3 @@ func (val Value) Int() (int, error) {
 	}
 	return i, nil
 }
-
-// Int32 attempts to convert the value to an int32. Returns an error if conversion is not possible.
-func (val Value) Int32() (int32, error) {
-	i, ok := val.Raw.(int32)
-	if !ok {
-		return 0, fmt.Errorf("cannot convert value to int32: %s", val)
-	}
-	return i, nil
-}
-
-// Int64 attempts to convert the value to an int64. Returns an error if conversion is not possible.
-func (val Value) Int64() (int64, error) {
-	i, ok := val.Raw.(int64)
-	if !ok {
-		return 0, fmt.Errorf("cannot convert value to int64: %s", val)
-	}
-	return i, nil
-}
