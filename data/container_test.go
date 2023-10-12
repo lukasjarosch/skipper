@@ -23,7 +23,7 @@ func TestNewRawContainer_NilData(t *testing.T) {
 
 func TestNewRawContainer_EmptyData(t *testing.T) {
 	_, err := NewRawContainer("name", Map{}, codec.NewYamlCodec())
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, ErrNoRootKey)
 }
 
 func TestNewRawContainer_NilCodec(t *testing.T) {
@@ -753,8 +753,10 @@ func TestRawContainer_SetRaw(t *testing.T) {
 		err         error
 	}{
 		{
-			name:        "empty path",
-			data:        nil,
+			name: "empty path",
+			data: Map{
+				containerName: Map{},
+			},
 			path:        Path{},
 			value:       Value{},
 			errExpected: true,
@@ -763,7 +765,7 @@ func TestRawContainer_SetRaw(t *testing.T) {
 		{
 			name: "empty value",
 			data: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -778,7 +780,7 @@ func TestRawContainer_SetRaw(t *testing.T) {
 		{
 			name: "wildcard only path",
 			data: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -794,7 +796,7 @@ func TestRawContainer_SetRaw(t *testing.T) {
 		{
 			name: "string value",
 			data: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -809,7 +811,7 @@ func TestRawContainer_SetRaw(t *testing.T) {
 		{
 			name: "function definition",
 			data: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -825,7 +827,7 @@ func TestRawContainer_SetRaw(t *testing.T) {
 		{
 			name: "nested map",
 			data: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -834,13 +836,13 @@ func TestRawContainer_SetRaw(t *testing.T) {
 				},
 			},
 			path:        NewPath("foo.bar.baz"),
-			value:       NewValue(Map{"hello": Map{"test": "chicken"}}),
+			value:       NewValue(Map{"hello": Map{containerName: "chicken"}}),
 			errExpected: false,
 		},
 		{
 			name: "struct",
 			data: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -898,11 +900,14 @@ func TestRawContainer_Merge(t *testing.T) {
 			name:        "empty path",
 			errExpected: true,
 			err:         ErrEmptyPath,
+			containerData: Map{
+				containerName: Map{},
+			},
 		},
 		{
 			name: "empty merge data",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -913,7 +918,7 @@ func TestRawContainer_Merge(t *testing.T) {
 			path:     NewPath("foo.bar"),
 			mergeMap: Map{},
 			mergedContainerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -925,7 +930,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "invalid merge path",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -940,7 +945,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "single value replace",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -953,7 +958,7 @@ func TestRawContainer_Merge(t *testing.T) {
 				"baz": "CHANGED",
 			},
 			mergedContainerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "CHANGED",
@@ -965,7 +970,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "wildcard path",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -978,7 +983,7 @@ func TestRawContainer_Merge(t *testing.T) {
 				"baz": "CHANGED",
 			},
 			mergedContainerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "CHANGED",
@@ -990,7 +995,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "invalid wildcard path",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -1005,7 +1010,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "full container data replace",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -1020,7 +1025,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "nested value replace",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -1028,7 +1033,7 @@ func TestRawContainer_Merge(t *testing.T) {
 					},
 				},
 			},
-			path: NewPath("test"),
+			path: NewPath(containerName),
 			mergeMap: Map{
 				"foo": Map{
 					"bar": Map{
@@ -1038,7 +1043,7 @@ func TestRawContainer_Merge(t *testing.T) {
 				},
 			},
 			mergedContainerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "REPLACED",
@@ -1051,7 +1056,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "complex map replace",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"baz": "hello",
@@ -1059,7 +1064,7 @@ func TestRawContainer_Merge(t *testing.T) {
 					},
 				},
 			},
-			path: NewPath("test"),
+			path: NewPath(containerName),
 			mergeMap: Map{
 				"foo": Map{
 					"hello": []interface{}{
@@ -1075,7 +1080,7 @@ func TestRawContainer_Merge(t *testing.T) {
 				},
 			},
 			mergedContainerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"hello": []interface{}{
 							"one", "two", "three",
@@ -1094,7 +1099,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "slice append",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": []interface{}{
 							"one",
@@ -1104,7 +1109,7 @@ func TestRawContainer_Merge(t *testing.T) {
 					},
 				},
 			},
-			path: NewPath("test"),
+			path: NewPath(containerName),
 			mergeMap: Map{
 				"foo": Map{
 					"bar": []interface{}{
@@ -1115,7 +1120,7 @@ func TestRawContainer_Merge(t *testing.T) {
 				},
 			},
 			mergedContainerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": []interface{}{
 							"one",
@@ -1132,7 +1137,7 @@ func TestRawContainer_Merge(t *testing.T) {
 		{
 			name: "slice replace with map",
 			containerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": []interface{}{
 							"one",
@@ -1142,7 +1147,7 @@ func TestRawContainer_Merge(t *testing.T) {
 					},
 				},
 			},
-			path: NewPath("test"),
+			path: NewPath(containerName),
 			mergeMap: Map{
 				"foo": Map{
 					"bar": Map{
@@ -1151,7 +1156,7 @@ func TestRawContainer_Merge(t *testing.T) {
 				},
 			},
 			mergedContainerData: Map{
-				"test": Map{
+				containerName: Map{
 					"foo": Map{
 						"bar": Map{
 							"nuked": "away",
@@ -1186,4 +1191,77 @@ func TestRawContainer_Merge(t *testing.T) {
 			assert.Equal(t, tt.mergedContainerData, afterData)
 		})
 	}
+}
+
+func TestNewFileContainer_NilFile(t *testing.T) {
+	mockCodec := &dataMocks.MockFileCodec{}
+	fc, err := NewFileContainer(nil, mockCodec)
+	assert.ErrorContains(t, err, ErrNilFile.Error())
+	assert.Nil(t, fc)
+}
+
+func TestNewFileContainer_NilCodec(t *testing.T) {
+	mockFile := &dataMocks.MockFile{}
+	fc, err := NewFileContainer(mockFile, nil)
+	assert.ErrorContains(t, err, ErrNilCodec.Error())
+	assert.Nil(t, fc)
+}
+
+func TestNewFileContainer_EmptyFile(t *testing.T) {
+	mockFile := &dataMocks.MockFile{}
+	mockCodec := &dataMocks.MockFileCodec{}
+
+	// mocks in call order
+	mockFile.On("Bytes").Return([]byte{})
+	mockCodec.On("Unmarshal", []byte{}).Return(Map{}, nil)
+	mockFile.On("Path").Return("my/test.yaml")
+	mockCodec.On("Marshal", Map{}).Return([]byte{}, nil)
+	mockCodec.On("Unmarshal", []byte{}).Return(Map{}, nil)
+
+	fc, err := NewFileContainer(mockFile, mockCodec)
+	assert.ErrorContains(t, err, ErrNoRootKey.Error())
+	assert.Nil(t, fc)
+}
+
+func TestNewFileContainer_EmptyFilePath(t *testing.T) {
+	mockFile := &dataMocks.MockFile{}
+	mockCodec := &dataMocks.MockFileCodec{}
+
+	// mocks in call order
+	mockFile.On("Bytes").Return([]byte{})
+	mockCodec.On("Unmarshal", []byte{}).Return(Map{}, nil)
+	mockFile.On("Path").Return("")
+	mockCodec.On("Marshal", Map{}).Return([]byte{}, nil)
+	mockCodec.On("Unmarshal", []byte{}).Return(Map{}, nil)
+
+	fc, err := NewFileContainer(mockFile, mockCodec)
+	assert.ErrorContains(t, err, ErrEmptyContainerName.Error())
+	assert.Nil(t, fc)
+}
+
+func TestNewFileContainer_ValidFile(t *testing.T) {
+	filePath := "foo/bar.yaml"
+	fileBytes := []byte{}
+	fileDataMap := Map{
+		"bar": Map{
+			"hello": "world",
+		},
+	}
+	expectedContainerName := "bar"
+
+	mockFile := &dataMocks.MockFile{}
+	mockFile.EXPECT().Bytes().Return(fileBytes).Once()
+	mockFile.EXPECT().Path().Return(filePath).Once()
+
+	mockCodec := &dataMocks.MockFileCodec{}
+	mockCodec.EXPECT().Marshal(fileDataMap).Return(fileBytes, nil).Once()
+	mockCodec.EXPECT().Unmarshal(fileBytes).Return(fileDataMap, nil).Twice()
+
+	fc, err := NewFileContainer(mockFile, mockCodec)
+	assert.NoError(t, err)
+	assert.NotNil(t, fc)
+	assert.Equal(t, expectedContainerName, fc.Name())
+
+	mockCodec.AssertExpectations(t)
+	mockFile.AssertExpectations(t)
 }
