@@ -17,6 +17,9 @@ var (
 	ErrNestedArrayPath    = fmt.Errorf("nested array paths are currently not supported")
 )
 
+// Container holds the raw data and provides access to it.
+// The data can have only one key, which must match the container name.
+// So a container named 'foo' must have data like 'map[string]interface{"foo": ....}'
 type Container struct {
 	name string
 	data map[string]interface{}
