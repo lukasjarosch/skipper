@@ -22,9 +22,9 @@ type ErrPathNotFound struct {
 
 func (e ErrPathNotFound) Error() string {
 	if e.Err != nil {
-		return fmt.Sprintf("path not found: %s: %s", e.Path, e.Err)
+		return fmt.Sprintf("path not found '%s': %s", e.Path, e.Err)
 	}
-	return fmt.Sprintf("path not found: %s", e.Path)
+	return fmt.Sprintf("path not found '%s'", e.Path)
 }
 
 // NewPath is a helper function to quickly create a [Path] from a string
