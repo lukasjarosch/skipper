@@ -5,9 +5,6 @@ import (
 	"strings"
 )
 
-type Codec interface {
-}
-
 var (
 	ErrEmptyContainerName = fmt.Errorf("container name empty")
 	ErrNilData            = fmt.Errorf("data is nil")
@@ -79,7 +76,7 @@ func (container *Container) Get(path Path) (Value, error) {
 
 	ret, err := DeepGet(container.data, []string(path))
 	if err != nil {
-		return Value{}, err
+		return Value{}, fmt.Errorf("%s: %w", ErrPathNotFound{Path: path}.Error(), err)
 	}
 	if ret == nil {
 		return Value{}, ErrPathNotFound{Path: path}
