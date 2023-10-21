@@ -371,7 +371,7 @@ var SelectLeafPaths PathSelectorFunc = func(_ interface{}, path Path, isLeaf boo
 func Paths(data map[string]interface{}, selectorFn PathSelectorFunc) []Path {
 	pathSelectMap := make(map[string]bool)
 
-	err := Walk(data, func(path Path, _ interface{}, isLeaf bool) error {
+	err := Walk(data, func(path Path, data interface{}, isLeaf bool) error {
 		pathSelectMap[path.String()] = selectorFn(data, path, isLeaf)
 		return nil
 	})
