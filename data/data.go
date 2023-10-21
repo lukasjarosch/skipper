@@ -333,6 +333,29 @@ func Merge(baseData map[string]interface{}, mergeData map[string]interface{}) ma
 	return result
 }
 
+func Keys(input interface{}) []interface{} {
+	var keys = make([]interface{}, 0)
+
+	if input == nil {
+		return keys
+	}
+
+	switch inputValue := input.(type) {
+	case map[string]interface{}:
+		for key := range inputValue {
+			keys = append(keys, key)
+		}
+	case []interface{}:
+		for index := range inputValue {
+			keys = append(keys, index)
+		}
+	default:
+		return keys
+	}
+
+	return keys
+}
+
 type PathSelectorFunc func(data interface{}, path Path, isLeaf bool) bool
 
 var SelectAllPaths PathSelectorFunc = func(_ interface{}, path Path, isLeaf bool) bool {
