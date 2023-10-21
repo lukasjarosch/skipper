@@ -215,7 +215,7 @@ func TestWalk(t *testing.T) {
 	return
 }
 
-func TestGet_New(t *testing.T) {
+func TestGet(t *testing.T) {
 	tests := []struct {
 		name        string
 		data        interface{}
@@ -362,7 +362,7 @@ func TestGet_New(t *testing.T) {
 	}
 }
 
-func TestDeepGet_New(t *testing.T) {
+func TestDeepGet(t *testing.T) {
 	tests := []struct {
 		name        string
 		data        interface{}
@@ -460,7 +460,7 @@ func TestDeepGet_New(t *testing.T) {
 	}
 }
 
-func TestSet_New(t *testing.T) {
+func TestSet(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         interface{}
@@ -517,7 +517,7 @@ func TestSet_New(t *testing.T) {
 	}
 }
 
-func TestDeepSet_New(t *testing.T) {
+func TestDeepSet(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         interface{}
