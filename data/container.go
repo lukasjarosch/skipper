@@ -50,7 +50,7 @@ func NewContainer(name string, data map[string]interface{}) (*Container, error) 
 	// the name must exist as root key within data
 	rootKey, err := Get(data, name)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrNoRootKey, err)
+		return nil, fmt.Errorf("%s: %w", ErrNoRootKey, err)
 	}
 	if rootKey == nil {
 		return nil, ErrNoRootKey
