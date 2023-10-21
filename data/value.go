@@ -20,11 +20,12 @@ func (val Value) String() string {
 	return fmt.Sprint(val.Raw)
 }
 
-// Map attempts to convert the value to a Map. Returns an error if conversion is not possible.
-func (val Value) Map() (Map, error) {
-	m, ok := val.Raw.(Map)
+// Map attempts to convert the value to a map[string]interface{}.
+// Returns an error if conversion is not possible.
+func (val Value) Map() (map[string]interface{}, error) {
+	m, ok := val.Raw.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("cannot convert value to Map: %s", val)
+		return nil, fmt.Errorf("cannot convert value to map[string]interface{}: %s", val)
 	}
 	return m, nil
 }

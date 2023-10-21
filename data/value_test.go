@@ -31,10 +31,10 @@ func TestValueMap(t *testing.T) {
 	testCases := []struct {
 		name     string
 		value    Value
-		expected Map
+		expected map[string]interface{}
 		err      bool
 	}{
-		{"ValidMapValue", NewValue(Map{"key": "value"}), Map{"key": "value"}, false},
+		{"ValidMapValue", NewValue(map[string]interface{}{"key": "value"}), map[string]interface{}{"key": "value"}, false},
 		{"InvalidMapValue", NewValue(42), nil, true},
 		{"NilValue", NewValue(nil), nil, true},
 	}
