@@ -17,6 +17,10 @@
   </br>
 </div>
 
+> Although Skipper is already used in production, the code on `main` should be considered unstable.
+> Skipper is currently undergoing a heavy rework as the current implementation only served as POC.
+> The current development branch is [feat/data-abstraction-layer](https://github.com/lukasjarosch/skipper/tree/feat/data-abstraction-layer).
+
 # What is skipper?
 
 Skipper is a library which helps you to manage complex configuration and enables
