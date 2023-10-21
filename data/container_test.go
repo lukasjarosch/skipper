@@ -1,14 +1,14 @@
 package data_test
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	. "github.com/lukasjarosch/skipper/data"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewContainer(t *testing.T) {
+func TestNewContainer_Valid(t *testing.T) {
 	containerName := "test"
 	d := map[string]interface{}{
 		containerName: map[string]interface{}{
@@ -25,9 +25,45 @@ func TestNewContainer(t *testing.T) {
 	assert.NotNil(t, container)
 }
 
+func TestNewContainer_EmptyContainerName(t *testing.T) {
+	_, err := NewContainer("", nil)
+	assert.Error(t, err, ErrEmptyContainerName)
+}
+
+func TestNewContainer_NilData(t *testing.T) {
+	_, err := NewContainer("name", nil)
+	assert.ErrorIs(t, err, ErrNilData)
+}
+
+func TestNewContainer_EmptyData(t *testing.T) {
+	_, err := NewContainer("name", map[string]interface{}{})
+	assert.ErrorIs(t, err, ErrNoRootKey)
+}
+
+func TestNewContainer_MultipleRootKeys(t *testing.T) {
+	_, err := NewContainer("name", map[string]interface{}{
+		"foo": map[string]interface{}{},
+		"bar": map[string]interface{}{},
+		"baz": map[string]interface{}{},
+	})
+	assert.ErrorIs(t, err, ErrMultipleRootKeys)
+}
+
+func TestNewContainer_InvalidRootKey(t *testing.T) {
+	expectedError := fmt.Errorf("invalid root key")
+	data := map[string]interface{}{
+		"invalidRootKey": map[string]interface{}{
+			"foo": "bar",
+		},
+	}
+
+	_, err := NewContainer("name", data)
+	assert.ErrorContains(t, err, expectedError.Error())
+}
+
 func TestContainer_Get(t *testing.T) {
 	containerName := "test"
-	d := map[string]interface{}{
+	defaultMap := map[string]interface{}{
 		containerName: map[string]interface{}{
 			"foo": map[string]interface{}{
 				"bar": map[string]interface{}{
@@ -36,13 +72,61 @@ func TestContainer_Get(t *testing.T) {
 			},
 		},
 	}
-	container, err := NewContainer(containerName, d)
-	assert.NoError(t, err)
-	assert.NotNil(t, container)
 
-	ret, err := container.Get(NewPathVar(containerName, "foo"))
+	tests := []struct {
+		test          string
+		data          map[string]interface{}
+		path          Path
+		errExpected   bool
+		err           error
+		valueExpected Value
+	}{
+		{
+			test:          "empty path",
+			data:          defaultMap,
+			path:          NewPath(""),
+			valueExpected: NewValue(defaultMap),
+		},
+		{
+			test:        "invalid path",
+			data:        defaultMap,
+			path:        NewPathVar(containerName, "invalidKey"),
+			errExpected: true,
+			// err:           ErrPathNotFound{Path: NewPathVar(containerName, "invalidKey")},
+			err:           fmt.Errorf("asdf"),
+			valueExpected: Value{},
+		},
+		{
+			test:          "valid path with container name",
+			data:          defaultMap,
+			path:          NewPathVar(containerName, "foo"),
+			errExpected:   false,
+			valueExpected: NewValue(defaultMap[containerName].(map[string]interface{})["foo"]),
+		},
+		{
+			test:          "valid path without container name",
+			data:          defaultMap,
+			path:          NewPathVar("foo"),
+			errExpected:   false,
+			valueExpected: NewValue(defaultMap[containerName].(map[string]interface{})["foo"]),
+		},
+	}
 
-	spew.Dump(ret, err)
+	for _, tt := range tests {
+		t.Run(tt.test, func(t *testing.T) {
+
+			container, err := NewContainer(containerName, defaultMap)
+			assert.NoError(t, err)
+
+			// test
+			value, err := container.Get(tt.path)
+			if tt.errExpected {
+				assert.ErrorContains(t, err, tt.err.Error())
+				assert.Equal(t, Value{}, value)
+			}
+			assert.Equal(t, tt.valueExpected, value)
+		})
+	}
 }
 
 func TestContainer_LeafPaths(t *testing.T) {
@@ -60,10 +144,6 @@ func TestContainer_LeafPaths(t *testing.T) {
 	container, err := NewContainer(containerName, d)
 	assert.NoError(t, err)
 	assert.NotNil(t, container)
-
-	paths := container.LeafPaths()
-
-	spew.Dump(paths, err)
 }
 
 func TestContainer_Set(t *testing.T) {
