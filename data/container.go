@@ -22,6 +22,15 @@ type Container struct {
 	data map[string]interface{}
 }
 
+// NewContainer constructs a new container from the given data.
+
+// A container must meet the following requirements:
+//   - name cannot be empty
+//   - data cannot be nil
+//   - there can only be exactly one root key within the data
+//   - the root key of the data must be the same as the container name
+//
+// If any of these conditions are not met, an error is returned.
 func NewContainer(name string, data map[string]interface{}) (*Container, error) {
 	if name == "" {
 		return nil, ErrEmptyContainerName
@@ -64,12 +73,21 @@ func NewContainer(name string, data map[string]interface{}) (*Container, error) 
 	return c, nil
 }
 
+// Get is used to retrieve Values from the container data.
+//
+// The given path can be absolute or relative.
+// An absolute path starts with the container name whereas
+// a relative path omits the name.
+// For example, if the container is called 'foo' you can
+// use the path 'foo.bar' or 'bar' to address the same value.
+//
+// If the path does not exist, a [ErrPathNotFound] error is returned.
 func (container *Container) Get(path Path) (Value, error) {
 	if len(path) == 0 {
 		return NewValue(container.data), nil
 	}
 
-	// make sure the path is abolute and contains the container name as first segment (aka root key)
+	// make sure the path is absolute and contains the container name as first segment (aka root key)
 	if path.First() != container.name {
 		path = path.Prepend(container.name)
 	}
@@ -85,6 +103,18 @@ func (container *Container) Get(path Path) (Value, error) {
 	return NewValue(ret), nil
 }
 
+// Set is used to set values within the container data.
+// It supports dynamic data creation when a given Path does not exist.
+//
+// It does not support changing existing data-types.
+// So if the path 'foo.bar' points to a `map` type, setting
+// 'foo.1' will not convert it to an array, but rather use
+// the string representation "1" as map key.
+//
+// Additionally, if somewhere along the given Path a scalar value is
+// found, an error is returned for the same reason; types are not changed.
+// This means that if there is a scalar value at 'foo.bar.baz', you
+// cannot set 'foo.bar.baz.qux'.
 func (container *Container) Set(path Path, value interface{}) error {
 	if len(path) == 0 {
 		return ErrEmptyPath
@@ -109,6 +139,16 @@ func (container *Container) Set(path Path, value interface{}) error {
 	return nil
 }
 
+// Merge is used to merge in new data at a given path.
+//
+// The way this works ist that the given Path is fetched from the container.
+// Then the resulting map is merged with the given input map.
+// When merging, the given data has precedence over existing data and will
+// overwrite any existing values.
+// In case of slices, the new data is appended.
+//
+// Note: Only map types can be merged! So the given path must point to a map type.
+// TODO: Should empty paths (aka full data merging) be allowed?
 func (container *Container) Merge(path Path, data map[string]interface{}) error {
 	inputData, err := container.Get(path)
 	if err != nil {
@@ -130,14 +170,17 @@ func (container *Container) Merge(path Path, data map[string]interface{}) error 
 	return nil
 }
 
+// AllPaths returns all existing paths within the Container data.
 func (container *Container) AllPaths() []Path {
 	return Paths(container.data, SelectAllPaths)
 }
 
+// LeafPaths returns all paths which point to a scalar value (aka leaf paths).
 func (container *Container) LeafPaths() []Path {
 	return Paths(container.data, SelectLeafPaths)
 }
 
+// MustGet is a wrapper around [Container.Get] which panics on error.
 func (container *Container) MustGet(path Path) Value {
 	val, err := container.Get(path)
 	if err != nil {
@@ -146,6 +189,7 @@ func (container *Container) MustGet(path Path) Value {
 	return val
 }
 
+// HasPath returns true if the given path exists, false otherwise.
 func (container *Container) HasPath(path Path) bool {
 	if _, err := container.Get(path); err != nil {
 		return false

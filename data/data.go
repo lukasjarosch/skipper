@@ -21,8 +21,8 @@ func Walk(data interface{}, walkFn WalkFunc) error {
 	return walk(data, Path{}, walkFn)
 }
 
-// traverse implements a basic DFS and traverses over every
-// node in the map, calling the TraverseFunc on each of them.
+// walk implements a basic DFS and traverses over every
+// node in the data, calling the WalkFunc on each of them.
 func walk(parent interface{}, path Path, walkFn WalkFunc) error {
 	if parent == nil {
 		return nil
@@ -69,6 +69,9 @@ func walk(parent interface{}, path Path, walkFn WalkFunc) error {
 	return nil
 }
 
+// Get attempts to get the key of the given data.
+// The data can be a map or a slice/array. Depending
+// on that the key is either used as actual key or as array index.
 func Get(data interface{}, key string) (interface{}, error) {
 	data = ResolveValue(data)
 
@@ -98,6 +101,9 @@ func Get(data interface{}, key string) (interface{}, error) {
 	return nil, ErrKeyNotFound
 }
 
+// DeepGet is a recursive implementation of [Get].
+// Instead of just indexing into the data by a single key, DeepGet will
+// attempt to traverse the given data along the [Path].
 func DeepGet(data interface{}, path Path) (interface{}, error) {
 	current := ResolveValue(data)
 
@@ -154,9 +160,12 @@ func DeepGet(data interface{}, path Path) (interface{}, error) {
 }
 
 func Set(data interface{}, key string, value interface{}) (interface{}, error) {
-	if data == nil {
+	data = ResolveValue(data)
+
+	if IsZero(data) {
 		return nil, ErrNilData
 	}
+
 	if key == "" {
 		return nil, fmt.Errorf("key cannot be empty")
 	}
