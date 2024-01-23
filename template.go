@@ -17,7 +17,6 @@ import (
 )
 
 var customFuncs map[string]any = map[string]any{
-
 	"tfStringArray": func(input []interface{}) string {
 		var s []string
 		for _, v := range input {
@@ -95,6 +94,10 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 		if err != nil {
 			return err
 		}
+		err = file.Load(t.templateFs)
+		if err != nil {
+			return err
+		}
 		t.Files = append(t.Files, file)
 		return nil
 	})
@@ -134,7 +137,6 @@ func (t *Templater) Execute(template *File, data any, allowNoValue bool, renameC
 
 // execute is the main rendering function for templates
 func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoValue bool) error {
-
 	// if the template matches any IgnoreRegex, just copy the file to the targetPath
 	// without rendering it as template
 	for _, v := range t.IgnoreRegex {
@@ -147,19 +149,20 @@ func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoV
 		}
 	}
 
-	err := tplFile.Load(t.templateFs)
-	if err != nil {
-		return err
-	}
-
+	// create new target template with the attached functions
 	tpl := template.New(tplFile.Path).Funcs(t.templateFuncs)
-	tpl, err = tpl.Parse(string(tplFile.Bytes))
-	if err != nil {
-		return fmt.Errorf("failed to parse template %s: %w", tplFile.Path, err)
+
+	// parse every registered template into the target template
+	for _, tplFile := range t.Files {
+		var err error
+		tpl, err = tpl.Parse(string(tplFile.Bytes))
+		if err != nil {
+			return fmt.Errorf("failed to parse template %s: %w", tplFile.Path, err)
+		}
 	}
 
 	out := new(bytes.Buffer)
-	err = tpl.Execute(out, data)
+	err := tpl.Execute(out, data)
 	if err != nil {
 		return err
 	}
