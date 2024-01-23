@@ -13,9 +13,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var (
-	yamlFileExtensions = []string{".yml", ".yaml", ""}
-)
+var yamlFileExtensions = []string{".yml", ".yaml", ""}
 
 // File is just an arbitrary description of a path and the data of the File to which Path points to.
 // Note that the used filesystem is not relevant, only at the time of loading a File.
@@ -25,7 +23,7 @@ type File struct {
 	Bytes []byte
 }
 
-func newFile(path string) (*File, error) {
+func NewFile(path string) (*File, error) {
 	if path == "" {
 		return nil, fmt.Errorf("path cannot be empty")
 	}
@@ -101,9 +99,9 @@ type YamlFile struct {
 	Data Data
 }
 
-// NewFile returns a newly initialized `YamlFile`.
-func NewFile(path string) (*YamlFile, error) {
-	f, err := newFile(path)
+// NewYamlFile returns a newly initialized `YamlFile`.
+func NewYamlFile(path string) (*YamlFile, error) {
+	f, err := NewFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +125,7 @@ func CreateNewYamlFile(fs afero.Fs, path string, data []byte) (*YamlFile, error)
 	if err != nil {
 		return nil, err
 	}
-	return NewFile(path)
+	return NewYamlFile(path)
 }
 
 // Load will first load the underlying raw file-data and then attempt to `yaml.Unmarshal` it into `Data`
@@ -175,7 +173,7 @@ type TemplateFile struct {
 // User-defined template funcs can be added to have them available in the templates.
 // By default, the well-known sprig functions are always added (see: https://github.com/Masterminds/sprig).
 func NewTemplateFile(path string, funcs map[string]any) (*TemplateFile, error) {
-	f, err := newFile(path)
+	f, err := NewFile(path)
 	if err != nil {
 		return nil, err
 	}

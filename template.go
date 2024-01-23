@@ -13,7 +13,6 @@ import (
 )
 
 var customFuncs map[string]any = map[string]any{
-
 	"tfStringArray": func(input []interface{}) string {
 		var s []string
 		for _, v := range input {
@@ -25,6 +24,7 @@ var customFuncs map[string]any = map[string]any{
 
 type Templater struct {
 	Files            []*TemplateFile
+	rawFiles         []*File
 	templateRootPath string
 	outputRootPath   string
 	templateFs       afero.Fs
@@ -63,6 +63,16 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 		if info.IsDir() {
 			return nil
 		}
+
+		normalFile, err := NewFile(filePath)
+		if err != nil {
+			return err
+		}
+		err = normalFile.Load(t.templateFs)
+		if err != nil {
+			return err
+		}
+		t.rawFiles = append(t.rawFiles, normalFile)
 
 		file, err := NewTemplateFile(filePath, templateFunctions)
 		if err != nil {
@@ -106,6 +116,14 @@ func (t *Templater) Execute(template *TemplateFile, data any, allowNoValue bool,
 }
 
 func (t *Templater) execute(template *TemplateFile, data any, targetPath string, allowNoValue bool) error {
+	for _, file := range t.rawFiles {
+		var err error
+		template.tpl, err = template.tpl.Parse(string(file.Bytes))
+		if err != nil {
+			return err
+		}
+	}
+
 	err := template.Parse(t.templateFs)
 	if err != nil {
 		return err

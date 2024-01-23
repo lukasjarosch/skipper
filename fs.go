@@ -36,7 +36,7 @@ func DiscoverYamlFiles(fileSystem afero.Fs, rootPath string) ([]*YamlFile, error
 			return nil
 		}
 		if matchesExtension(path) {
-			file, err := NewFile(path)
+			file, err := NewYamlFile(path)
 			if err != nil {
 				return err
 			}
