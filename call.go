@@ -12,7 +12,7 @@ import (
 
 var (
 	// callRegex matches everything between `%{....}`
-	callRegex = regexp.MustCompile(`\%\{(.+)\}`)
+	 callRegex = regexp.MustCompile(`\%\{(.+)\}`)
 
 	// callActionRegex matches the actual call syntax `function:param`
 	callActionRegex = regexp.MustCompile(`(\w+)(\:(.+))?`)

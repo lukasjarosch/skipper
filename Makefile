@@ -7,7 +7,7 @@ GOTEST = $(GO) test
 GOLIST := $(shell $(GO) list ./... | grep -v /vendor/)
 PWD := $(shell pwd)
 COVERAGE_FILE = profile.cov
-MKDOCS := $(shell which mkdocs)
+MKDOCS := "${PWD}/.venv/bin/mkdocs"
 
 
 # Fancy colors
@@ -42,7 +42,10 @@ lint-yaml: ## Lint all YAML files
 ## Docs
 
 serve-docs:
-	@cd docs && $(MKDOCS) serve
+	@cd docs && $(MKDOCS) serve -a localhost:8080
+
+serve-godocs:
+	@pkgsite -open
 
 
 ## Examples
