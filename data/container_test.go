@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/lukasjarosch/skipper/data"
 	"github.com/stretchr/testify/assert"
+
+	. "github.com/lukasjarosch/skipper/data"
 )
 
 func TestNewContainer_Valid(t *testing.T) {
@@ -88,12 +89,11 @@ func TestContainer_Get(t *testing.T) {
 			valueExpected: NewValue(defaultMap),
 		},
 		{
-			test:        "invalid path",
-			data:        defaultMap,
-			path:        NewPathVar(containerName, "invalidKey"),
-			errExpected: true,
-			// err:           ErrPathNotFound{Path: NewPathVar(containerName, "invalidKey")},
-			err:           fmt.Errorf("asdf"),
+			test:          "invalid path",
+			data:          defaultMap,
+			path:          NewPathVar(containerName, "invalidKey"),
+			errExpected:   true,
+			err:           ErrPathNotFound{Path: NewPathVar(containerName, "invalidKey")},
 			valueExpected: Value{},
 		},
 		{
@@ -114,7 +114,6 @@ func TestContainer_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.test, func(t *testing.T) {
-
 			container, err := NewContainer(containerName, defaultMap)
 			assert.NoError(t, err)
 
@@ -213,5 +212,4 @@ func TestContainer_Merge(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-
 }
