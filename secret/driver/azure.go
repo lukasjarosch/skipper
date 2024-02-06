@@ -90,7 +90,20 @@ func (driver *Azure) Encrypt(input string) (string, error) {
 	return base64.RawStdEncoding.EncodeToString(res.Result), nil
 }
 
-func (driver *Azure) Decrypt(input string) (string, error) {
+// Decrypt decrypts an input either using the key configured in the driver or if the key parameter isn't empty it will use that one.
+func (driver *Azure) Decrypt(input string, key string) (string, error) {
+	var err error
+	keyName := driver.config.KeyName
+	keyVersion := driver.config.KeyVersion
+
+	// if we hand over a key to this func, make sure to use this key for the decryption, otherwise use the key configured in the driver
+	if len(key) > 0 {
+		_, keyName, keyVersion, err = parseAzureKeyVaultKeyId(key)
+		if err != nil {
+			return "", fmt.Errorf("the key we handed over to Decrypt() could not be parsed")
+		}
+	}
+
 	decoded, err := base64.RawStdEncoding.DecodeString(input)
 	if err != nil {
 		return "", err
@@ -101,11 +114,10 @@ func (driver *Azure) Decrypt(input string) (string, error) {
 		Value:     []byte(decoded),
 	}
 
-	version := driver.config.KeyVersion
 	if driver.config.IgnoreVersion {
-		version = ""
+		keyVersion = ""
 	}
-	res, err := driver.client.Decrypt(context.TODO(), driver.config.KeyName, version, encryptParams, nil)
+	res, err := driver.client.Decrypt(context.TODO(), keyName, keyVersion, encryptParams, nil)
 	if err != nil {
 		return "", err
 	}
@@ -156,4 +168,8 @@ func parseAzureKeyVaultKeyId(key string) (vaultName string, keyName string, keyV
 
 func (driver *Azure) Type() string {
 	return "azurekv"
+}
+
+func (driver Azure) GetPublicKey() string {
+	return driver.config.KeyId
 }

@@ -14,7 +14,8 @@ func NewPlain() (*Plain, error) {
 }
 
 // the plain driver does not do anything
-func (p *Plain) Decrypt(encrypted string) (string, error) {
+func (p *Plain) Decrypt(encrypted string, key string) (string, error) {
+	// key is dismissed, as plain does not do anything
 	return encrypted, nil
 }
 
@@ -23,6 +24,10 @@ func (p *Plain) Encrypt(input string) (string, error) {
 	return input, nil
 }
 
-func (p *Plain) Type() string {
+func (p Plain) Type() string {
 	return "plain"
+}
+
+func (p Plain) GetPublicKey() string {
+	return "plainTextDoesntHaveAPublicKey"
 }
