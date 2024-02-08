@@ -170,6 +170,6 @@ func (driver *Azure) Type() string {
 	return "azurekv"
 }
 
-func (driver Azure) GetPublicKey() string {
+func (driver Azure) GetKey() string {
 	return driver.config.KeyId
 }

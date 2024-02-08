@@ -110,6 +110,6 @@ func (driver *Aes) Type() string {
 	return "aes"
 }
 
-func (driver *Aes) GetPublicKey() string {
-	return "aesIsSymmetricThereIsNoPublicKey"
+func (driver *Aes) GetKey() string {
+	return "aesIsSymmetricThereIsNoKey"
 }

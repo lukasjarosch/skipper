@@ -28,6 +28,6 @@ func (p Plain) Type() string {
 	return "plain"
 }
 
-func (p Plain) GetPublicKey() string {
-	return "plainTextDoesntHaveAPublicKey"
+func (p Plain) GetKey() string {
+	return "plainTextDoesntHaveAKey"
 }

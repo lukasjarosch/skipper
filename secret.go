@@ -34,9 +34,9 @@ func NewSecret(secretFile *SecretFile, driver string, alternative *Call, path []
 
 // SecretFileData describes the generic structure of secret files.
 type SecretFileData struct {
-	Data      string `yaml:"data"`
-	Type      string `yaml:"type"`
-	PublicKey string `yaml:"publickey"`
+	Data string `yaml:"data"`
+	Type string `yaml:"type"`
+	Key  string `yaml:"key"`
 }
 
 // NewSecretData constructs a [Data] map as it is required for secrets.
@@ -49,9 +49,9 @@ func NewSecretData(data string, driver string, key string) (*SecretFileData, err
 	}
 
 	return &SecretFileData{
-		Data:      data,
-		Type:      driver,
-		PublicKey: key,
+		Data: data,
+		Type: driver,
+		Key:  key,
 	}, nil
 }
 
@@ -143,7 +143,7 @@ func (secret *Secret) attemptCreate(fs afero.Fs, secretPath string) error {
 	}
 
 	// create new Data map which can then be written into the secret file
-	secretFileData, err := NewSecretData(encryptedData, secret.Driver.Type(), secret.Driver.GetPublicKey())
+	secretFileData, err := NewSecretData(encryptedData, secret.Driver.Type(), secret.Driver.GetKey())
 	if err != nil {
 		return fmt.Errorf("could not create NewSecretData: %w", err)
 	}

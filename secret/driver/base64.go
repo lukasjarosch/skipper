@@ -35,6 +35,6 @@ func (p *Base64) Type() string {
 	return "base64"
 }
 
-func (p *Base64) GetPublicKey() string {
-	return "base64DoesNotHaveAPublicKey"
+func (p *Base64) GetKey() string {
+	return "base64DoesNotHaveAKey"
 }
