@@ -5,7 +5,9 @@ import (
 	"time"
 )
 
-// Value represents a generic value that originates fom [Data]
+var NilValue = Value{Raw: nil}
+
+// Value represents a generic value that originates from the underlying data.
 type Value struct {
 	Raw interface{}
 }
