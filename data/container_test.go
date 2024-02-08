@@ -28,7 +28,7 @@ func TestNewContainer_Valid(t *testing.T) {
 
 func TestNewContainer_EmptyContainerName(t *testing.T) {
 	_, err := NewContainer("", nil)
-	assert.Error(t, err, ErrEmptyContainerName)
+	assert.Error(t, err, ErrEmptyRootKeyName)
 }
 
 func TestNewContainer_NilData(t *testing.T) {
