@@ -138,7 +138,7 @@ func (t *Templater) DiscoverPartials() {
 	t.partialTemplates = []*File{}
 
 	for _, tplFile := range t.Files {
-		if t.pathIsIgnored(tplFile.Path) {
+		if t.isPathIgnored(tplFile.Path) {
 			continue
 		}
 
@@ -199,7 +199,7 @@ func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoV
 
 	// Add every discovered partial template in case its needed.
 	for _, partialTemplate := range t.partialTemplates {
-		if t.pathIsIgnored(partialTemplate.Path) {
+		if t.isPathIgnored(partialTemplate.Path) {
 			continue
 		}
 
@@ -298,9 +298,9 @@ func (t *Templater) getTemplateByPath(path string) *File {
 	return nil
 }
 
-// pathIsIgnored provides a quick way to check whether a given path should be
+// isPathIgnored provides a quick way to check whether a given path should be
 // ignored based on the 'IgnoreRegex' field.
-func (t *Templater) pathIsIgnored(filePath string) bool {
+func (t *Templater) isPathIgnored(filePath string) bool {
 	for _, v := range t.IgnoreRegex {
 		if v.MatchString(filePath) {
 			return true
