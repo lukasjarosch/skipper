@@ -125,8 +125,6 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 
 	t.DiscoverPartials()
 
-	fmt.Println(len(t.partialTemplates))
-
 	return t, nil
 }
 
@@ -199,20 +197,9 @@ func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoV
 	// create new target template with the attached functions
 	tpl := template.New(tplFile.Path).Funcs(t.templateFuncs)
 
-	// before parsing every template, we need to ignore those which should be ignored via the IgnoreRegex
-	// this function just returns true if a file must not be parsed.
-	ignoreFile := func(filePath string) bool {
-		for _, v := range t.IgnoreRegex {
-			if v.MatchString(filePath) {
-				return true
-			}
-		}
-		return false
-	}
-
 	// Add every discovered partial template in case its needed.
 	for _, partialTemplate := range t.partialTemplates {
-		if ignoreFile(partialTemplate.Path) {
+		if t.pathIsIgnored(partialTemplate.Path) {
 			continue
 		}
 
@@ -265,7 +252,6 @@ func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, al
 
 	for _, component := range components {
 		for _, input := range component.InputPaths {
-
 			file := t.getTemplateByPath(input)
 
 			if file == nil {
