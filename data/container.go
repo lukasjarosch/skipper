@@ -6,34 +6,34 @@ import (
 )
 
 var (
-	ErrEmptyContainerName = fmt.Errorf("container name empty")
-	ErrNilData            = fmt.Errorf("data is nil")
-	ErrNoRootKey          = fmt.Errorf("data has no root key (empty)")
-	ErrMultipleRootKeys   = fmt.Errorf("multiple root keys")
-	ErrInvalidRootKey     = fmt.Errorf("invalid root key")
-	ErrNestedArrayPath    = fmt.Errorf("nested array paths are currently not supported")
+	ErrEmptyRootKeyName = fmt.Errorf("empty root key name")
+	ErrNilData          = fmt.Errorf("data is nil")
+	ErrNoRootKey        = fmt.Errorf("data has no root key (empty)")
+	ErrMultipleRootKeys = fmt.Errorf("multiple root keys")
+	ErrInvalidRootKey   = fmt.Errorf("invalid root key")
+	ErrNestedArrayPath  = fmt.Errorf("nested array paths are currently not supported")
 )
 
 // Container holds the raw data and provides access to it.
-// The data can have only one key, which must match the container name.
-// So a container named 'foo' must have data like 'map[string]interface{"foo": ....}'
+// The data can have only one root key.
+// So a container with root key 'foo' must have data like 'map[string]interface{"foo": ....}'
 type Container struct {
-	Name string
-	data map[string]interface{}
+	rootKey string
+	data    map[string]interface{}
 }
 
 // NewContainer constructs a new container from the given data.
 
 // A container must meet the following requirements:
-//   - name cannot be empty
+//   - rootKeyName cannot be empty
 //   - data cannot be nil
 //   - there can only be exactly one root key within the data
-//   - the root key of the data must be the same as the container name
+//   - the root key of the data must be the same as the rootKeyName
 //
 // If any of these conditions are not met, an error is returned.
-func NewContainer(name string, data map[string]interface{}) (*Container, error) {
-	if name == "" {
-		return nil, ErrEmptyContainerName
+func NewContainer(rootKeyName string, data map[string]interface{}) (*Container, error) {
+	if rootKeyName == "" {
+		return nil, ErrEmptyRootKeyName
 	}
 	if data == nil {
 		return nil, ErrNilData
@@ -51,13 +51,13 @@ func NewContainer(name string, data map[string]interface{}) (*Container, error) 
 		return nil, ErrMultipleRootKeys
 	}
 
-	// the root key must be the same as the container name
-	if !strings.EqualFold(fmt.Sprint(dataRootKeys[0]), name) {
-		return nil, fmt.Errorf("expected root key '%s': %w", name, ErrInvalidRootKey)
+	// the root key must be the same as the rootKeyName
+	if !strings.EqualFold(fmt.Sprint(dataRootKeys[0]), rootKeyName) {
+		return nil, fmt.Errorf("expected root key '%s': %w", rootKeyName, ErrInvalidRootKey)
 	}
 
 	// the name must exist as root key within data
-	rootKey, err := Get(data, name)
+	rootKey, err := Get(data, rootKeyName)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", ErrNoRootKey, err)
 	}
@@ -66,8 +66,8 @@ func NewContainer(name string, data map[string]interface{}) (*Container, error) 
 	}
 
 	c := &Container{
-		Name: name,
-		data: data,
+		rootKey: rootKeyName,
+		data:    data,
 	}
 
 	return c, nil
@@ -87,9 +87,9 @@ func (container *Container) Get(path Path) (Value, error) {
 		return NewValue(container.data), nil
 	}
 
-	// make sure the path is absolute and contains the container name as first segment (aka root key)
-	if path.First() != container.Name {
-		path = path.Prepend(container.Name)
+	// make sure the path is absolute and contains the root key as first segment
+	if path.First() != container.rootKey {
+		path = path.Prepend(container.rootKey)
 	}
 
 	ret, err := DeepGet(container.data, []string(path))
@@ -121,8 +121,8 @@ func (container *Container) Set(path Path, value interface{}) error {
 	}
 
 	// ensure path is absolute
-	if path.First() != container.Name {
-		path = path.Prepend(container.Name)
+	if path.First() != container.rootKey {
+		path = path.Prepend(container.rootKey)
 	}
 
 	ret, err := DeepSet(container.data, path, value)
@@ -141,7 +141,7 @@ func (container *Container) Set(path Path, value interface{}) error {
 
 // Merge is used to merge in new data at a given path.
 //
-// The way this works ist that the given Path is fetched from the container.
+// The way this works is that the given Path is fetched from the container.
 // Then the resulting map is merged with the given input map.
 // When merging, the given data has precedence over existing data and will
 // overwrite any existing values.
