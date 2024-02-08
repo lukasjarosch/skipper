@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -231,7 +232,10 @@ func secretYamlFileLoader(secretFileList *[]*SecretFile) YamlFileLoaderFunc {
 
 // Value returns the actual secret value.
 func (s *Secret) Value() (string, error) {
-	return s.Driver.Decrypt(s.Data.Data, s.Data.PublicKey)
+	if s.Driver.GetKey() != s.Data.Key {
+		fmt.Fprintf(os.Stderr, "key in secret file '%s' differs from the key in the inventory\n", s.Path())
+	}
+	return s.Driver.Decrypt(s.Data.Data, s.Data.Key)
 }
 
 // FullName returns the full secret name as it would be expected to ocurr in a class/target.
