@@ -22,6 +22,9 @@ type Class struct {
 	container *data.Container
 }
 
+// NewClass attempts to create a new class given a filesystem path and a codec.
+// The class will only be created if the file is readable, can be decoded and
+// adheres to the constraints set by [data.Container].
 func NewClass(filePath string, codec Codec) (*Class, error) {
 	if len(filePath) == 0 {
 		return nil, ErrEmptyFilePath
@@ -54,15 +57,21 @@ func NewClass(filePath string, codec Codec) (*Class, error) {
 	}, nil
 }
 
+// Get the value at the given Path.
+// Wrapper for [data.Container#Get]
 func (c Class) Get(path string) (data.Value, error) {
 	return c.container.Get(data.NewPath(path))
 }
 
+// GetAll returns the whole data represented by this class.
+// Wrapper for [data.Container#Get]
 func (c Class) GetAll() data.Value {
 	ret, _ := c.container.Get(data.NewPath(""))
 	return ret
 }
 
+// Set will set the given value at the specified path.
+// Wrapper for [data.Container#Set]
 func (c *Class) Set(path string, value interface{}) error {
 	return c.container.Set(data.NewPath(path), value)
 }
