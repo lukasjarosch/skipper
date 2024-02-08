@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/lukasjarosch/skipper/data"
 )
@@ -17,7 +15,10 @@ type Codec interface {
 }
 
 type Class struct {
-	filePath  string
+	// Name is the common name of the class.
+	Name string
+	// FilePath is the path to the file which this class represents.
+	FilePath  string
 	container *data.Container
 }
 
@@ -41,18 +42,15 @@ func NewClass(filePath string, codec Codec) (*Class, error) {
 		return nil, fmt.Errorf("unable to decode class data: %w", err)
 	}
 
-	// the name of the container is the filename without file extension
-	containerName := filepath.Base(filePath)
-	containerName = strings.TrimSuffix(containerName, filepath.Ext(containerName))
-
-	container, err := data.NewContainer(containerName, fileData)
+	container, err := data.NewContainer(PathFileBaseName(filePath), fileData)
 	if err != nil {
 		return nil, fmt.Errorf("invalid container: %w", err)
 	}
 
 	return &Class{
 		container: container,
-		filePath:  filePath,
+		FilePath:  filePath,
+		Name:      PathFileBaseName(filePath),
 	}, nil
 }
 

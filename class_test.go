@@ -1,35 +1,36 @@
 package skipper_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 
 	"github.com/lukasjarosch/skipper"
 	"github.com/lukasjarosch/skipper/codec"
+	"github.com/lukasjarosch/skipper/data"
 )
 
 func TestNewClass(t *testing.T) {
-	path := "/tmp/foo.yaml"
+	// Test case 1: Valid file path and codec
+	filePath := "testdata/simple_class.yaml"
+	class, err := skipper.NewClass(filePath, codec.NewYamlCodec())
+	assert.NoError(t, err, "No error expected when creating class")
+	assert.NotNil(t, class, "Class should not be nil")
+	assert.Equal(t, filePath, class.FilePath, "File path should match input")
 
-	class, err := skipper.NewClass(path, codec.NewYamlCodec())
-	assert.NoError(t, err)
-	assert.NotNil(t, class)
+	// Test case 2: Empty file path
+	emptyFilePath := ""
+	_, err = skipper.NewClass(emptyFilePath, codec.NewYamlCodec())
+	assert.Error(t, err)
+	assert.EqualError(t, err, skipper.ErrEmptyFilePath.Error())
 
-	fmt.Println(class.Get("foo.bar"))
-	class.Set("foo.baz", "changed")
-	err = class.Set("foo.new.bar.baz.foo.test.ohai", map[string]interface{}{
-		"hello": "world",
-	})
-	err = class.Set("foo.ohai.35.test", map[string]interface{}{
-		"hello": "world",
-	})
-	assert.NoError(t, err)
-	fmt.Println(class.Get("foo.ohai.23"))
+	// Test case 3: Non-existent file path
+	nonExistentFilePath := "nonexistent.txt"
+	_, err = skipper.NewClass(nonExistentFilePath, codec.NewYamlCodec())
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "no such file or directory")
 
-	d := class.GetAll()
-	o, _ := yaml.Marshal(d.Raw)
-	fmt.Println(string(o))
+	// Test case 4: Multiple root keys in file
+	_, err = skipper.NewClass("testdata/multiple_root_keys.yaml", codec.NewYamlCodec())
+	assert.ErrorContains(t, err, data.ErrMultipleRootKeys.Error())
 }
