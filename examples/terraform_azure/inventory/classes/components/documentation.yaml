@@ -1,8 +1,0 @@
----
-documentation:
-  skipper:
-    components:
-      - output_path: documentation
-        input_paths:
-          - markdown/docs.md
-

@@ -2,123 +2,69 @@ package skipper
 
 import (
 	"fmt"
+	"io"
 	"os"
-	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
+
+	"github.com/lukasjarosch/skipper/data"
 )
 
-// Class represents a single file containing a YAML struct which makes up the inventory.
+var ErrEmptyFilePath = fmt.Errorf("file path cannot be empty")
+
+type Codec interface {
+	Unmarshal([]byte) (map[string]interface{}, error)
+}
+
 type Class struct {
-	// File is the underlying file in the filesystem.
-	File *YamlFile
-	// Name is the relative path of the file inside the inventory which uniquely identifies this class.
-	// Because the name is path based, no two classes with the same name can exist.
-	// For the name, the path-separator is replaced with '.' and the file extension is stripped.
-	// Example: 'something/foo/bar.yaml' will have the name 'something.foo.bar'
-	//
-	// The Name is also what is used to reference classes throughout Skpper.
-	Name string
-	// Configuration holds Skipper-relevant configuration inside the class
-	Configuration *SkipperConfig
+	filePath  string
+	container *data.Container
 }
 
-// NewClass will create a new class, given a raw YamlFile and the relative filePath from inside the inventory.
-// If your class file is at `foo/bar/inventory/classes/myClass.yaml`, the relativeClassPath will be `myClass.yaml`
-func NewClass(file *YamlFile, relativeClassPath string) (*Class, error) {
-	if file == nil {
-		return nil, fmt.Errorf("file cannot be nil")
-	}
-	if relativeClassPath == "" {
-		return nil, fmt.Errorf("relativeClassPath cannot be empty")
+func NewClass(filePath string, codec Codec) (*Class, error) {
+	if len(filePath) == 0 {
+		return nil, ErrEmptyFilePath
 	}
 
-	name := classNameFromPath(relativeClassPath)
-
-	// class file cannot be empty, there must be exactly one yaml root-key which must define a map
-	val := reflect.ValueOf(file.Data)
-	if val.Kind() != reflect.Map {
-		return nil, fmt.Errorf("class '%s' root key does not define a map", name)
-	}
-	if len(val.MapKeys()) == 0 {
-		return nil, fmt.Errorf("class '%s' does not have a root-key", name)
-	}
-	if len(val.MapKeys()) > 1 {
-		return nil, fmt.Errorf("class '%s' has more than one root-key which is currently not supported. Root Keys: %v", name, val.MapKeys())
-	}
-
-	fileName := strings.Split(path.Base(file.Path()), ".yaml")[0]
-	if !strings.EqualFold(fileName, fmt.Sprint(val.MapKeys()[0].String())) {
-		return nil, fmt.Errorf("the root key in the '%s' class differs from the filename: %s", val.MapKeys()[0], fileName)
-	}
-
-	class := &Class{
-		File: file,
-		Name: name,
-	}
-
-	// load skipper config
-	config, err := LoadSkipperConfig(file, class.RootKey())
+	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to open file: %w", err)
 	}
-	class.Configuration = config
 
-	return class, nil
-}
-
-// Data returns the underlying class file-data map as Data
-func (c *Class) Data() *Data {
-	return &c.File.Data
-}
-
-// RootKey returns the root key name of the class.
-func (c *Class) RootKey() string {
-	val := reflect.ValueOf(c.Data()).Elem()
-	if len(val.MapKeys()) == 0 {
-		return ""
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read file: %w", err)
 	}
-	return val.MapKeys()[0].String()
-}
 
-// NameAsIdentifier returns the class name as an identifier used by skipper.
-// The name is a dot-separated list of values (e.g. 'foo.bar.baz').
-// The returned identifier is a []interface which the values and can be used to address the class in Data.
-func (c *Class) NameAsIdentifier() (id []interface{}) {
-	tmp := strings.Split(c.Name, ".")
-	id = make([]interface{}, len(tmp))
-
-	for i := 0; i < len(tmp); i++ {
-		id[i] = tmp[i]
+	fileData, err := codec.Unmarshal(fileBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to decode class data: %w", err)
 	}
-	return id
-}
 
-// classNameFromPath returns the class name given a path.
-// The path must be relative to the root class path.
-// If the class-root is at: /foo/bar/classes/
-// And the target class is: /foo/bar/classes/something/class.yaml
-// Then the path must be: something/class.yaml
-//
-// The resulting class name would be: something.class
-func classNameFromPath(path string) string {
-	path = strings.Trim(path, string(os.PathSeparator))
-	pathNoExt := strings.TrimSuffix(path, filepath.Ext(path))
-	return strings.ReplaceAll(pathNoExt, "/", ".")
-}
+	// the name of the container is the filename without file extension
+	containerName := filepath.Base(filePath)
+	containerName = strings.TrimSuffix(containerName, filepath.Ext(containerName))
 
-// classYamlFileLoader returns a YamlFileLoaderFunc which is capable of
-// creating Class files from a given YamlFile.
-// The created Class files are then appended to the passed classList.
-func classYamlFileLoader(classList *[]*Class) YamlFileLoaderFunc {
-	return func(file *YamlFile, relativePath string) error {
-		class, err := NewClass(file, relativePath)
-		if err != nil {
-			return fmt.Errorf("%s: %w", file.Path, err)
-		}
-		(*classList) = append((*classList), class)
-
-		return nil
+	container, err := data.NewContainer(containerName, fileData)
+	if err != nil {
+		return nil, fmt.Errorf("invalid container: %w", err)
 	}
+
+	return &Class{
+		container: container,
+		filePath:  filePath,
+	}, nil
+}
+
+func (c Class) Get(path string) (data.Value, error) {
+	return c.container.Get(data.NewPath(path))
+}
+
+func (c Class) GetAll() data.Value {
+	ret, _ := c.container.Get(data.NewPath(""))
+	return ret
+}
+
+func (c *Class) Set(path string, value interface{}) error {
+	return c.container.Set(data.NewPath(path), value)
 }

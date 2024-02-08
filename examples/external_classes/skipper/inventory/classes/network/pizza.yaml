@@ -1,5 +1,0 @@
----
-# This is a dynamically generated class file. DO NOT EDIT!
-pizza:
-    iprange: 10.1.0.0/16
-    name: PizzaNetwork

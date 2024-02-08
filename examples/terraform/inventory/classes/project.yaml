@@ -1,3 +1,0 @@
-project:
-  name: "terraform-example"
-  file_header: "Copyright ${year}, ${company_name}"

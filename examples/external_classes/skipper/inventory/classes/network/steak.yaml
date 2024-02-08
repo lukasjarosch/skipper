@@ -1,5 +1,0 @@
----
-# This is a dynamically generated class file. DO NOT EDIT!
-steak:
-    iprange: 10.2.0.0/16
-    name: SteakNetwork

@@ -1,6 +1,0 @@
----
-common:
-  project_name: "terraform_example"
-  test:
-    - first
-  var: ${test:0}
