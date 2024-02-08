@@ -17,7 +17,8 @@
   </br>
 </div>
 
-> This is the **develop** branch of skipper, which differs heavily from the **main** branch
+> This is the **develop** branch of skipper, which differs heavily from the **main** branch.
+>
 > Skipper was initially developed as a POC. On this branch the new skipper will hopefully emerge.
 
 # What is skipper?
