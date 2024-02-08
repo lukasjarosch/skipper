@@ -76,7 +76,7 @@ func NewContainer(rootKeyName string, data map[string]interface{}) (*Container, 
 // Get is used to retrieve Values from the container data.
 //
 // The given path can be absolute or relative.
-// An absolute path starts with the container name whereas
+// An absolute path starts with the root key whereas
 // a relative path omits the name.
 // For example, if the container is called 'foo' you can
 // use the path 'foo.bar' or 'bar' to address the same value.
