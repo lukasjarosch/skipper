@@ -12,7 +12,7 @@ var (
 	ErrInvalidValue              = fmt.Errorf("invalid value")
 	ErrUnsupportedDataType       = fmt.Errorf("unsupported data type")
 	ErrNegativeIndex             = fmt.Errorf("negative index")
-	ErrTypeChange                = fmt.Errorf("changing types is not supported")
+	ErrTypeChange                = fmt.Errorf("changing data-types is not supported")
 )
 
 type WalkFunc func(path Path, data interface{}, isLeaf bool) error
@@ -28,7 +28,7 @@ func walk(parent interface{}, path Path, walkFn WalkFunc) error {
 		return nil
 	}
 
-	var parentValue = reflect.ValueOf(parent)
+	parentValue := reflect.ValueOf(parent)
 
 	switch parentValue.Kind() {
 	case reflect.Map:
@@ -108,14 +108,14 @@ func DeepGet(data interface{}, path Path) (interface{}, error) {
 	current := ResolveValue(data)
 
 	for i := 0; i < len(path); i++ {
-		var pathSegment = path[i]
-		var curValue = reflect.ValueOf(current)
+		pathSegment := path[i]
+		curValue := reflect.ValueOf(current)
 
 		if !curValue.IsValid() {
 			return nil, ErrInvalidValue
 		}
 
-		var curTyp = curValue.Type()
+		curTyp := curValue.Type()
 
 		// for pointers and interfaces, get the underlying type
 		switch curValue.Kind() {
@@ -308,8 +308,14 @@ func DeepSet(data interface{}, path Path, value interface{}) (interface{}, error
 		// value by evaluating the currentSegment just as above.
 		// But allowing to change scalar types would also mean that
 		// we should allow changing []interface{} to map[string]interface{}.
-		// Hence we simply don't allow chaning types at the moment.
-		return nil, ErrTypeChange
+		// This would introduce even more complexity because there might exist a []interface{1, 2, 3}
+		// which must then suddenly be mapped to map[string]interface{"0": 1, "1": 2, "2": 3}.
+		// This will also introduce side-effects which the user most likely does not expect.
+		// Hence we simply don't allow changing types at the moment.
+		//
+		// Additionally, dynamic data-type changes would not work once a user wants to
+		// use a schema with the data.
+		return nil, fmt.Errorf("cannot set path segment '%s': %w", path, ErrTypeChange)
 	}
 }
 
@@ -343,7 +349,7 @@ func Merge(baseData map[string]interface{}, mergeData map[string]interface{}) ma
 }
 
 func Keys(input interface{}) []interface{} {
-	var keys = make([]interface{}, 0)
+	keys := make([]interface{}, 0)
 
 	if input == nil {
 		return keys
@@ -370,6 +376,7 @@ type PathSelectorFunc func(data interface{}, path Path, isLeaf bool) bool
 var SelectAllPaths PathSelectorFunc = func(_ interface{}, path Path, isLeaf bool) bool {
 	return true
 }
+
 var SelectLeafPaths PathSelectorFunc = func(_ interface{}, path Path, isLeaf bool) bool {
 	if isLeaf {
 		return true

@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/lukasjarosch/skipper/data"
 	"gopkg.in/yaml.v3"
+
+	"github.com/lukasjarosch/skipper/data"
 )
 
 type YamlCodec struct{}
@@ -15,8 +16,8 @@ func NewYamlCodec() YamlCodec {
 	return YamlCodec{}
 }
 
-func (codec YamlCodec) Unmarshal(in []byte) (data.Map, error) {
-	var out data.Map
+func (codec YamlCodec) Unmarshal(in []byte) (map[string]interface{}, error) {
+	var out map[string]interface{}
 	err := codec.UnmarshalTarget(in, &out)
 	if err != nil {
 		return nil, err
@@ -48,13 +49,13 @@ func (codec YamlCodec) UnmarshalPath(in []byte, path data.Path, target interface
 		return fmt.Errorf("cannot decode with path: target must be a pointer")
 	}
 
-	var out data.Map
+	var out map[string]interface{}
 	err := yaml.Unmarshal(in, &out)
 	if err != nil {
 		return err
 	}
 
-	tree, err := out.Get(path)
+	tree, err := data.Get(out, path.String())
 	if err != nil {
 		return err
 	}

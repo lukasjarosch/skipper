@@ -18,7 +18,7 @@ var (
 // The data can have only one key, which must match the container name.
 // So a container named 'foo' must have data like 'map[string]interface{"foo": ....}'
 type Container struct {
-	name string
+	Name string
 	data map[string]interface{}
 }
 
@@ -66,7 +66,7 @@ func NewContainer(name string, data map[string]interface{}) (*Container, error) 
 	}
 
 	c := &Container{
-		name: name,
+		Name: name,
 		data: data,
 	}
 
@@ -88,8 +88,8 @@ func (container *Container) Get(path Path) (Value, error) {
 	}
 
 	// make sure the path is absolute and contains the container name as first segment (aka root key)
-	if path.First() != container.name {
-		path = path.Prepend(container.name)
+	if path.First() != container.Name {
+		path = path.Prepend(container.Name)
 	}
 
 	ret, err := DeepGet(container.data, []string(path))
@@ -121,8 +121,8 @@ func (container *Container) Set(path Path, value interface{}) error {
 	}
 
 	// ensure path is absolute
-	if path.First() != container.name {
-		path = path.Prepend(container.name)
+	if path.First() != container.Name {
+		path = path.Prepend(container.Name)
 	}
 
 	ret, err := DeepSet(container.data, path, value)
