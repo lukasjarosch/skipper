@@ -15,6 +15,7 @@ var (
 	pizzaClassPath  = "testdata/classes/pizza.yaml"
 	hansClassPath   = "testdata/classes/people/hans.yaml"
 	johnClassPath   = "testdata/classes/people/john.yaml"
+	peopleClassPath = "testdata/classes/people.yaml"
 	stripPrefix     = data.NewPathFromOsPath("testdata/classes")
 )
 

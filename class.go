@@ -18,7 +18,9 @@ type Class struct {
 	// Name is the common name of the class.
 	Name string
 	// FilePath is the path to the file which this class represents.
-	FilePath  string
+	FilePath string
+	// Access to the underlying container is usually not advised.
+	// The Class itself exposes all the functionality of the container anyway.
 	container *data.Container
 }
 
@@ -73,5 +75,15 @@ func (c Class) GetAll() data.Value {
 // Set will set the given value at the specified path.
 // Wrapper for [data.Container#Set]
 func (c *Class) Set(path string, value interface{}) error {
+	// preSetHook
 	return c.container.Set(data.NewPath(path), value)
+	// postSetHook
+}
+
+func (c *Class) AllPaths() []data.Path {
+	return c.container.AllPaths()
+}
+
+func (c *Class) Walk(walkFunc data.WalkContainerFunc) error {
+	return c.container.Walk(walkFunc)
 }

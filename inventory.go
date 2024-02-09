@@ -11,16 +11,18 @@ type (
 	Namespace = data.Path
 	// Identifier is a path which points to a value within a class.
 	Identifier = data.Path
+	// Scope defines the top level scope of a [Registry]
+	Scope string
 )
 
 var (
-	DefaultScope              = "default"
-	ErrEmptyScope             = fmt.Errorf("empty scope")
-	ErrClassAlreadyRegistered = fmt.Errorf("class already registered")
-	ErrCannotResolvePath      = fmt.Errorf("unable to resolve path")
+	DefaultScope         = "default"
+	ErrEmptyScope        = fmt.Errorf("empty scope")
+	ErrCannotResolvePath = fmt.Errorf("unable to resolve path")
 )
 
 type Inventory struct {
+	scopes   map[Scope]*Registry
 	registry map[string]*Class
 }
 

@@ -170,6 +170,16 @@ func (container *Container) Merge(path Path, data map[string]interface{}) error 
 	return nil
 }
 
+type WalkContainerFunc func(path Path, value Value, isLeaf bool) error
+
+// Walk is the container implementation of the general [Walk] function.
+// The only difference is that it uses [Value] types instead of arbitrary interfaces.
+func (container *Container) Walk(walkContainerFunc WalkContainerFunc) error {
+	return Walk(container.data, func(path Path, data interface{}, isLeaf bool) error {
+		return walkContainerFunc(path, NewValue(data), isLeaf)
+	})
+}
+
 // AllPaths returns all existing paths within the Container data.
 func (container *Container) AllPaths() []Path {
 	return Paths(container.data, SelectAllPaths)
