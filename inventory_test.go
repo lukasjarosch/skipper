@@ -11,15 +11,18 @@ import (
 )
 
 var (
-	personClassPath = "testdata/classes/person.yaml"
-	pizzaClassPath  = "testdata/classes/pizza.yaml"
-	hansClassPath   = "testdata/classes/people/hans.yaml"
-	johnClassPath   = "testdata/classes/people/john.yaml"
-	peopleClassPath = "testdata/classes/people.yaml"
-	stripPrefix     = data.NewPathFromOsPath("testdata/classes")
+	personClassPath     = "testdata/classes/person.yaml"
+	pizzaClassPath      = "testdata/classes/pizza.yaml"
+	commonFoodClassPath = "testdata/classes/food/common.yaml"
+	foodClassPath       = "testdata/classes/food.yaml"
+	hansClassPath       = "testdata/classes/people/hans.yaml"
+	johnClassPath       = "testdata/classes/people/john.yaml"
+	janeClassPath       = "testdata/classes/people/jane.yaml"
+	peopleClassPath     = "testdata/classes/people.yaml"
+	stripPrefix         = data.NewPathFromOsPath("testdata/classes")
 )
 
-func makeClasses(t *testing.T) (*skipper.Class, *skipper.Class, *skipper.Class, *skipper.Class) {
+func makeClasses(t *testing.T) (*skipper.Class, *skipper.Class, *skipper.Class, *skipper.Class, *skipper.Class) {
 	person, err := skipper.NewClass(personClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
 	assert.NotNil(t, person)
@@ -36,11 +39,15 @@ func makeClasses(t *testing.T) (*skipper.Class, *skipper.Class, *skipper.Class, 
 	assert.NoError(t, err)
 	assert.NotNil(t, person)
 
-	return person, pizza, hans, john
+	foodCommon, err := skipper.NewClass(commonFoodClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, foodCommon)
+
+	return person, pizza, hans, john, foodCommon
 }
 
 func makeInventory(t *testing.T) *skipper.Inventory {
-	person, pizza, hans, john := makeClasses(t)
+	person, pizza, hans, john, _ := makeClasses(t)
 
 	inventory, err := skipper.NewInventory()
 	assert.NoError(t, err)
@@ -72,7 +79,7 @@ func TestNewInventory(t *testing.T) {
 }
 
 func TestInventoryRegisterClass(t *testing.T) {
-	person, pizza, _, _ := makeClasses(t)
+	person, pizza, _, _, _ := makeClasses(t)
 	inventory := makeInventory(t)
 
 	// Test case: Class already exists in the default scope

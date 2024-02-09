@@ -11,7 +11,7 @@ import (
 )
 
 func makeNewRegistry(t *testing.T) *skipper.Registry {
-	persons, pizza, hans, john := makeClasses(t)
+	persons, pizza, hans, john, foodCommon := makeClasses(t)
 	registry := skipper.NewRegistry()
 
 	// Test: register multiple classes in two namespaces
@@ -23,6 +23,8 @@ func makeNewRegistry(t *testing.T) *skipper.Registry {
 	assert.NoError(t, err)
 	err = registry.RegisterClass(data.NewPathVar("people", john.Name), john)
 	assert.NoError(t, err)
+	err = registry.RegisterClass(data.NewPathVar("food", foodCommon.Name), foodCommon)
+	assert.NoError(t, err)
 
 	return registry
 }
@@ -32,7 +34,7 @@ func TestNewRegistry(t *testing.T) {
 }
 
 func TestRegistryRegisterClass(t *testing.T) {
-	_, _, _, john := makeClasses(t)
+	_, _, _, john, _ := makeClasses(t)
 	registry := makeNewRegistry(t)
 
 	// Test: class already registered
@@ -53,6 +55,43 @@ func TestRegistryRegisterClass(t *testing.T) {
 	assert.NotNil(t, people)
 	err = registry.RegisterClass(data.NewPath(people.Name), people)
 	assert.ErrorIs(t, err, skipper.ErrDuplicatePath)
+
+	// Test: class already has a pre-set hook
+	jane, err := skipper.NewClass(janeClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, jane)
+	jane.SetPreSetHook(func(class skipper.Class, path data.Path, value data.Value) error { return nil })
+	err = registry.RegisterClass(data.NewPathVar("people", jane.Name), jane)
+	assert.ErrorIs(t, err, skipper.ErrCannotOverwriteHook)
+
+	// Test: class already has a post-set hook
+	jane, err = skipper.NewClass(janeClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, jane)
+	jane.SetPostSetHook(func(class skipper.Class, path data.Path, value data.Value) error { return nil })
+	err = registry.RegisterClass(data.NewPathVar("people", jane.Name), jane)
+	assert.ErrorIs(t, err, skipper.ErrCannotOverwriteHook)
+}
+
+func TestRegistryPreSetHook(t *testing.T) {
+	registry := makeNewRegistry(t)
+
+	// Register a 'food' class which can cause issues with the 'food.common' class
+	food, err := skipper.NewClass(foodClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, food)
+	err = registry.RegisterClass(data.NewPath(food.Name), food)
+	assert.NoError(t, err)
+
+	// Test: Attempt to set existing path from different class
+	// The path 'food.common.should_be_tasty' is already registered by the 'food.common' class
+	// and must not be registered again by the 'food' class.
+	err = food.Set("food.common.should_be_tasty", false)
+	assert.ErrorIs(t, err, skipper.ErrDuplicatePath)
+
+	// Test: Attempting to set a non-existing path must work
+	err = food.Set("food.common.eaten", false)
+	assert.NoError(t, err)
 }
 
 // func TestRegistryClassesInNamespace(t *testing.T) {

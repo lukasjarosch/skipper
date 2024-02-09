@@ -74,7 +74,39 @@ func (reg *Registry) RegisterClass(classIdentifier data.Path, class *Class) erro
 		return errs
 	}
 
-	// All paths are unique, register everything.
+	err := class.SetPreSetHook(func(class Class, path data.Path, _ data.Value) error {
+		classIdentifierStr, err := reg.GetClassIdentifierByClassId(class.ID())
+		if err != nil {
+			return fmt.Errorf("unable to locate identifier of the class, this should not happen")
+		}
+
+		// strip the class name from the identifier and assemble registry-absolute path
+		// which would be created by this 'Set' call
+		classIdentifier := data.NewPath(classIdentifierStr)
+		registryPath := classIdentifier.StripSuffix(classIdentifier.LastSegment()).AppendPath(path)
+
+		// if the path does already exist and is owned by a *different* class, then
+		// we need to prevent the Set call as it would introduce a duplicate path.
+		if classIdentifier, exists := reg.paths[registryPath.String()]; exists {
+			existingPathClass, _ := reg.classes[classIdentifier]
+			if existingPathClass.ID() != class.ID() {
+				return fmt.Errorf("path already owned by '%s': %w: %s", classIdentifier, ErrDuplicatePath, registryPath)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to register pre-set hook in class: %w", err)
+	}
+
+	err = class.SetPostSetHook(func(class Class, path data.Path, _ data.Value) error {
+		spew.Println("POST WRITE", path)
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to register post-set hook in class: %w", err)
+	}
+
 	reg.classes[classIdentifier.String()] = class
 	for _, classPath := range classPaths {
 		reg.paths[classPath] = classIdentifier.String()
@@ -83,25 +115,30 @@ func (reg *Registry) RegisterClass(classIdentifier data.Path, class *Class) erro
 	return nil
 }
 
-func (reg *Registry) GetClassByName(className string) (*Class, error) {
-	for _, class := range reg.classes {
-		if class.Name == className {
-			return class, nil
-		}
-	}
-	return nil, fmt.Errorf("%s: %w", className, ErrClassDoesNotExist)
-}
-
-func (reg *Registry) GetClassByIdentifier(classIdentifier data.Path) (*Class, error) {
-	if classIdentifier.String() == "" {
+func (reg *Registry) GetClassByIdentifier(classIdentifier string) (*Class, error) {
+	if classIdentifier == "" {
 		return nil, ErrEmptyClassIdentifier
 	}
 
-	class, exists := reg.classes[classIdentifier.String()]
+	class, exists := reg.classes[classIdentifier]
 	if !exists {
 		return nil, ErrNamespaceDoesNotExist
 	}
 	return class, nil
+}
+
+func (reg *Registry) GetClassIdentifierByClassId(id string) (string, error) {
+	if id == "" {
+		return "", ErrEmptyClassId
+	}
+
+	for identifier, class := range reg.classes {
+		if class.ID() == id {
+			return identifier, nil
+		}
+	}
+
+	return "", fmt.Errorf("%w: %s", ErrClassDoesNotExist, id)
 }
 
 func (reg *Registry) ResolveClass(path data.Path) (*Class, error) {
