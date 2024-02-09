@@ -10,12 +10,12 @@ import (
 )
 
 var (
-	ErrNamespaceDoesNotExist  = fmt.Errorf("namespace does not exist")
-	ErrEmptyClassIdentifier   = fmt.Errorf("class identifier cannot be empty")
-	ErrClassAlreadyRegistered = fmt.Errorf("class already registered in namespace")
-	ErrClassDoesNotExist      = fmt.Errorf("class does not exist in registry")
-	ErrInvalidClassIdentifier = fmt.Errorf("invalid class identifier")
-	ErrDuplicatePath          = fmt.Errorf("duplicate path")
+	ErrClassIdentifierDoesNotExist = fmt.Errorf("class identifier does not exist")
+	ErrEmptyClassIdentifier        = fmt.Errorf("class identifier cannot be empty")
+	ErrClassAlreadyRegistered      = fmt.Errorf("class already registered in namespace")
+	ErrClassDoesNotExist           = fmt.Errorf("class does not exist in registry")
+	ErrInvalidClassIdentifier      = fmt.Errorf("invalid class identifier")
+	ErrDuplicatePath               = fmt.Errorf("duplicate path")
 )
 
 // Registry holds Classes and is responsible for making sure that
@@ -122,7 +122,7 @@ func (reg *Registry) GetClassByIdentifier(classIdentifier string) (*Class, error
 
 	class, exists := reg.classes[classIdentifier]
 	if !exists {
-		return nil, ErrNamespaceDoesNotExist
+		return nil, ErrClassIdentifierDoesNotExist
 	}
 	return class, nil
 }
