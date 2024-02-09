@@ -94,6 +94,25 @@ func TestRegistryPreSetHook(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestRegistryPostSetHook(t *testing.T) {
+	registry := makeNewRegistry(t)
+
+	// Register a 'food' class
+	food, err := skipper.NewClass(foodClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, food)
+	err = registry.RegisterClass(data.NewPath(food.Name), food)
+	assert.NoError(t, err)
+
+	// Test: new path must be resolvable by the registry afterwards
+	err = food.Set("food.burger", "very_juicy")
+	assert.NoError(t, err)
+	val, err := registry.Get("food.burger")
+	assert.NoError(t, err)
+	assert.NotNil(t, val.Raw)
+	assert.Equal(t, val.Raw, "very_juicy")
+}
+
 // func TestRegistryClassesInNamespace(t *testing.T) {
 // 	registry := makeNewRegistry(t)
 //

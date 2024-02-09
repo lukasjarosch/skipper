@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/lukasjarosch/skipper/data"
 )
 
@@ -16,10 +14,23 @@ var (
 	ErrClassDoesNotExist           = fmt.Errorf("class does not exist in registry")
 	ErrInvalidClassIdentifier      = fmt.Errorf("invalid class identifier")
 	ErrDuplicatePath               = fmt.Errorf("duplicate path")
+	ErrPathNotFound                = fmt.Errorf("path not found")
 )
 
 // Registry holds Classes and is responsible for making sure that
 // every path within those classes is unique within the Registry.
+// Once a class is registered with the registry, it will
+// hook into the `Set` call of the class to ensure the integrity of the registry.
+//
+// Note that the Registry does not offer a `Set` method itself.
+// If you really want to change your data during runtime, you'll need to
+// use the Classes itself.
+// Generally it is discouraged to modify the data as the source of truth
+// will always be the underlying files themselves.
+// You wouldn't want terraform to change the 'replica' count during runtime either.
+//
+// TODO: Introduce the concept of 'generators' which allow to generate class files
+// TODO: and manage them through skipper. This will remedy the missing 'Set' functionality.
 type Registry struct {
 	// classes map a classIdentifier string to the actual classes
 	classes map[string]*Class
@@ -27,6 +38,7 @@ type Registry struct {
 	paths map[string]string
 }
 
+// NewRegistry returns a new, empty, registry.
 func NewRegistry() *Registry {
 	return &Registry{
 		classes: make(map[string]*Class),
@@ -74,7 +86,33 @@ func (reg *Registry) RegisterClass(classIdentifier data.Path, class *Class) erro
 		return errs
 	}
 
-	err := class.SetPreSetHook(func(class Class, path data.Path, _ data.Value) error {
+	// inject hooks to monitor writes to the class which
+	// ensure that the registry stays valid
+	err := class.SetPreSetHook(reg.classPreSetHook())
+	if err != nil {
+		return fmt.Errorf("failed to register pre-set hook in class: %w", err)
+	}
+	err = class.SetPostSetHook(reg.classPostSetHook())
+	if err != nil {
+		return fmt.Errorf("failed to register post-set hook in class: %w", err)
+	}
+
+	// register class and all its paths
+	for _, classPath := range classPaths {
+		reg.paths[classPath] = classIdentifier.String()
+	}
+	reg.classes[classIdentifier.String()] = class
+
+	return nil
+}
+
+// classPreSetHook is registered with every class which is part of the Registry.
+// The hook makes sure that before a Class path is set, the action will not
+// introduce any anomalies into the registry in order to keep its integrity
+// and ensure that every path is uniquely pointing to just one value/class.
+func (reg *Registry) classPreSetHook() SetHookFunc {
+	return func(class Class, path data.Path, _ data.Value) error {
+		// fetch the classIdentifier based on the unique class ID
 		classIdentifierStr, err := reg.GetClassIdentifierByClassId(class.ID())
 		if err != nil {
 			return fmt.Errorf("unable to locate identifier of the class, this should not happen")
@@ -94,27 +132,52 @@ func (reg *Registry) RegisterClass(classIdentifier data.Path, class *Class) erro
 			}
 		}
 		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to register pre-set hook in class: %w", err)
 	}
-
-	err = class.SetPostSetHook(func(class Class, path data.Path, _ data.Value) error {
-		spew.Println("POST WRITE", path)
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to register post-set hook in class: %w", err)
-	}
-
-	reg.classes[classIdentifier.String()] = class
-	for _, classPath := range classPaths {
-		reg.paths[classPath] = classIdentifier.String()
-	}
-
-	return nil
 }
 
+// classPostSetHook is responsible for updating the registry in case
+// the Set call on the Class introduced new path(s).
+// Otherwise the registry would not know of the new paths and
+// hence could not resolve the values at those paths.
+func (reg *Registry) classPostSetHook() SetHookFunc {
+	return func(class Class, path data.Path, value data.Value) error {
+		// fetch the classIdentifier based on the unique class ID
+		classIdentifierStr, err := reg.GetClassIdentifierByClassId(class.ID())
+		if err != nil {
+			return fmt.Errorf("unable to locate identifier of the class, this should not happen")
+		}
+
+		// strip the class name from the identifier and assemble registry-absolute path
+		// which was be created by this 'Set' call
+		classIdentifier := data.NewPath(classIdentifierStr)
+		registryPath := classIdentifier.StripSuffix(classIdentifier.LastSegment()).AppendPath(path)
+
+		reg.paths[registryPath.String()] = classIdentifier.String()
+
+		return nil
+	}
+}
+
+func (reg *Registry) Get(path string) (data.Value, error) {
+	if path == "" {
+		return data.NilValue, data.ErrEmptyPath
+	}
+
+	classIdentifier, exists := reg.paths[path]
+	if !exists {
+		return data.NilValue, fmt.Errorf("%s: %w", path, ErrPathNotFound)
+	}
+
+	class := reg.classes[classIdentifier]
+	classPath := data.NewPath(path).StripPrefix(data.NewPath(classIdentifier))
+
+	return class.Get(classPath.String())
+}
+
+// GetClassByIdentifier attempts to return a class which is associated with the
+// given classIdentifier.
+// The classIdentifier cannot be empty.
+// Returns an ErrClassIdentifierDoesNotExist if the identifier is unknown.
 func (reg *Registry) GetClassByIdentifier(classIdentifier string) (*Class, error) {
 	if classIdentifier == "" {
 		return nil, ErrEmptyClassIdentifier
@@ -127,6 +190,9 @@ func (reg *Registry) GetClassByIdentifier(classIdentifier string) (*Class, error
 	return class, nil
 }
 
+// GetClassIdentifierByClassId searches through all registered classes
+// for a class with the given id.
+// Returns an ErrClassDoesNotExist if the id does not exist.
 func (reg *Registry) GetClassIdentifierByClassId(id string) (string, error) {
 	if id == "" {
 		return "", ErrEmptyClassId
@@ -141,18 +207,7 @@ func (reg *Registry) GetClassIdentifierByClassId(id string) (string, error) {
 	return "", fmt.Errorf("%w: %s", ErrClassDoesNotExist, id)
 }
 
-func (reg *Registry) ResolveClass(path data.Path) (*Class, error) {
-	// If the path is 'foo.bar.baz' it could map to:
-	//   namespace 'foo'     -> class 'bar' -> path 'baz'
-	//   namespace '[root]'  -> class 'foo' -> path 'bar.baz'
-	//   namespace 'foo.bar' -> class 'baz'
-
-	for _, ns := range reg.ClassIdentifiers() {
-		spew.Dump(ns)
-	}
-	return nil, nil
-}
-
+// ClassIdentifiers returns a slice of all registered class identifiers as [data.Path]
 func (reg *Registry) ClassIdentifiers() []data.Path {
 	var ns []data.Path
 	for namespace := range reg.classes {
