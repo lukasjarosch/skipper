@@ -12,7 +12,7 @@ import (
 
 func TestNewClass(t *testing.T) {
 	// Test case 1: Valid file path and codec
-	filePath := "testdata/simple_class.yaml"
+	filePath := "testdata/classes/person.yaml"
 	class, err := skipper.NewClass(filePath, codec.NewYamlCodec())
 	assert.NoError(t, err, "No error expected when creating class")
 	assert.NotNil(t, class, "Class should not be nil")

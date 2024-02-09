@@ -45,8 +45,8 @@ func TestNewPathFromFilePath(t *testing.T) {
 		{"", Path{}},
 		{string(os.PathSeparator), Path{}},
 		{"path/to/somewhere", Path{"path", "to", "somewhere"}},
-		{"path/to/file.txt", Path{"path", "to", "file", "txt"}},
-		{"/absolute/path/file.txt", Path{"absolute", "path", "file", "txt"}},
+		{"path/to/file.txt", Path{"path", "to", "file"}},
+		{"/absolute/path/file.txt", Path{"absolute", "path", "file"}},
 	}
 
 	for _, test := range tests {

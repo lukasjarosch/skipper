@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -67,11 +68,12 @@ func NewPath(path string) Path {
 // This is usually meant to use paths to directories, not files.
 //
 // If a path to a file (indicated by a file extension) is passed,
-// the file extension will become part of the path as last segment.
-// So if you pass '/foo/bar.baz', the path will be [foo bar baz]
+// the file extension will be removed.
 func NewPathFromOsPath(path string) Path {
-	p := strings.Replace(path, string(os.PathSeparator), PathSeparator, -1)
+	p := strings.TrimSuffix(path, filepath.Ext(path))
+	p = strings.Replace(p, string(os.PathSeparator), PathSeparator, -1)
 	p = strings.Trim(p, PathSeparator)
+
 	return NewPath(p)
 }
 

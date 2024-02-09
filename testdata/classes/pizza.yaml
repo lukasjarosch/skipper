@@ -1,0 +1,22 @@
+pizza:
+  description: >
+    Pizza is a popular Italian dish consisting of a round,
+    flattened base of dough topped with various ingredients,
+    including tomato sauce, cheese, and other toppings.
+    It is then baked in an oven until the crust is crispy and the cheese is melted and bubbly.
+  ingredients:
+    dough: Wheat flour, water, yeast, salt, olive oil
+    tomato_sauce: Tomatoes, olive oil, garlic, salt, pepper, herbs (such as basil, oregano)
+    cheese: Mozzarella cheese (or other types such as cheddar, parmesan)
+    toppings:
+      - Pepperoni
+      - Mushrooms
+      - Bell peppers
+      - Onions
+      - Olives
+      - Sausage
+      - Pineapple
+      - Spinach
+      - Jalapenos
+      - Ham
+  price: 10.99

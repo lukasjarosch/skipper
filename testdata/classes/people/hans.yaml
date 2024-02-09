@@ -1,0 +1,17 @@
+hans:
+  name: Hans
+  age: 35
+  gender: male
+  occupation: Teacher
+  interests:
+    - Cooking
+    - Traveling
+    - Photography
+  address:
+    street: 456 Elm Street
+    city: Smalltown
+    state: State
+    country: Country
+  contact:
+    email: hans@example.com
+    phone: "+1234567890"

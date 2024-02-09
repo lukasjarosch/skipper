@@ -1,0 +1,17 @@
+john:
+  name: John
+  age: 28
+  gender: male
+  occupation: Marketing Manager
+  interests:
+    - Reading
+    - Playing soccer
+    - Painting
+  address:
+    street: 789 Oak Street
+    city: Villagetown
+    state: State
+    country: Country
+  contact:
+    email: john@example.com
+    phone: "+1234567890"

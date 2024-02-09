@@ -1,0 +1,17 @@
+person:
+  name: John Doe
+  age: 30
+  gender: male
+  occupation: Software Engineer
+  interests:
+    - Reading
+    - Hiking
+    - Playing guitar
+  address:
+    street: 123 Main Street
+    city: Anytown
+    state: State
+    country: Country
+  contact:
+    email: john.doe@example.com
+    phone: "+1234567890"
