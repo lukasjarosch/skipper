@@ -120,10 +120,7 @@ func (container *Container) Set(path Path, value interface{}) error {
 		return ErrEmptyPath
 	}
 
-	// ensure path is absolute
-	if path.First() != container.rootKey {
-		path = path.Prepend(container.rootKey)
-	}
+	path = container.AbsolutePath(path)
 
 	ret, err := DeepSet(container.data, path, value)
 	if err != nil {
@@ -205,4 +202,12 @@ func (container *Container) HasPath(path Path) bool {
 		return false
 	}
 	return true
+}
+
+// AbsolutePath ensures that the given path is absolute.
+func (container *Container) AbsolutePath(path Path) Path {
+	if path.First() != container.rootKey {
+		path = path.Prepend(container.rootKey)
+	}
+	return path
 }
