@@ -61,4 +61,5 @@ you to create the own - custom built - template and inventory engine, without ha
     - `go_schema` to generate go types based off the yaml files (and write them into go files)
     - `terraform_data` to generate a terraform data module with the inventory content
     - `include` to enable class-based includes with complex inheritance
+    - `generate` to be able to derive new classes from the inventory during runtime
 - [ ] Basic
