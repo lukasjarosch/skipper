@@ -5,16 +5,27 @@ import (
 	"io"
 	"os"
 
+	"github.com/google/uuid"
+
 	"github.com/lukasjarosch/skipper/data"
 )
 
-var ErrEmptyFilePath = fmt.Errorf("file path cannot be empty")
+var (
+	ErrEmptyFilePath       = fmt.Errorf("file path cannot be empty")
+	ErrCannotOverwriteHook = fmt.Errorf("cannot overwrite existing hook")
+	ErrEmptyClassId        = fmt.Errorf("empty class id")
+)
 
 type Codec interface {
 	Unmarshal([]byte) (map[string]interface{}, error)
 }
 
+type SetHookFunc func(class Class, path data.Path, value data.Value) error
+
 type Class struct {
+	// In some cases a class needs to be uniquely identified.
+	// The name itself is not unique, hence the id exists.
+	id uuid.UUID
 	// Name is the common name of the class.
 	Name string
 	// FilePath is the path to the file which this class represents.
@@ -22,6 +33,9 @@ type Class struct {
 	// Access to the underlying container is usually not advised.
 	// The Class itself exposes all the functionality of the container anyway.
 	container *data.Container
+	// The class allows hooks to be registered to monitor each call to Set
+	preSetHook  SetHookFunc
+	postSetHook SetHookFunc
 }
 
 // NewClass attempts to create a new class given a filesystem path and a codec.
@@ -53,9 +67,12 @@ func NewClass(filePath string, codec Codec) (*Class, error) {
 	}
 
 	return &Class{
-		container: container,
-		FilePath:  filePath,
-		Name:      PathFileBaseName(filePath),
+		id:          uuid.New(),
+		container:   container,
+		FilePath:    filePath,
+		Name:        PathFileBaseName(filePath),
+		preSetHook:  nil,
+		postSetHook: nil,
 	}, nil
 }
 
@@ -75,9 +92,47 @@ func (c Class) GetAll() data.Value {
 // Set will set the given value at the specified path.
 // Wrapper for [data.Container#Set]
 func (c *Class) Set(path string, value interface{}) error {
-	// preSetHook
-	return c.container.Set(data.NewPath(path), value)
-	// postSetHook
+	if c.preSetHook != nil {
+		err := c.preSetHook(*c, c.container.AbsolutePath(data.NewPath(path)), data.NewValue(value))
+		if err != nil {
+			return err
+		}
+	}
+
+	err := c.container.Set(data.NewPath(path), value)
+	if err != nil {
+		return err
+	}
+
+	if c.postSetHook != nil {
+		return c.postSetHook(*c, c.container.AbsolutePath(data.NewPath(path)), data.NewValue(value))
+	}
+
+	return nil
+}
+
+// SetPreSetHook sets the preSetHook of the class
+// The function can only be called ONCE, after that it will always error.
+// This is done to prevent circumventing an existing hook.
+// TODO: Allow registration of multiple hooks
+func (c *Class) SetPreSetHook(setHookFunc SetHookFunc) error {
+	if c.preSetHook != nil {
+		return ErrCannotOverwriteHook
+	}
+	c.preSetHook = setHookFunc
+	return nil
+}
+
+// SetPostSetHook sets the postSetHook of the class
+// The function can only be called ONCE, after that it will always error.
+// This is done to prevent circumventing an existing hook.
+// TODO: Allow registration of multiple hooks
+func (c *Class) SetPostSetHook(setHookFunc SetHookFunc) error {
+	if c.postSetHook != nil {
+		return ErrCannotOverwriteHook
+	}
+	c.postSetHook = setHookFunc
+	return nil
 }
 
 func (c *Class) AllPaths() []data.Path {
@@ -86,4 +141,8 @@ func (c *Class) AllPaths() []data.Path {
 
 func (c *Class) Walk(walkFunc data.WalkContainerFunc) error {
 	return c.container.Walk(walkFunc)
+}
+
+func (c *Class) ID() string {
+	return c.id.String()
 }
