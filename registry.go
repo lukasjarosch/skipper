@@ -158,6 +158,7 @@ func (reg *Registry) classPostSetHook() SetHookFunc {
 	}
 }
 
+// Get retrieves the value of a given Path if it exists.
 func (reg *Registry) Get(path string) (data.Value, error) {
 	if path == "" {
 		return data.NilValue, data.ErrEmptyPath

@@ -6,102 +6,73 @@ import (
 	"github.com/lukasjarosch/skipper/data"
 )
 
-type (
-	// Namespace is a path which defines the scope of a class
-	Namespace = data.Path
-	// Identifier is a path which points to a value within a class.
-	Identifier = data.Path
-	// Scope defines the top level scope of a [Registry]
-	Scope string
-)
+type Scope string
 
 var (
-	DefaultScope         = "default"
-	ErrEmptyScope        = fmt.Errorf("empty scope")
-	ErrCannotResolvePath = fmt.Errorf("unable to resolve path")
+	ErrEmptyScope             = fmt.Errorf("scope is empty")
+	ErrNilRegistry            = fmt.Errorf("registry is nil")
+	ErrScopeDoesNotExist      = fmt.Errorf("scope does not exist")
+	ErrScopeAlreadyRegistered = fmt.Errorf("scope already registered")
+
+	DataScope Scope = "data"
 )
 
 type Inventory struct {
-	scopes   map[Scope]*Registry
-	registry map[string]*Class
+	scopes       map[Scope]*Registry
+	defaultScope Scope
 }
 
 func NewInventory() (*Inventory, error) {
 	return &Inventory{
-		registry: make(map[string]*Class),
+		scopes:       make(map[Scope]*Registry),
+		defaultScope: "",
 	}, nil
 }
 
-// RegisterClassWithScope will create a namespace <scope>.<classIdentifier> and attempt
-// to register the class under it.
-// Namespaces can only be registered once.
-func (inv *Inventory) RegisterClassWithScope(scope string, classIdentifier data.Path, class *Class) error {
-	if len(scope) == 0 {
+func (inv *Inventory) RegisterScope(scope Scope, registry *Registry) error {
+	if scope == "" {
 		return ErrEmptyScope
 	}
-
-	// The namespace of a class is made up of the Inventory scope and the Identifier of the class.
-	namespace := data.NewPath(scope)
-	namespace = namespace.AppendPath(classIdentifier)
-
-	// Every distinct namespace can only be registered once
-	if _, exists := inv.registry[namespace.String()]; exists {
-		return ErrClassAlreadyRegistered
+	if registry == nil {
+		return ErrNilRegistry
+	}
+	if _, exists := inv.scopes[scope]; exists {
+		return fmt.Errorf("%s: %w", scope, ErrScopeAlreadyRegistered)
 	}
 
-	inv.registry[namespace.String()] = class
+	inv.scopes[scope] = registry
 
 	return nil
 }
 
-func (inv *Inventory) RegisterClass(classIdentifier data.Path, class *Class) error {
-	return inv.RegisterClassWithScope(DefaultScope, classIdentifier, class)
-}
-
 func (inv *Inventory) Get(path string) (data.Value, error) {
-	// Most likely the path is scoped to the default namespace, so let's just assume that.
-	// Additionally, the default scope is the only scope which can be omitted.
-	// To be sure attempt to remove the DefaultScope before re-adding it.
-	searchPath := data.NewPath(path).StripPrefix(data.NewPath(DefaultScope)).Prepend(DefaultScope)
-
-	// Now find out which namespace has the best match to the given path
-	// This is easy, because the namespace needs to be the prefix of our search path
-	for _, namespace := range inv.Namespaces() {
-		// If the prefix matches, we've found the target and can resolve the value (hopefully)
-		if searchPath.HasPrefix(namespace) {
-			return inv.resolveValue(namespace, searchPath)
+	// The path usually has the scope as the first segment
+	for scope, registry := range inv.scopes {
+		p := data.NewPath(path)
+		if p.First() == string(scope) {
+			return registry.Get(p.StripPrefix(p.FirstSegment()).String())
 		}
 	}
 
-	// At this point the upper method failed us. Lets just try the full path.
-	searchPath = data.NewPath(path)
-	for _, namespace := range inv.Namespaces() {
-		// If the prefix matches, we've found the target and can resolve the value (hopefully)
-		if searchPath.HasPrefix(namespace) {
-			return inv.resolveValue(namespace, searchPath)
-		}
+	// The path does not seem to have a scope prefix.
+	// If there is a default scope, attempt to use that with the path.
+	if inv.defaultScope != "" {
+		return inv.scopes[inv.defaultScope].Get(path)
 	}
 
-	// Well, bummer...
-	return data.NilValue, fmt.Errorf("%s: %w", path, ErrCannotResolvePath)
+	return data.NilValue, fmt.Errorf("%s: %w", path, ErrPathNotFound)
 }
 
-// Attempts to resolve a path within a given namespace.
-//
-// If the namespace is 'foo.bar' and the search path 'foo.bar.baz.qux'
-// Then we can call Get with 'baz.qux' on the correct class.
-// This works because the class name (baz) is always added to all paths by classes.
-func (inv *Inventory) resolveValue(namespace data.Path, path data.Path) (data.Value, error) {
-	valuePath := path.StripPrefix(namespace)
-	class := inv.registry[namespace.String()]
-	return class.Get(valuePath.String())
-}
-
-// Namespaces returns all registered namespaces
-func (inv *Inventory) Namespaces() []Namespace {
-	ns := []Namespace{}
-	for namespace := range inv.registry {
-		ns = append(ns, data.NewPath(namespace))
+func (inv *Inventory) SetDefaultScope(scope Scope) error {
+	if scope == "" {
+		return ErrEmptyScope
 	}
-	return ns
+
+	if _, exists := inv.scopes[scope]; !exists {
+		return fmt.Errorf("%s: %w", scope, ErrScopeDoesNotExist)
+	}
+
+	inv.defaultScope = scope
+
+	return nil
 }

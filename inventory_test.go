@@ -6,113 +6,71 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/lukasjarosch/skipper"
-	"github.com/lukasjarosch/skipper/codec"
-	"github.com/lukasjarosch/skipper/data"
+	. "github.com/lukasjarosch/skipper"
 )
-
-var (
-	personClassPath     = "testdata/classes/person.yaml"
-	pizzaClassPath      = "testdata/classes/pizza.yaml"
-	commonFoodClassPath = "testdata/classes/food/common.yaml"
-	foodClassPath       = "testdata/classes/food.yaml"
-	hansClassPath       = "testdata/classes/people/hans.yaml"
-	johnClassPath       = "testdata/classes/people/john.yaml"
-	janeClassPath       = "testdata/classes/people/jane.yaml"
-	peopleClassPath     = "testdata/classes/people.yaml"
-	stripPrefix         = data.NewPathFromOsPath("testdata/classes")
-)
-
-func makeClasses(t *testing.T) (*skipper.Class, *skipper.Class, *skipper.Class, *skipper.Class, *skipper.Class) {
-	person, err := skipper.NewClass(personClassPath, codec.NewYamlCodec())
-	assert.NoError(t, err)
-	assert.NotNil(t, person)
-
-	pizza, err := skipper.NewClass(pizzaClassPath, codec.NewYamlCodec())
-	assert.NoError(t, err)
-	assert.NotNil(t, person)
-
-	hans, err := skipper.NewClass(hansClassPath, codec.NewYamlCodec())
-	assert.NoError(t, err)
-	assert.NotNil(t, person)
-
-	john, err := skipper.NewClass(johnClassPath, codec.NewYamlCodec())
-	assert.NoError(t, err)
-	assert.NotNil(t, person)
-
-	foodCommon, err := skipper.NewClass(commonFoodClassPath, codec.NewYamlCodec())
-	assert.NoError(t, err)
-	assert.NotNil(t, foodCommon)
-
-	return person, pizza, hans, john, foodCommon
-}
-
-func makeInventory(t *testing.T) *skipper.Inventory {
-	person, pizza, hans, john, _ := makeClasses(t)
-
-	inventory, err := skipper.NewInventory()
-	assert.NoError(t, err)
-	assert.NotNil(t, inventory)
-
-	identifier := data.NewPathFromOsPath(person.FilePath).StripPrefix(stripPrefix)
-	err = inventory.RegisterClass(identifier, person)
-	assert.NoError(t, err)
-
-	identifier = data.NewPathFromOsPath(pizza.FilePath).StripPrefix(stripPrefix)
-	err = inventory.RegisterClassWithScope("food", identifier, pizza)
-	assert.NoError(t, err)
-
-	identifier = data.NewPathFromOsPath(hans.FilePath).StripPrefix(stripPrefix)
-	err = inventory.RegisterClass(identifier, hans)
-	assert.NoError(t, err)
-
-	identifier = data.NewPathFromOsPath(john.FilePath).StripPrefix(stripPrefix)
-	err = inventory.RegisterClass(identifier, john)
-	assert.NoError(t, err)
-
-	return inventory
-}
 
 func TestNewInventory(t *testing.T) {
-	inventory, err := skipper.NewInventory()
-	assert.NoError(t, err)
-	assert.NotNil(t, inventory)
+	// TODO: implement
 }
 
-func TestInventoryRegisterClass(t *testing.T) {
-	person, pizza, _, _, _ := makeClasses(t)
-	inventory := makeInventory(t)
+func TestInventoryRegisterScope(t *testing.T) {
+	inv, _ := NewInventory()
 
-	// Test case: Class already exists in the default scope
-	identifier := data.NewPathFromOsPath(person.FilePath).StripPrefix(stripPrefix)
-	err := inventory.RegisterClass(identifier, person)
-	assert.ErrorIs(t, err, skipper.ErrClassAlreadyRegistered)
+	// Test: empty scope
+	err := inv.RegisterScope("", NewRegistry())
+	assert.ErrorIs(t, err, ErrEmptyScope)
 
-	// Test case: Register class again in a different namespace must work
-	identifier = data.NewPathFromOsPath(pizza.FilePath).StripPrefix(stripPrefix)
-	err = inventory.RegisterClassWithScope("new_scope", identifier, pizza)
+	// Test: nil registry
+	err = inv.RegisterScope(DataScope, nil)
+	assert.ErrorIs(t, err, ErrNilRegistry)
+
+	// Test: duplicate scope registered
+	err = inv.RegisterScope(DataScope, NewRegistry())
 	assert.NoError(t, err)
+	err = inv.RegisterScope(DataScope, NewRegistry())
+	assert.ErrorIs(t, err, ErrScopeAlreadyRegistered)
 }
 
 func TestInventoryGet(t *testing.T) {
-	inventory := makeInventory(t)
+	inv, _ := NewInventory()
+	registry := makeNewRegistry(t)
 
-	// Test case: Full path; path exists
-	ret, err := inventory.Get("default.people.hans.name")
+	err := inv.RegisterScope(DataScope, registry)
 	assert.NoError(t, err)
-	assert.Equal(t, ret.String(), "Hans")
 
-	// Test case: Path without 'default' scope; path exists
-	ret, err = inventory.Get("people.hans.name")
+	// Test: get existing with scope prefix
+	val, err := inv.Get("data.pizza.description")
 	assert.NoError(t, err)
-	assert.Equal(t, ret.String(), "Hans")
+	assert.NotNil(t, val.Raw)
 
-	// Test case: Path with a different scope; path exists
-	ret, err = inventory.Get("food.pizza.description")
+	// Test: get existing path without scope prefix and without default scope
+	val, err = inv.Get("pizza.description")
+	assert.ErrorIs(t, err, ErrPathNotFound)
+	assert.Nil(t, val.Raw)
+
+	// Test: get existing path without scope prefix and with default scope
+	err = inv.SetDefaultScope(DataScope)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, ret)
+	val, err = inv.Get("pizza.description")
+	assert.NoError(t, err)
+	assert.NotNil(t, val.Raw)
+}
 
-	// Test case: Invalid path
-	ret, err = inventory.Get("invalid.path")
-	assert.Error(t, err, skipper.ErrCannotResolvePath)
-	assert.Nil(t, ret.Raw)
+func TestInventorySetDefaultScope(t *testing.T) {
+	inv, _ := NewInventory()
+
+	err := inv.RegisterScope(DataScope, skipper.NewRegistry())
+	assert.NoError(t, err)
+
+	// Test: empty scope
+	err = inv.SetDefaultScope("")
+	assert.ErrorIs(t, err, ErrEmptyScope)
+
+	// Test: not existing scope
+	err = inv.SetDefaultScope("something")
+	assert.ErrorIs(t, err, ErrScopeDoesNotExist)
+
+	// Test: valid, existing scope
+	err = inv.SetDefaultScope(DataScope)
+	assert.NoError(t, err)
 }

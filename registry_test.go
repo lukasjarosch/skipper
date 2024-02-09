@@ -5,25 +5,82 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lukasjarosch/skipper"
+	. "github.com/lukasjarosch/skipper"
 	"github.com/lukasjarosch/skipper/codec"
 	"github.com/lukasjarosch/skipper/data"
 )
 
-func makeNewRegistry(t *testing.T) *skipper.Registry {
-	persons, pizza, hans, john, foodCommon := makeClasses(t)
-	registry := skipper.NewRegistry()
+var (
+	personClassPath     = "testdata/classes/person.yaml"
+	pizzaClassPath      = "testdata/classes/pizza.yaml"
+	foodCommonClassPath = "testdata/classes/food/common.yaml"
+	foodClassPath       = "testdata/classes/food.yaml"
+	hansClassPath       = "testdata/classes/people/hans.yaml"
+	johnClassPath       = "testdata/classes/people/john.yaml"
+	janeClassPath       = "testdata/classes/people/jane.yaml"
+	peopleClassPath     = "testdata/classes/people.yaml"
 
-	// Test: register multiple classes in two namespaces
-	err := registry.RegisterClass(data.NewPath(persons.Name), persons)
+	stripPrefix = data.NewPathFromOsPath("testdata/classes")
+
+	personClass,
+	pizzaClass,
+	foodCommonClass,
+	foodClass,
+	hansClass,
+	johnClass,
+	janeClass,
+	peopleClass *Class
+)
+
+func makeClasses(t *testing.T) {
+	var err error
+
+	personClass, err = NewClass(personClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
-	err = registry.RegisterClass(data.NewPath(pizza.Name), pizza)
+	assert.NotNil(t, personClass)
+
+	pizzaClass, err = NewClass(pizzaClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
-	err = registry.RegisterClass(data.NewPathVar("people", hans.Name), hans)
+	assert.NotNil(t, pizzaClass)
+
+	foodCommonClass, err = NewClass(foodCommonClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
-	err = registry.RegisterClass(data.NewPathVar("people", john.Name), john)
+	assert.NotNil(t, foodCommonClass)
+
+	foodClass, err = NewClass(foodClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
-	err = registry.RegisterClass(data.NewPathVar("food", foodCommon.Name), foodCommon)
+	assert.NotNil(t, foodClass)
+
+	hansClass, err = NewClass(hansClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, hansClass)
+
+	johnClass, err = NewClass(johnClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, johnClass)
+
+	janeClass, err = NewClass(janeClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, janeClass)
+
+	peopleClass, err = NewClass(peopleClassPath, codec.NewYamlCodec())
+	assert.NoError(t, err)
+	assert.NotNil(t, peopleClass)
+}
+
+func makeNewRegistry(t *testing.T) *Registry {
+	makeClasses(t)
+	registry := NewRegistry()
+
+	err := registry.RegisterClass(data.NewPath(personClass.Name), personClass)
+	assert.NoError(t, err)
+	err = registry.RegisterClass(data.NewPath(pizzaClass.Name), pizzaClass)
+	assert.NoError(t, err)
+	err = registry.RegisterClass(data.NewPathVar("people", hansClass.Name), hansClass)
+	assert.NoError(t, err)
+	err = registry.RegisterClass(data.NewPathVar("people", johnClass.Name), johnClass)
+	assert.NoError(t, err)
+	err = registry.RegisterClass(data.NewPathVar("food", foodCommonClass.Name), foodCommonClass)
 	assert.NoError(t, err)
 
 	return registry
@@ -34,50 +91,46 @@ func TestNewRegistry(t *testing.T) {
 }
 
 func TestRegistryRegisterClass(t *testing.T) {
-	_, _, _, john, _ := makeClasses(t)
 	registry := makeNewRegistry(t)
 
 	// Test: class already registered
-	err := registry.RegisterClass(data.NewPathVar("people", john.Name), john)
-	assert.ErrorIs(t, err, skipper.ErrClassAlreadyRegistered)
+	err := registry.RegisterClass(data.NewPathVar("people", johnClass.Name), johnClass)
+	assert.ErrorIs(t, err, ErrClassAlreadyRegistered)
 
 	// Test: class with empty namespace
-	err = registry.RegisterClass(data.Path{}, john)
-	assert.ErrorIs(t, err, skipper.ErrEmptyClassIdentifier)
+	err = registry.RegisterClass(data.Path{}, johnClass)
+	assert.ErrorIs(t, err, ErrEmptyClassIdentifier)
 
 	// Test: class name must be last segment of identifier
-	err = registry.RegisterClass(data.NewPathVar("foo", "bar"), john)
-	assert.ErrorIs(t, err, skipper.ErrInvalidClassIdentifier)
+	err = registry.RegisterClass(data.NewPathVar("foo", "bar"), johnClass)
+	assert.ErrorIs(t, err, ErrInvalidClassIdentifier)
 
 	// Test: register a class which introduces a duplicate path
-	people, err := skipper.NewClass(peopleClassPath, codec.NewYamlCodec())
-	assert.NoError(t, err)
-	assert.NotNil(t, people)
-	err = registry.RegisterClass(data.NewPath(people.Name), people)
-	assert.ErrorIs(t, err, skipper.ErrDuplicatePath)
+	err = registry.RegisterClass(data.NewPath(peopleClass.Name), peopleClass)
+	assert.ErrorIs(t, err, ErrDuplicatePath)
 
 	// Test: class already has a pre-set hook
-	jane, err := skipper.NewClass(janeClassPath, codec.NewYamlCodec())
+	jane, err := NewClass(janeClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
 	assert.NotNil(t, jane)
-	jane.SetPreSetHook(func(class skipper.Class, path data.Path, value data.Value) error { return nil })
+	jane.SetPreSetHook(func(class Class, path data.Path, value data.Value) error { return nil })
 	err = registry.RegisterClass(data.NewPathVar("people", jane.Name), jane)
-	assert.ErrorIs(t, err, skipper.ErrCannotOverwriteHook)
+	assert.ErrorIs(t, err, ErrCannotOverwriteHook)
 
 	// Test: class already has a post-set hook
-	jane, err = skipper.NewClass(janeClassPath, codec.NewYamlCodec())
+	jane, err = NewClass(janeClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
 	assert.NotNil(t, jane)
-	jane.SetPostSetHook(func(class skipper.Class, path data.Path, value data.Value) error { return nil })
+	jane.SetPostSetHook(func(class Class, path data.Path, value data.Value) error { return nil })
 	err = registry.RegisterClass(data.NewPathVar("people", jane.Name), jane)
-	assert.ErrorIs(t, err, skipper.ErrCannotOverwriteHook)
+	assert.ErrorIs(t, err, ErrCannotOverwriteHook)
 }
 
 func TestRegistryPreSetHook(t *testing.T) {
 	registry := makeNewRegistry(t)
 
 	// Register a 'food' class which can cause issues with the 'food.common' class
-	food, err := skipper.NewClass(foodClassPath, codec.NewYamlCodec())
+	food, err := NewClass(foodClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
 	assert.NotNil(t, food)
 	err = registry.RegisterClass(data.NewPath(food.Name), food)
@@ -87,7 +140,7 @@ func TestRegistryPreSetHook(t *testing.T) {
 	// The path 'food.common.should_be_tasty' is already registered by the 'food.common' class
 	// and must not be registered again by the 'food' class.
 	err = food.Set("food.common.should_be_tasty", false)
-	assert.ErrorIs(t, err, skipper.ErrDuplicatePath)
+	assert.ErrorIs(t, err, ErrDuplicatePath)
 
 	// Test: Attempting to set a non-existing path must work
 	err = food.Set("food.common.eaten", false)
@@ -98,7 +151,7 @@ func TestRegistryPostSetHook(t *testing.T) {
 	registry := makeNewRegistry(t)
 
 	// Register a 'food' class
-	food, err := skipper.NewClass(foodClassPath, codec.NewYamlCodec())
+	food, err := NewClass(foodClassPath, codec.NewYamlCodec())
 	assert.NoError(t, err)
 	assert.NotNil(t, food)
 	err = registry.RegisterClass(data.NewPath(food.Name), food)
@@ -112,46 +165,3 @@ func TestRegistryPostSetHook(t *testing.T) {
 	assert.NotNil(t, val.Raw)
 	assert.Equal(t, val.Raw, "very_juicy")
 }
-
-// func TestRegistryClassesInNamespace(t *testing.T) {
-// 	registry := makeNewRegistry(t)
-//
-// 	// Test: namespace exists
-// 	classes, err := registry.ClassesInNamespace(skipper.RootNamespace)
-// 	assert.NoError(t, err)
-// 	assert.Len(t, classes, 2)
-//
-// 	// Test: namespace does not exist
-// 	classes, err = registry.ClassesInNamespace(skipper.RootNamespace.Append("something"))
-// 	assert.ErrorIs(t, err, skipper.ErrNamespaceDoesNotExist)
-// 	assert.Nil(t, classes)
-// }
-
-// func TestRegistryGetClass(t *testing.T) {
-// 	persons, _, hans, _ := makeClasses(t)
-// 	registry := makeNewRegistry(t)
-//
-// 	// Test: class in root namespace, exists
-// 	class, err := registry.GetClass(persons.Name)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, persons, class)
-//
-// 	// Test: class not in root namespace, exists
-// 	class, err = registry.GetClass(hans.Name)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, hans, class)
-//
-// 	// Test: class does not exist
-// 	class, err = registry.GetClass("undefined")
-// 	assert.ErrorIs(t, err, skipper.ErrClassDoesNotExist)
-// }
-//
-// func TestRegistryResolveClass(t *testing.T) {
-// 	persons, _, _, _ := makeClasses(t)
-// 	registry := makeNewRegistry(t)
-//
-// 	// Test: resolve existing class in root namespace
-// 	class, err := registry.ResolveClass(skipper.RootNamespace.Append(persons.Name))
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, persons, class)
-// }
