@@ -49,5 +49,16 @@ you to create the own - custom built - template and inventory engine, without ha
   - [ ] Target + Target-Inventory
   - [ ] References (local, global, target)
   - [ ] Template Engine
-- [ ] Hook System
+- [ ] Plugin System
+  - [ ] Hook System
+  - Plugins
+    - `env` to provide environment variable access in classes
+    - `copy` to directly copy files into the target compile output
+    - `undefined` to ensure class paths are defined once the target is loaded
+    - `schema` to support class schema validation
+    - `secret` for secret management
+    - `validate` to provide custom validation logic
+    - `go_schema` to generate go types based off the yaml files (and write them into go files)
+    - `terraform_data` to generate a terraform data module with the inventory content
+    - `include` to enable class-based includes with complex inheritance
 - [ ] Basic
