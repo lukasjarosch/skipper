@@ -6,4 +6,8 @@
 
 ---
 
-{{ template "with_data" . }}
+{{ . }}
+
+---
+
+{{ template "with_data" context "TargetName" .TargetName "Network" .Inventory.network }}

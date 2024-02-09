@@ -41,6 +41,22 @@ var customFuncs map[string]any = map[string]any{
 		}
 		return time.Now().AddDate(y, m, d).Format(time.RFC3339)
 	},
+
+	"context": func(values ...interface{}) (map[string]interface{}, error) {
+		if len(values)%2 != 0 {
+			return nil, fmt.Errorf("uneven amount of values")
+		}
+		context := make(map[string]interface{}, len(values)/2)
+		for i := 0; i < len(values); i += 2 {
+			key, ok := values[i].(string)
+			if !ok {
+				return nil, fmt.Errorf("map key must be a string")
+			}
+			context[key] = values[i+1]
+		}
+
+		return context, nil
+	},
 }
 
 type Templater struct {

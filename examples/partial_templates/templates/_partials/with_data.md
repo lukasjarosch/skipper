@@ -3,7 +3,7 @@
 # {{ .TargetName }}
 
 ```
-{{ .Inventory }}
+{{ .Network }}
 ```
 
 {{ end }}
