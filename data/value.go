@@ -49,3 +49,12 @@ func (val Value) Int() (int, error) {
 	}
 	return i, nil
 }
+
+// Float64 attempts to convert the value to an int. Returns an error if conversion is not possible.
+func (val Value) Float64() (float64, error) {
+	f, ok := val.Raw.(float64)
+	if !ok {
+		return 0.0, fmt.Errorf("cannot convert value to float64: %s", val)
+	}
+	return f, nil
+}

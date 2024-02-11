@@ -116,6 +116,10 @@ func (p Path) LastSegment() Path {
 	return NewPath(p.Last())
 }
 
+func (p Path) IsEmpty() bool {
+	return p.String() == ""
+}
+
 // Equals returns true if the current path is equal to the provided path.
 func (p Path) Equals(other Path) bool {
 	if len(p) != len(other) {
