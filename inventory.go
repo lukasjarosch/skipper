@@ -14,7 +14,8 @@ var (
 	ErrScopeDoesNotExist      = fmt.Errorf("scope does not exist")
 	ErrScopeAlreadyRegistered = fmt.Errorf("scope already registered")
 
-	DataScope Scope = "data"
+	DataScope    Scope = "data"
+	TargetsScope Scope = "targets"
 )
 
 type Inventory struct {
@@ -63,6 +64,18 @@ func (inv *Inventory) Get(path string) (data.Value, error) {
 	return data.NilValue, fmt.Errorf("%s: %w", path, ErrPathNotFound)
 }
 
+func (inv *Inventory) GetScope(scope Scope) (*Registry, error) {
+	if scope == "" {
+		return nil, ErrEmptyScope
+	}
+	registry, exists := inv.scopes[scope]
+	if !exists {
+		return nil, ErrScopeDoesNotExist
+	}
+
+	return registry, nil
+}
+
 func (inv *Inventory) SetDefaultScope(scope Scope) error {
 	if scope == "" {
 		return ErrEmptyScope
@@ -75,4 +88,12 @@ func (inv *Inventory) SetDefaultScope(scope Scope) error {
 	inv.defaultScope = scope
 
 	return nil
+}
+
+func (inv *Inventory) Scopes() []Scope {
+	var scopes []Scope
+	for scope := range inv.scopes {
+		scopes = append(scopes, scope)
+	}
+	return scopes
 }
