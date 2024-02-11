@@ -1,0 +1,17 @@
+jane:
+  name: Jane
+  age: 30
+  gender: female
+  occupation: Software Engineer
+  interests:
+    - Hiking
+    - Photography
+    - Cooking
+  address:
+    street: 456 Elm Street
+    city: Towndale
+    state: State
+    country: Country
+  contact:
+    email: jane@example.com
+    phone: "+1098765432"

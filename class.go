@@ -4,31 +4,41 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	"github.com/google/uuid"
+	"strings"
 
 	"github.com/lukasjarosch/skipper/data"
 )
 
 var (
-	ErrEmptyFilePath       = fmt.Errorf("file path cannot be empty")
-	ErrCannotOverwriteHook = fmt.Errorf("cannot overwrite existing hook")
-	ErrEmptyClassId        = fmt.Errorf("empty class id")
+	ErrEmptyFilePath          = fmt.Errorf("file path cannot be empty")
+	ErrCannotOverwriteHook    = fmt.Errorf("cannot overwrite existing hook")
+	ErrEmptyClassId           = fmt.Errorf("empty class id")
+	ErrEmptyClassIdentifier   = fmt.Errorf("class identifier cannot be empty")
+	ErrInvalidClassIdentifier = fmt.Errorf("invalid class identifier")
 )
 
+// Codec is used to de-/encode the data which make up the Class.
 type Codec interface {
 	Unmarshal([]byte) (map[string]interface{}, error)
 }
 
-type SetHookFunc func(class Class, path data.Path, value data.Value) error
+type (
+	// SetHookFunc can be registered as either preSetHook or postSetHook
+	// and will then be called respectively.
+	SetHookFunc func(class Class, path data.Path, value data.Value) error
+	// ClassIdentifier is an identifier used to identify a Class
+	ClassIdentifier = data.Path
+)
 
+// Class defines the main file-data abstraction used by skipper.
+// Every file with hierarchical data can be represented by a Class.
 type Class struct {
-	// In some cases a class needs to be uniquely identified.
-	// The name itself is not unique, hence the id exists.
-	id uuid.UUID
 	// Name is the common name of the class.
+	// It is derived from the filename which this class represents.
 	Name string
-	// FilePath is the path to the file which this class represents.
+	// Identifier
+	Identifier ClassIdentifier
+	// FilePath is the path to the underlying file on the filesystem.
 	FilePath string
 	// Access to the underlying container is usually not advised.
 	// The Class itself exposes all the functionality of the container anyway.
@@ -41,9 +51,12 @@ type Class struct {
 // NewClass attempts to create a new class given a filesystem path and a codec.
 // The class will only be created if the file is readable, can be decoded and
 // adheres to the constraints set by [data.Container].
-func NewClass(filePath string, codec Codec) (*Class, error) {
+func NewClass(filePath string, codec Codec, identifier ClassIdentifier) (*Class, error) {
 	if len(filePath) == 0 {
 		return nil, ErrEmptyFilePath
+	}
+	if identifier.IsEmpty() {
+		return nil, ErrEmptyClassIdentifier
 	}
 
 	file, err := os.Open(filePath)
@@ -66,11 +79,16 @@ func NewClass(filePath string, codec Codec) (*Class, error) {
 		return nil, fmt.Errorf("invalid container: %w", err)
 	}
 
+	className := PathFileBaseName(filePath)
+	if identifier.Last() != className {
+		return nil, fmt.Errorf("class name must be last segment of classIdentifier: %w", ErrInvalidClassIdentifier)
+	}
+
 	return &Class{
-		id:          uuid.New(),
 		container:   container,
+		Identifier:  identifier,
 		FilePath:    filePath,
-		Name:        PathFileBaseName(filePath),
+		Name:        className,
 		preSetHook:  nil,
 		postSetHook: nil,
 	}, nil
@@ -135,14 +153,39 @@ func (c *Class) SetPostSetHook(setHookFunc SetHookFunc) error {
 	return nil
 }
 
+// AllPaths returns every single path of the underlying container
 func (c *Class) AllPaths() []data.Path {
 	return c.container.AllPaths()
 }
 
+// Walk allows traversing the underlying container data.
 func (c *Class) Walk(walkFunc data.WalkContainerFunc) error {
 	return c.container.Walk(walkFunc)
 }
 
-func (c *Class) ID() string {
-	return c.id.String()
+// ClassLoader is a simple helper function which accepts a list of paths which will be loaded a Classes.
+func ClassLoader(basePath string, files []string, codec Codec) ([]*Class, error) {
+	var classes []*Class
+	for _, file := range files {
+		// The classIdentifier is derived from the path of the class and the 'basePath'.
+		// The basePath, which is usually the path to the scope directory, is removed.
+		strippedPath := strings.Replace(file, basePath, "", 1)
+		classIdentifier := data.NewPathFromOsPath(strippedPath)
+
+		class, err := NewClass(file, codec, classIdentifier)
+		if err != nil {
+			return nil, fmt.Errorf("cannot create class from file: %s: %w", file, err)
+		}
+		classes = append(classes, class)
+	}
+
+	return classes, nil
+}
+
+func CreateClassIdentifier(filePaths []string, classFilePath string) data.Path {
+	commonPathPrefix := CommonPathPrefix(filePaths)
+	strippedPath := strings.Replace(classFilePath, commonPathPrefix, "", 1)
+	classIdentifier := data.NewPathFromOsPath(strippedPath)
+
+	return classIdentifier
 }

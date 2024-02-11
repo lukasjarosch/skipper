@@ -35,35 +35,35 @@ var (
 func makeClasses(t *testing.T) {
 	var err error
 
-	personClass, err = NewClass(personClassPath, codec.NewYamlCodec())
+	personClass, err = NewClass(personClassPath, codec.NewYamlCodec(), data.NewPath("person"))
 	assert.NoError(t, err)
 	assert.NotNil(t, personClass)
 
-	pizzaClass, err = NewClass(pizzaClassPath, codec.NewYamlCodec())
+	pizzaClass, err = NewClass(pizzaClassPath, codec.NewYamlCodec(), data.NewPath("pizza"))
 	assert.NoError(t, err)
 	assert.NotNil(t, pizzaClass)
 
-	foodCommonClass, err = NewClass(foodCommonClassPath, codec.NewYamlCodec())
+	foodCommonClass, err = NewClass(foodCommonClassPath, codec.NewYamlCodec(), data.NewPath("food.common"))
 	assert.NoError(t, err)
 	assert.NotNil(t, foodCommonClass)
 
-	foodClass, err = NewClass(foodClassPath, codec.NewYamlCodec())
+	foodClass, err = NewClass(foodClassPath, codec.NewYamlCodec(), data.NewPath("food"))
 	assert.NoError(t, err)
 	assert.NotNil(t, foodClass)
 
-	hansClass, err = NewClass(hansClassPath, codec.NewYamlCodec())
+	hansClass, err = NewClass(hansClassPath, codec.NewYamlCodec(), data.NewPath("people.hans"))
 	assert.NoError(t, err)
 	assert.NotNil(t, hansClass)
 
-	johnClass, err = NewClass(johnClassPath, codec.NewYamlCodec())
+	johnClass, err = NewClass(johnClassPath, codec.NewYamlCodec(), data.NewPath("people.john"))
 	assert.NoError(t, err)
 	assert.NotNil(t, johnClass)
 
-	janeClass, err = NewClass(janeClassPath, codec.NewYamlCodec())
+	janeClass, err = NewClass(janeClassPath, codec.NewYamlCodec(), data.NewPath("people.jane"))
 	assert.NoError(t, err)
 	assert.NotNil(t, janeClass)
 
-	peopleClass, err = NewClass(peopleClassPath, codec.NewYamlCodec())
+	peopleClass, err = NewClass(peopleClassPath, codec.NewYamlCodec(), data.NewPath("people"))
 	assert.NoError(t, err)
 	assert.NotNil(t, peopleClass)
 }
@@ -72,15 +72,15 @@ func makeNewRegistry(t *testing.T) *Registry {
 	makeClasses(t)
 	registry := NewRegistry()
 
-	err := registry.RegisterClass(data.NewPath(personClass.Name), personClass)
+	err := registry.RegisterClass(personClass)
 	assert.NoError(t, err)
-	err = registry.RegisterClass(data.NewPath(pizzaClass.Name), pizzaClass)
+	err = registry.RegisterClass(pizzaClass)
 	assert.NoError(t, err)
-	err = registry.RegisterClass(data.NewPathVar("people", hansClass.Name), hansClass)
+	err = registry.RegisterClass(hansClass)
 	assert.NoError(t, err)
-	err = registry.RegisterClass(data.NewPathVar("people", johnClass.Name), johnClass)
+	err = registry.RegisterClass(johnClass)
 	assert.NoError(t, err)
-	err = registry.RegisterClass(data.NewPathVar("food", foodCommonClass.Name), foodCommonClass)
+	err = registry.RegisterClass(foodCommonClass)
 	assert.NoError(t, err)
 
 	return registry
@@ -90,39 +90,44 @@ func TestNewRegistry(t *testing.T) {
 	makeNewRegistry(t)
 }
 
+func TestNewRegistryFromFiles(t *testing.T) {
+	rootPath := "testdata/references"
+
+	files, err := DiscoverFiles(rootPath, codec.YamlPathSelector)
+	assert.NoError(t, err)
+
+	reg, err := NewRegistryFromFiles(files, func(filePaths []string) ([]*Class, error) {
+		return ClassLoader("testdata/references", filePaths, codec.NewYamlCodec())
+	})
+	assert.NoError(t, err)
+	_ = reg
+}
+
 func TestRegistryRegisterClass(t *testing.T) {
 	registry := makeNewRegistry(t)
 
 	// Test: class already registered
-	err := registry.RegisterClass(data.NewPathVar("people", johnClass.Name), johnClass)
+	err := registry.RegisterClass(johnClass)
 	assert.ErrorIs(t, err, ErrClassAlreadyRegistered)
 
-	// Test: class with empty namespace
-	err = registry.RegisterClass(data.Path{}, johnClass)
-	assert.ErrorIs(t, err, ErrEmptyClassIdentifier)
-
-	// Test: class name must be last segment of identifier
-	err = registry.RegisterClass(data.NewPathVar("foo", "bar"), johnClass)
-	assert.ErrorIs(t, err, ErrInvalidClassIdentifier)
-
 	// Test: register a class which introduces a duplicate path
-	err = registry.RegisterClass(data.NewPath(peopleClass.Name), peopleClass)
+	err = registry.RegisterClass(peopleClass)
 	assert.ErrorIs(t, err, ErrDuplicatePath)
 
 	// Test: class already has a pre-set hook
-	jane, err := NewClass(janeClassPath, codec.NewYamlCodec())
+	jane, err := NewClass(janeClassPath, codec.NewYamlCodec(), data.NewPath("people.jane"))
 	assert.NoError(t, err)
 	assert.NotNil(t, jane)
 	jane.SetPreSetHook(func(class Class, path data.Path, value data.Value) error { return nil })
-	err = registry.RegisterClass(data.NewPathVar("people", jane.Name), jane)
+	err = registry.RegisterClass(jane)
 	assert.ErrorIs(t, err, ErrCannotOverwriteHook)
 
 	// Test: class already has a post-set hook
-	jane, err = NewClass(janeClassPath, codec.NewYamlCodec())
+	jane, err = NewClass(janeClassPath, codec.NewYamlCodec(), data.NewPath("people.jane"))
 	assert.NoError(t, err)
 	assert.NotNil(t, jane)
 	jane.SetPostSetHook(func(class Class, path data.Path, value data.Value) error { return nil })
-	err = registry.RegisterClass(data.NewPathVar("people", jane.Name), jane)
+	err = registry.RegisterClass(jane)
 	assert.ErrorIs(t, err, ErrCannotOverwriteHook)
 }
 
@@ -130,10 +135,10 @@ func TestRegistryPreSetHook(t *testing.T) {
 	registry := makeNewRegistry(t)
 
 	// Register a 'food' class which can cause issues with the 'food.common' class
-	food, err := NewClass(foodClassPath, codec.NewYamlCodec())
+	food, err := NewClass(foodClassPath, codec.NewYamlCodec(), data.NewPath("food"))
 	assert.NoError(t, err)
 	assert.NotNil(t, food)
-	err = registry.RegisterClass(data.NewPath(food.Name), food)
+	err = registry.RegisterClass(food)
 	assert.NoError(t, err)
 
 	// Test: Attempt to set existing path from different class
@@ -151,10 +156,10 @@ func TestRegistryPostSetHook(t *testing.T) {
 	registry := makeNewRegistry(t)
 
 	// Register a 'food' class
-	food, err := NewClass(foodClassPath, codec.NewYamlCodec())
+	food, err := NewClass(foodClassPath, codec.NewYamlCodec(), data.NewPath("food"))
 	assert.NoError(t, err)
 	assert.NotNil(t, food)
-	err = registry.RegisterClass(data.NewPath(food.Name), food)
+	err = registry.RegisterClass(food)
 	assert.NoError(t, err)
 
 	// Test: new path must be resolvable by the registry afterwards
