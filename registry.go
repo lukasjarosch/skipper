@@ -46,6 +46,8 @@ func NewRegistry() *Registry {
 
 type ClassLoaderFunc func(filePaths []string) ([]*Class, error)
 
+type RegistryWalkFunc func(class *Class, path data.Path, value data.Value, isLeaf bool) error
+
 func NewRegistryFromFiles(filePaths []string, classLoader ClassLoaderFunc) (*Registry, error) {
 	classes, err := classLoader(filePaths)
 	if err != nil {
@@ -165,6 +167,19 @@ func (reg *Registry) Get(path string) (data.Value, error) {
 	classPath := data.NewPath(path).StripPrefix(data.NewPath(classIdentifier))
 
 	return class.Get(classPath.String())
+}
+
+// Walk will traverse over every registered class and call [Class.Walk] on them to further traverse over all paths.
+func (reg *Registry) Walk(walkFunc RegistryWalkFunc) error {
+	for _, class := range reg.classes {
+		err := class.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
+			return walkFunc(class, path, value, isLeaf)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // GetClassByIdentifier attempts to return a class which is associated with the
