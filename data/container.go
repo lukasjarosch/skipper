@@ -173,7 +173,7 @@ type WalkContainerFunc func(path Path, value Value, isLeaf bool) error
 // The only difference is that it uses [Value] types instead of arbitrary interfaces.
 func (container *Container) Walk(walkContainerFunc WalkContainerFunc) error {
 	return Walk(container.data, func(path Path, data interface{}, isLeaf bool) error {
-		return walkContainerFunc(path, NewValue(data), isLeaf)
+		return walkContainerFunc(container.AbsolutePath(path), NewValue(data), isLeaf)
 	})
 }
 
