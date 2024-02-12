@@ -100,6 +100,10 @@ func (c Class) Get(path string) (data.Value, error) {
 	return c.container.Get(data.NewPath(path))
 }
 
+func (c Class) GetPath(path data.Path) (data.Value, error) {
+	return c.container.Get(path)
+}
+
 // GetAll returns the whole data represented by this class.
 // Wrapper for [data.Container#Get]
 func (c Class) GetAll() data.Value {
@@ -161,6 +165,18 @@ func (c *Class) AllPaths() []data.Path {
 // Walk allows traversing the underlying container data.
 func (c *Class) Walk(walkFunc data.WalkContainerFunc) error {
 	return c.container.Walk(walkFunc)
+}
+
+// WalkValues is the same as [Walk] but it only traverses leaf paths
+// hence only returns values as defined by the user.
+// It also satisfies the [ReferenceSource] interface.
+func (c *Class) WalkValues(walkFunc func(data.Path, data.Value) error) error {
+	return c.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
+		if !isLeaf {
+			return nil
+		}
+		return walkFunc(path, value)
+	})
 }
 
 // ClassLoader is a simple helper function which accepts a list of paths which will be loaded a Classes.
