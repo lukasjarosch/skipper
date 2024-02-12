@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"regexp"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/lukasjarosch/skipper/data"
 )
+
+// YamlPathSelector is used to select paths to files which can be handled by the yaml codec.
+var YamlPathSelector = regexp.MustCompile(`(.*.(yaml|yml))`)
 
 type YamlCodec struct{}
 
