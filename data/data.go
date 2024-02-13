@@ -23,13 +23,17 @@ func Walk(data interface{}, walkFn WalkFunc) error {
 
 // walk implements a basic DFS and traverses over every
 // node in the data, calling the WalkFunc on each of them.
-func walk(parent interface{}, path Path, walkFn WalkFunc) error {
+func walk(parent interface{}, currentPath Path, walkFn WalkFunc) error {
 	if parent == nil {
 		return nil
 	}
 
-	parentValue := reflect.ValueOf(parent)
+	// Make a copy of path, otherwise the reference is reused
+	// which causes weird append behavior.
+	// See: https://stackoverflow.com/a/20277579
+	path := NewPath(currentPath.String())
 
+	parentValue := reflect.ValueOf(parent)
 	switch parentValue.Kind() {
 	case reflect.Map:
 		// ignore the root (empty) path and only recurse into 'actual paths'

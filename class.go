@@ -81,7 +81,7 @@ func NewClass(filePath string, codec Codec, identifier ClassIdentifier) (*Class,
 
 	className := PathFileBaseName(filePath)
 	if identifier.Last() != className {
-		return nil, fmt.Errorf("class name must be last segment of classIdentifier: %w", ErrInvalidClassIdentifier)
+		return nil, fmt.Errorf("class name '%s' must be last segment of classIdentifier '%s': %w", className, identifier, ErrInvalidClassIdentifier)
 	}
 
 	return &Class{

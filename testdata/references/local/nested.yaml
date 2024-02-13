@@ -1,0 +1,15 @@
+nested:
+  source:
+    foo: bar
+    bar: baz
+  source_array:
+    - foo
+    - bar
+    - baz
+  nested_map:
+    foo:
+      bar:
+        baz: qux
+  target: ${source}
+  target_array: ${source_array}
+  target_nested_map: ${nested_map}
