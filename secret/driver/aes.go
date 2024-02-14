@@ -36,7 +36,9 @@ func (driver *Aes) Configure(config map[string]interface{}) error {
 	return nil
 }
 
-func (driver *Aes) Decrypt(encrypted string) (string, error) {
+func (driver *Aes) Decrypt(encrypted string, key string) (string, error) {
+	// key is dismissed, as we always use the key in the driver config here
+
 	decrypted, err := driver.decrypt([]byte(driver.config.Key), encrypted)
 	if err != nil {
 		return "", err
@@ -106,4 +108,8 @@ func (driver *Aes) decrypt(key []byte, secure string) (decoded string, err error
 
 func (driver *Aes) Type() string {
 	return "aes"
+}
+
+func (driver *Aes) GetKey() string {
+	return "aesIsSymmetricThereIsNoKey"
 }

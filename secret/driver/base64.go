@@ -17,7 +17,9 @@ func NewBase64() (*Base64, error) {
 	return &driver, nil
 }
 
-func (p *Base64) Decrypt(encrypted string) (string, error) {
+func (p *Base64) Decrypt(encrypted string, key string) (string, error) {
+	// key is dismissed, as base64 isn't decrypting stuff
+
 	out, err := base64.StdEncoding.DecodeString(encrypted)
 	if err != nil {
 		return "", err
@@ -31,4 +33,8 @@ func (p *Base64) Encrypt(input string) (string, error) {
 
 func (p *Base64) Type() string {
 	return "base64"
+}
+
+func (p *Base64) GetKey() string {
+	return "base64DoesNotHaveAKey"
 }

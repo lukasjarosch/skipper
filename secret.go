@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -36,10 +37,11 @@ func NewSecret(secretFile *SecretFile, driver string, alternative *Call, path []
 type SecretFileData struct {
 	Data string `yaml:"data"`
 	Type string `yaml:"type"`
+	Key  string `yaml:"key"`
 }
 
 // NewSecretData constructs a [Data] map as it is required for secrets.
-func NewSecretData(data string, driver string) (*SecretFileData, error) {
+func NewSecretData(data string, driver string, key string) (*SecretFileData, error) {
 	if data == "" {
 		return nil, fmt.Errorf("secret data cannot be empty")
 	}
@@ -50,6 +52,7 @@ func NewSecretData(data string, driver string) (*SecretFileData, error) {
 	return &SecretFileData{
 		Data: data,
 		Type: driver,
+		Key:  key,
 	}, nil
 }
 
@@ -141,7 +144,7 @@ func (secret *Secret) attemptCreate(fs afero.Fs, secretPath string) error {
 	}
 
 	// create new Data map which can then be written into the secret file
-	secretFileData, err := NewSecretData(encryptedData, secret.Driver.Type())
+	secretFileData, err := NewSecretData(encryptedData, secret.Driver.Type(), secret.Driver.GetKey())
 	if err != nil {
 		return fmt.Errorf("could not create NewSecretData: %w", err)
 	}
@@ -229,7 +232,10 @@ func secretYamlFileLoader(secretFileList *[]*SecretFile) YamlFileLoaderFunc {
 
 // Value returns the actual secret value.
 func (s *Secret) Value() (string, error) {
-	return s.Driver.Decrypt(s.Data.Data)
+	if s.Driver.GetKey() != s.Data.Key {
+		fmt.Fprintf(os.Stderr, "key in secret file '%s' differs from the key in the inventory\n", s.Path())
+	}
+	return s.Driver.Decrypt(s.Data.Data, s.Data.Key)
 }
 
 // FullName returns the full secret name as it would be expected to ocurr in a class/target.

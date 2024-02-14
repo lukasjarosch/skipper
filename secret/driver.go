@@ -9,8 +9,10 @@ import (
 
 type Driver interface {
 	Type() string
+	GetKey() string
 	Encrypt(data string) (string, error)
-	Decrypt(encrypted string) (string, error)
+	// if key is set, use that one for decryption, otherwise use the key set in the driver (if available)
+	Decrypt(encrypted string, key string) (string, error)
 }
 
 type ConfigurableDriver interface {
