@@ -82,6 +82,16 @@ func (d Data) GetPath(path ...interface{}) (tree interface{}, err error) {
 				return nil, fmt.Errorf("key not found: %v", el)
 			}
 
+		case map[string]interface{}:
+			key, ok := el.(string)
+			if !ok {
+				return nil, fmt.Errorf("unexpected string key in map[string]interface '%T' at index %d", el, i)
+			}
+			tree, ok = node[key]
+			if !ok {
+				return nil, fmt.Errorf("key not found: %v", el)
+			}
+
 		case map[interface{}]interface{}:
 			var ok bool
 			tree, ok = node[el]
@@ -148,6 +158,13 @@ func (d *Data) SetPath(value interface{}, path ...interface{}) (err error) {
 
 	switch node := tree.(type) {
 	case Data:
+		key, ok := element.(string)
+		if !ok {
+			return fmt.Errorf("unexpected string key in map[string]interface '%T' at index %d", element, i)
+		}
+		node[key] = value
+
+	case map[string]interface{}:
 		key, ok := element.(string)
 		if !ok {
 			return fmt.Errorf("unexpected string key in map[string]interface '%T' at index %d", element, i)
@@ -228,7 +245,6 @@ func (d Data) FindValues(valueFunc FindValueFunc, target *[]interface{}) (err er
 
 	var walk func(reflect.Value, []interface{}) error
 	walk = func(v reflect.Value, path []interface{}) error {
-
 		// fix indirects through pointers and interfaces
 		for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
 			v = v.Elem()
