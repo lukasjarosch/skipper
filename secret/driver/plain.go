@@ -29,5 +29,5 @@ func (p Plain) Type() string {
 }
 
 func (p Plain) GetKey() string {
-	return "plainTextDoesntHaveAKey"
+	return "plainDoesntHaveAKey"
 }
