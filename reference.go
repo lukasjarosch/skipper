@@ -18,7 +18,8 @@ var (
 	// See: https://regex101.com/r/lIuuep/1
 	ReferenceRegex = regexp.MustCompile(`\${(?P<reference>[\w-]+(?:\:[\w-]+)*)}`)
 
-	ErrUndefinedReference = fmt.Errorf("undefined reference")
+	ErrUndefinedReference   = fmt.Errorf("undefined reference")
+	ErrReferenceSourceIsNil = fmt.Errorf("reference source is nil")
 )
 
 // Reference is a reference to a value with a different path.
@@ -35,28 +36,17 @@ func (ref Reference) Name() string {
 
 type ResolvedReference struct {
 	Reference
-	// TargetValue is the value to which the TargetPath points to
-	// This can be [data.NilValue]. In that case there is no target
-	// value but a target reference.
+	// TargetValue is the value to which the TargetPath points to.
+	// If TargetReference is not nil, this value must be [data.NilValue].
 	TargetValue data.Value
 	// TargetReference is non-nil if the Reference points to another [Reference]
+	// If the Reference just points to a scalar value, this will be nil.
 	TargetReference *Reference
-}
-
-// ReferenceParser is responsible for discovering and resolving references.
-type ReferenceParser struct {
-	source ReferenceSourceWalker
 }
 
 type ReferenceSourceWalker interface {
 	WalkValues(func(path data.Path, value data.Value) error) error
 }
-
-type ReferenceSourceGetter interface {
-	GetPath(path data.Path) (data.Value, error)
-}
-
-var ErrReferenceSourceIsNil = fmt.Errorf("source is nil")
 
 func ParseReferences(source ReferenceSourceWalker) ([]Reference, error) {
 	if source == nil {
@@ -80,6 +70,10 @@ func ParseReferences(source ReferenceSourceWalker) ([]Reference, error) {
 	})
 
 	return references, nil
+}
+
+type ReferenceSourceGetter interface {
+	GetPath(path data.Path) (data.Value, error)
 }
 
 func ResolveReferences(references []Reference, resolveSource ReferenceSourceGetter) ([]ResolvedReference, error) {
