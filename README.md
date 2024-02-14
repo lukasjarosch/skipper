@@ -20,8 +20,8 @@
 > Although Skipper is already used in production, the code on `main` should be considered unstable.
 > Skipper is currently undergoing a heavy rework as the current implementation only served as POC.
 >
-> The current development branch is [feat/data-abstraction-layer](https://github.com/lukasjarosch/skipper/tree/feat/data-abstraction-layer).  
-> The corresponding PR is [Data Abstraction Layer](https://github.com/lukasjarosch/skipper/pull/74)
+> The development for the "new" skipper takes place on [develop](https://github.com/lukasjarosch/skipper/tree/develop)  
+> **Note**: Some time in the future, Skipper on `main` will be replaced by this new version.
 
 
 # What is skipper?
