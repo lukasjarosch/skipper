@@ -28,6 +28,7 @@ type azureConfig struct {
 	// IgnoreVersion will ignore any key version, even if given, and always use the latest version.
 	IgnoreVersion bool `mapstructure:"ignore_version"`
 	// The Azure Vault KeyId to use for encryption and decryption
+	// KeyId is the full key string, example: https://secretkeyvault.vault.azure.net/keys/secrets-key/1111231232312111
 	KeyId string `mapstructure:"key_id"`
 
 	VaultName  string
