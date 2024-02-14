@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
+	"mime"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -17,7 +18,6 @@ import (
 )
 
 var customFuncs map[string]any = map[string]any{
-
 	"tfStringArray": func(input []interface{}) string {
 		var s []string
 		for _, v := range input {
@@ -41,10 +41,27 @@ var customFuncs map[string]any = map[string]any{
 		}
 		return time.Now().AddDate(y, m, d).Format(time.RFC3339)
 	},
+
+	"context": func(values ...interface{}) (map[string]interface{}, error) {
+		if len(values)%2 != 0 {
+			return nil, fmt.Errorf("uneven amount of values")
+		}
+		context := make(map[string]interface{}, len(values)/2)
+		for i := 0; i < len(values); i += 2 {
+			key, ok := values[i].(string)
+			if !ok {
+				return nil, fmt.Errorf("map key must be a string")
+			}
+			context[key] = values[i+1]
+		}
+
+		return context, nil
+	},
 }
 
 type Templater struct {
 	Files            []*File
+	partialTemplates []*File
 	IgnoreRegex      []*regexp.Regexp
 	templateRootPath string
 	outputRootPath   string
@@ -91,7 +108,27 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 			return nil
 		}
 
+		// Not all files are actually templates, there may very well exist other files (such as images)
+		// which we do not want to register as templates as they would not parse.
+		ignoredMimeTypes := []*regexp.Regexp{
+			regexp.MustCompile(`image/.*`),
+			regexp.MustCompile(`video/.*`),
+		}
+		mimeType := mime.TypeByExtension(filepath.Ext(info.Name()))
+
+		for _, ignoredMimeRegex := range ignoredMimeTypes {
+			if !ignoredMimeRegex.MatchString(mimeType) {
+				continue
+			}
+			return nil // skip this file
+		}
+
+		// Load and register template file
 		file, err := NewFile(filePath)
+		if err != nil {
+			return err
+		}
+		err = file.Load(t.templateFs)
 		if err != nil {
 			return err
 		}
@@ -102,7 +139,34 @@ func NewTemplater(fileSystem afero.Fs, templateRootPath, outputRootPath string, 
 		return nil, fmt.Errorf("error walking over template path: %w", err)
 	}
 
+	t.DiscoverPartials()
+
 	return t, nil
+}
+
+// DiscoverPartials will iterate over all registered files and check each of them
+// whether an additional template is defined (e.g. using the 'define' directive).
+// If so, the file is added to the list of partial templates which is made available
+// during template execution.
+// This ensures that every template can access partial templates.
+// Subsequent calls to this method will reset the 'partialTemplates' field.
+func (t *Templater) DiscoverPartials() {
+	t.partialTemplates = []*File{}
+
+	for _, tplFile := range t.Files {
+		if t.isPathIgnored(tplFile.Path) {
+			continue
+		}
+
+		// There exists at least one template named 'test'.
+		// If there is more than one, the file contains a partial template definition.
+		test := template.New(tplFile.Path).Funcs(t.templateFuncs)
+		test.Parse(string(tplFile.Bytes))
+		if len(test.Templates()) == 1 {
+			continue
+		}
+		t.partialTemplates = append(t.partialTemplates, tplFile)
+	}
 }
 
 // DefaultTemplateContext returns the default template context with an 'Inventory' field where the Data is located.
@@ -134,7 +198,6 @@ func (t *Templater) Execute(template *File, data any, allowNoValue bool, renameC
 
 // execute is the main rendering function for templates
 func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoValue bool) error {
-
 	// if the template matches any IgnoreRegex, just copy the file to the targetPath
 	// without rendering it as template
 	for _, v := range t.IgnoreRegex {
@@ -147,17 +210,28 @@ func (t *Templater) execute(tplFile *File, data any, targetPath string, allowNoV
 		}
 	}
 
-	err := tplFile.Load(t.templateFs)
-	if err != nil {
-		return err
+	// create new target template with the attached functions
+	tpl := template.New(tplFile.Path).Funcs(t.templateFuncs)
+
+	// Add every discovered partial template in case its needed.
+	for _, partialTemplate := range t.partialTemplates {
+		if t.isPathIgnored(partialTemplate.Path) {
+			continue
+		}
+
+		var err error
+		tpl, err = tpl.Parse(string(partialTemplate.Bytes))
+		if err != nil {
+			return fmt.Errorf("failed to parse template %s: %w", partialTemplate.Path, err)
+		}
 	}
 
-	tpl := template.New(tplFile.Path).Funcs(t.templateFuncs)
+	// now, finally parse the template we're actually aiming to render
+	var err error
 	tpl, err = tpl.Parse(string(tplFile.Bytes))
 	if err != nil {
 		return fmt.Errorf("failed to parse template %s: %w", tplFile.Path, err)
 	}
-
 	out := new(bytes.Buffer)
 	err = tpl.Execute(out, data)
 	if err != nil {
@@ -194,7 +268,6 @@ func (t *Templater) ExecuteComponents(data any, components []ComponentConfig, al
 
 	for _, component := range components {
 		for _, input := range component.InputPaths {
-
 			file := t.getTemplateByPath(input)
 
 			if file == nil {
@@ -239,4 +312,15 @@ func (t *Templater) getTemplateByPath(path string) *File {
 		}
 	}
 	return nil
+}
+
+// isPathIgnored provides a quick way to check whether a given path should be
+// ignored based on the 'IgnoreRegex' field.
+func (t *Templater) isPathIgnored(filePath string) bool {
+	for _, v := range t.IgnoreRegex {
+		if v.MatchString(filePath) {
+			return true
+		}
+	}
+	return false
 }
