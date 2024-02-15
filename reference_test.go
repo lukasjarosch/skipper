@@ -50,9 +50,9 @@ func TestResolveReferencesSimple(t *testing.T) {
 	// Test: resolve all valid references which have a direct TargetValue
 	resolved, err := ResolveReferences(expectedReferencesSimple, class)
 	assert.NoError(t, err)
-	assert.Len(t, resolved, len(expectedReferencesSimple), "Every Reference should emit a ResolveReference")
+	assert.Len(t, resolved, len(expectedReferencesSimple))
 	for _, resolved := range resolved {
-		assert.Contains(t, expectedReferencesSimple, resolved, "ResolvedReference should be returned")
+		assert.Contains(t, expectedReferencesSimple, resolved)
 	}
 
 	// Test: references with invalid TargetPath

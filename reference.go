@@ -37,16 +37,6 @@ func (ref Reference) Name() string {
 	return fmt.Sprintf("${%s}", strings.ReplaceAll(ref.TargetPath.String(), ".", ":"))
 }
 
-type ResolvedReference struct {
-	Reference
-	// TargetValue is the value to which the TargetPath points to.
-	// If TargetReference is not nil, this value must be [data.NilValue].
-	TargetValue data.Value
-	// TargetReference is non-nil if the Reference points to another [ResolvedReference]
-	// If the Reference just points to a scalar value, this will be nil.
-	TargetReference *ResolvedReference
-}
-
 type ReferenceSourceWalker interface {
 	WalkValues(func(path data.Path, value data.Value) error) error
 }
