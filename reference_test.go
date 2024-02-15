@@ -10,35 +10,6 @@ import (
 	"github.com/lukasjarosch/skipper/data"
 )
 
-// func makeInventory(t *testing.T) *Inventory {
-// 	dataFiles, err := DiscoverFiles("testdata/references/data", codec.YamlPathSelector)
-// 	assert.NoError(t, err)
-// 	dataRegistry, err := NewRegistryFromFiles(dataFiles, func(filePaths []string) ([]*Class, error) {
-// 		return ClassLoader("testdata/references/data", filePaths, codec.NewYamlCodec())
-// 	})
-// 	assert.NoError(t, err)
-//
-// 	targetFiles, err := DiscoverFiles("testdata/references/targets", codec.YamlPathSelector)
-// 	assert.NoError(t, err)
-// 	targetsRegistry, err := NewRegistryFromFiles(targetFiles, func(filePaths []string) ([]*Class, error) {
-// 		return ClassLoader("testdata/references/targets", filePaths, codec.NewYamlCodec())
-// 	})
-// 	assert.NoError(t, err)
-//
-// 	inventory, err := NewInventory()
-// 	assert.NoError(t, err)
-//
-// 	err = inventory.RegisterScope(DataScope, dataRegistry)
-// 	assert.NoError(t, err)
-// 	err = inventory.RegisterScope(TargetsScope, targetsRegistry)
-// 	assert.NoError(t, err)
-//
-// 	err = inventory.SetDefaultScope(DataScope)
-// 	assert.NoError(t, err)
-//
-// 	return inventory
-// }
-
 var localReferences = []Reference{
 	{
 		Path:       data.NewPath("simple.departments.engineering.manager"),
