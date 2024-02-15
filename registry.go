@@ -162,6 +162,24 @@ func (reg *Registry) Get(path string) (data.Value, error) {
 	return class.Get(classPath.String())
 }
 
+// GetPath is the same as Get, but it accepts a [data.Path] as path.
+func (reg *Registry) GetPath(path data.Path) (data.Value, error) {
+	return reg.Get(path.String())
+}
+
+// GetClassRelativePath attempts to resolve the target-class using the given classPath.
+// Then it attempts to resolve the path (which might be class-local only).
+// The given classPath can be any path which is known to the registry which is enough to resolve the Class.
+func (reg *Registry) GetClassRelativePath(classPath data.Path, path data.Path) (data.Value, error) {
+	classIdentifier, exists := reg.paths[classPath.String()]
+	if !exists {
+		return data.NilValue, fmt.Errorf("%s: %w", path, ErrPathNotFound)
+	}
+
+	class := reg.classes[classIdentifier]
+	return class.GetPath(path)
+}
+
 // Set will set an existing (!) path within the registry.
 // If the value is a complex type (map, array), then
 // the newly created paths will be registered with the registry.
@@ -185,6 +203,7 @@ func (reg *Registry) Set(path string, value interface{}) error {
 func (reg *Registry) SetPath(path data.Path, value interface{}) error {
 	return reg.Set(path.String(), value)
 }
+
 // Walk will traverse over every registered class and call [Class.Walk] on them to further traverse over all paths.
 func (reg *Registry) Walk(walkFunc RegistryWalkFunc) error {
 	for _, class := range reg.classes {
