@@ -1,0 +1,5 @@
+test:
+  target: ${nested:source}
+  target_array: ${nested:source_array}
+  target_nested_map: ${nested:nested_map}
+  target_nested_mixed: ${nested:nested_mixed}
