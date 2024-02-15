@@ -6,20 +6,24 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/dominikbraun/graph"
+
 	"github.com/lukasjarosch/skipper/data"
 )
 
 // TODO: handle reference-to-reference
 // TODO: PathReferences / KeyReferences
 // TODO: handle cyclic references
+// TODO: handle multiple references per path
+// TODO: handle reference-to-reference with multiple references on the same path
 
 var (
 	// ReferenceRegex defines the strings which are valid references
 	// See: https://regex101.com/r/lIuuep/1
 	ReferenceRegex = regexp.MustCompile(`\${(?P<reference>[\w-]+(?:\:[\w-]+)*)}`)
 
-	ErrUndefinedReference   = fmt.Errorf("undefined reference")
-	ErrReferenceSourceIsNil = fmt.Errorf("reference source is nil")
+	ErrUndefinedReferenceTarget = fmt.Errorf("undefined reference target path")
+	ErrReferenceSourceIsNil     = fmt.Errorf("reference source is nil")
 )
 
 // Reference is a reference to a value with a different path.
@@ -39,9 +43,9 @@ type ResolvedReference struct {
 	// TargetValue is the value to which the TargetPath points to.
 	// If TargetReference is not nil, this value must be [data.NilValue].
 	TargetValue data.Value
-	// TargetReference is non-nil if the Reference points to another [Reference]
+	// TargetReference is non-nil if the Reference points to another [ResolvedReference]
 	// If the Reference just points to a scalar value, this will be nil.
-	TargetReference *Reference
+	TargetReference *ResolvedReference
 }
 
 type ReferenceSourceWalker interface {
@@ -72,35 +76,145 @@ func ParseReferences(source ReferenceSourceWalker) ([]Reference, error) {
 	return references, nil
 }
 
+// ReferencesInValue returns all references within the passed value.
+// Note that the returned references do not have a 'Path' set!
+func ReferencesInValue(value data.Value) []Reference {
+	var references []Reference
+
+	referenceMatches := ReferenceRegex.FindAllStringSubmatch(value.String(), -1)
+	if referenceMatches != nil {
+		for _, match := range referenceMatches {
+			references = append(references, Reference{
+				TargetPath: ReferencePathToPath(match[1]),
+				Path:       data.Path{},
+			})
+		}
+	}
+
+	return references
+}
+
+type referenceVertex struct {
+	Reference
+	RawValue data.Value
+}
+
 type ReferenceSourceGetter interface {
 	GetPath(path data.Path) (data.Value, error)
 }
 
-func ResolveReferences(references []Reference, resolveSource ReferenceSourceGetter) ([]ResolvedReference, error) {
-	if resolveSource == nil {
-		return nil, ErrReferenceSourceIsNil
+// ResolveReferences will resolve dependencies between all given references and return
+// a sorted slice of the same references. This represents the order in which references should
+// be replaced without causing dependency issues.
+//
+// Note that the list of references passed must contain all existing references, even duplicates.
+func ResolveReferences(references []Reference, resolveSource ReferenceSourceGetter) ([]Reference, error) {
+	referenceNodeHash := func(ref referenceVertex) string {
+		return ref.TargetPath.String()
 	}
 
-	var errs error
-	var resolvedReferences []ResolvedReference
-	for _, reference := range references {
-		val, err := resolveSource.GetPath(reference.TargetPath)
+	g := graph.New(referenceNodeHash, graph.Acyclic(), graph.Directed())
+
+	// Register all references as nodes
+	var nodes []referenceVertex
+	for _, ref := range references {
+		rawValue, err := resolveSource.GetPath(ref.TargetPath)
 		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("%w %s at %s: %w", ErrUndefinedReference, reference.Name(), reference.Path, err))
-			continue
+			return nil, fmt.Errorf("%w: %s at path %s", ErrUndefinedReferenceTarget, ref.Name(), ref.Path)
 		}
-
-		resolvedReferences = append(resolvedReferences, ResolvedReference{
-			Reference:   reference,
-			TargetValue: val,
-		})
+		node := referenceVertex{Reference: ref, RawValue: rawValue}
+		err = g.AddVertex(node)
+		if err != nil {
+			// References can occur multiple times, but we only need to resolve them once.
+			// So we can ignore the ErrVertexAlreadyExists error.
+			if !errors.Is(err, graph.ErrVertexAlreadyExists) {
+				return nil, err
+			}
+		}
+		nodes = append(nodes, node)
 	}
-	if errs != nil {
-		return nil, errs
+
+	// Create edges between dependent references by looking at the actual value the 'TargetPath' points to.
+	// If that value contains more references, then these are dependencies of the currently examined node (reference).
+	for _, refNode := range nodes {
+		referenceDependencies := ReferencesInValue(refNode.RawValue)
+
+		for _, refDep := range referenceDependencies {
+			n, err := g.Vertex(refDep.TargetPath.String())
+			if err != nil {
+				return nil, err
+			}
+
+			if refNode.TargetPath.Equals(n.TargetPath) {
+				return nil, fmt.Errorf("self-referencing reference %s at path %s", refNode.Name(), refNode.Path)
+			}
+
+			err = g.AddEdge(refNode.TargetPath.String(), n.TargetPath.String())
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
-	return resolvedReferences, nil
+	// Perform TopologicalSort which returns a list of strings (TargetPaths)
+	// starting with the one which has the most dependencies.
+	order, err := graph.TopologicalSort[string, referenceVertex](g)
+	if err != nil {
+		return nil, err
+	}
+
+	// We need to reverse the result from the TopologicalSort.
+	// This is because the reference without dependencies will be sorted 'at the end'.
+	// But we want to resolve them first.
+	var reversedOrder []data.Path
+	for i := len(order) - 1; i >= 0; i-- {
+		reversedOrder = append(reversedOrder, data.NewPath(order[i]))
+	}
+
+	// Now that we have the order in which references must be replaced,
+	// lets finally re-order the passed (non-deduplicated) input references.
+	var orderedReferences []Reference
+	for _, refOrder := range reversedOrder {
+		for _, ref := range references {
+			if ref.TargetPath.Equals(refOrder) {
+				orderedReferences = append(orderedReferences, ref)
+			}
+		}
+	}
+
+	// sanity check
+	if len(orderedReferences) != len(references) {
+		return nil, fmt.Errorf("unexpected amount of resolved references, this is a bug")
+	}
+
+	return orderedReferences, nil
 }
+
+// func ResolveReferences(references []Reference, resolveSource ReferenceSourceGetter) ([]ResolvedReference, error) {
+// 	if resolveSource == nil {
+// 		return nil, ErrReferenceSourceIsNil
+// 	}
+//
+// 	var errs error
+// 	var resolvedReferences []ResolvedReference
+// 	for _, reference := range references {
+// 		val, err := resolveSource.GetPath(reference.TargetPath)
+// 		if err != nil {
+// 			errs = errors.Join(errs, fmt.Errorf("%w %s at %s: %w", ErrUndefinedReferenceTarget, reference.Name(), reference.Path, err))
+// 			continue
+// 		}
+//
+// 		resolvedReferences = append(resolvedReferences, ResolvedReference{
+// 			Reference:   reference,
+// 			TargetValue: val,
+// 		})
+// 	}
+// 	if errs != nil {
+// 		return nil, errs
+// 	}
+//
+// 	return resolvedReferences, nil
+// }
 
 // ReferencePathToPath converts the path used within references (colon-separated) to a proper [data.Path]
 func ReferencePathToPath(referencePath string) data.Path {

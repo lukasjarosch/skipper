@@ -1,0 +1,7 @@
+chained:
+  greeting: Hello, ${first_name}
+  gotcha: ${chained:john:name}
+  john:
+    name: John
+  first_name: ${name_placeholder}
+  name_placeholder: ${gotcha}
