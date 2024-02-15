@@ -190,32 +190,6 @@ func ResolveReferences(references []Reference, resolveSource ReferenceSourceGett
 	return orderedReferences, nil
 }
 
-// func ResolveReferences(references []Reference, resolveSource ReferenceSourceGetter) ([]ResolvedReference, error) {
-// 	if resolveSource == nil {
-// 		return nil, ErrReferenceSourceIsNil
-// 	}
-//
-// 	var errs error
-// 	var resolvedReferences []ResolvedReference
-// 	for _, reference := range references {
-// 		val, err := resolveSource.GetPath(reference.TargetPath)
-// 		if err != nil {
-// 			errs = errors.Join(errs, fmt.Errorf("%w %s at %s: %w", ErrUndefinedReferenceTarget, reference.Name(), reference.Path, err))
-// 			continue
-// 		}
-//
-// 		resolvedReferences = append(resolvedReferences, ResolvedReference{
-// 			Reference:   reference,
-// 			TargetValue: val,
-// 		})
-// 	}
-// 	if errs != nil {
-// 		return nil, errs
-// 	}
-//
-// 	return resolvedReferences, nil
-// }
-
 // ReferencePathToPath converts the path used within references (colon-separated) to a proper [data.Path]
 func ReferencePathToPath(referencePath string) data.Path {
 	referencePath = strings.ReplaceAll(referencePath, ":", ".")
