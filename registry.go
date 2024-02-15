@@ -20,13 +20,6 @@ var (
 // Once a class is registered with the registry, it will
 // hook into the `Set` call of the class to ensure the integrity of the registry.
 //
-// Note that the Registry does not offer a `Set` method itself.
-// If you really want to change your data during runtime, you'll need to
-// use the Classes itself.
-// Generally it is discouraged to modify the data as the source of truth
-// will always be the underlying files themselves.
-// You wouldn't want terraform to change the 'replica' count during runtime either.
-//
 // TODO: Introduce the concept of 'generators' which allow to generate class files
 // TODO: and manage them through skipper. This will remedy the missing 'Set' functionality.
 type Registry struct {
@@ -169,6 +162,29 @@ func (reg *Registry) Get(path string) (data.Value, error) {
 	return class.Get(classPath.String())
 }
 
+// Set will set an existing (!) path within the registry.
+// If the value is a complex type (map, array), then
+// the newly created paths will be registered with the registry.
+//
+// Within the Registry one can only set paths which are already
+// known by the registry. The reason for that is that the registry
+// needs to resolve the class in which the path should be set.
+// Assuming there exist two class identifiers 'foo' and 'foo.bar'.
+// If the path 'foo.bar.baz' should be set, it cannot be determined
+// in which class the path should be created, hence this functionality
+// is only available within the Class itself.
+func (reg *Registry) Set(path string, value interface{}) error {
+	classIdentifier, exists := reg.paths[path]
+	if !exists {
+		return fmt.Errorf("cannot set unknown path: %w", ErrPathNotFound)
+	}
+	return reg.classes[classIdentifier].Set(path, value)
+}
+
+// SetPath is just a wrapper for Set
+func (reg *Registry) SetPath(path data.Path, value interface{}) error {
+	return reg.Set(path.String(), value)
+}
 // Walk will traverse over every registered class and call [Class.Walk] on them to further traverse over all paths.
 func (reg *Registry) Walk(walkFunc RegistryWalkFunc) error {
 	for _, class := range reg.classes {
