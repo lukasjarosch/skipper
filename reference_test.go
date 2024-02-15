@@ -69,9 +69,6 @@ func TestResolveReferencesSimple(t *testing.T) {
 	resolved, err = ResolveReferences(invalidReferences, class)
 	assert.ErrorIs(t, err, ErrUndefinedReferenceTarget)
 	assert.Nil(t, resolved)
-
-	// TODO: reference to reference
-	// TODO: cycle
 }
 
 func TestResolveReferencesNested(t *testing.T) {
