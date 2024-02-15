@@ -170,6 +170,3 @@ func TestRegistryPostSetHook(t *testing.T) {
 	assert.NotNil(t, val.Raw)
 	assert.Equal(t, val.Raw, "very_juicy")
 }
-
-func TestRegistryWalk(t *testing.T) {
-}

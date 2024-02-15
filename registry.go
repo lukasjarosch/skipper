@@ -182,6 +182,22 @@ func (reg *Registry) Walk(walkFunc RegistryWalkFunc) error {
 	return nil
 }
 
+// WalkValues will traverse over all leave paths of each class.
+func (reg *Registry) WalkValues(walkFunc func(data.Path, data.Value) error) error {
+	for _, class := range reg.classes {
+		err := class.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
+			if !isLeaf {
+				return nil
+			}
+			return walkFunc(path, value)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GetClassByIdentifier attempts to return a class which is associated with the
 // given classIdentifier.
 // The classIdentifier cannot be empty.
