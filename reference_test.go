@@ -150,7 +150,7 @@ func TestResolveReferencesChained(t *testing.T) {
 	expected := []Reference{
 		{
 			Path:       data.NewPath("chained.gotcha"),
-			TargetPath: data.NewPath("chained.john.name"),
+			TargetPath: data.NewPath("chained.john.first_name"),
 		},
 		{
 			Path:       data.NewPath("chained.name_placeholder"),
@@ -167,4 +167,62 @@ func TestResolveReferencesChained(t *testing.T) {
 	}
 
 	assert.Equal(t, resolved, expected)
+}
+
+func TestResolveReferencesCycle(t *testing.T) {
+	class, err := NewClass("testdata/references/local/cycle.yaml", codec.NewYamlCodec(), data.NewPathFromOsPath("cycle"))
+	assert.NoError(t, err)
+
+	references, err := ParseReferences(class)
+	assert.NoError(t, err)
+	assert.NotNil(t, references)
+
+	resolved, err := ResolveReferences(references, class)
+	assert.ErrorIs(t, err, ErrReferenceCycle)
+	assert.Len(t, resolved, 0)
+}
+
+func TestResolveReferencesMulti(t *testing.T) {
+	class, err := NewClass("testdata/references/local/multi.yaml", codec.NewYamlCodec(), data.NewPathFromOsPath("multi"))
+	assert.NoError(t, err)
+
+	expected := []Reference{
+		{
+			Path:       data.NewPath("multi.project.description"),
+			TargetPath: data.NewPath("project.name"),
+		},
+		{
+			Path:       data.NewPath("multi.project.description"),
+			TargetPath: data.NewPath("multi.project.name"),
+		},
+		{
+			Path:       data.NewPath("multi.project.description"),
+			TargetPath: data.NewPath("project.name"),
+		},
+		{
+			Path:       data.NewPath("multi.project.description"),
+			TargetPath: data.NewPath("multi.project.repo"),
+		},
+		{
+			Path:       data.NewPath("multi.project.repo"),
+			TargetPath: data.NewPath("multi.common.repo_url"),
+		},
+	}
+
+	references, err := ParseReferences(class)
+	assert.NoError(t, err)
+	assert.NotNil(t, references)
+	assert.Len(t, references, len(expected))
+
+	resolved, err := ResolveReferences(references, class)
+	assert.NoError(t, err)
+	assert.Len(t, resolved, len(expected))
+
+	// The TopologicalSort does always produce a correct
+	// result, but the order still may change as there
+	// is usually more than one solution.
+	// Hence we only check that the sincle nested reference
+	// is properly resolved. Here the 'multi.common.repo_url'
+	// MUST be the first reference to be resolved.
+	assert.Equal(t, resolved[0], expected[4])
 }

@@ -11,11 +11,7 @@ import (
 	"github.com/lukasjarosch/skipper/data"
 )
 
-// TODO: handle reference-to-reference
-// TODO: PathReferences / KeyReferences
-// TODO: handle cyclic references
-// TODO: handle multiple references per path
-// TODO: handle reference-to-reference with multiple references on the same path
+// TODO: PathReferences which allow yaml keys to be references as well
 
 var (
 	// ReferenceRegex defines the strings which are valid references
@@ -24,6 +20,7 @@ var (
 
 	ErrUndefinedReferenceTarget = fmt.Errorf("undefined reference target path")
 	ErrReferenceSourceIsNil     = fmt.Errorf("reference source is nil")
+	ErrReferenceCycle           = fmt.Errorf("reference cycles are not allowed")
 )
 
 // Reference is a reference to a value with a different path.
@@ -113,7 +110,7 @@ func ResolveReferences(references []Reference, resolveSource ReferenceSourceGett
 		return ref.TargetPath.String()
 	}
 
-	g := graph.New(referenceNodeHash, graph.Acyclic(), graph.Directed())
+	g := graph.New(referenceNodeHash, graph.Acyclic(), graph.Directed(), graph.PreventCycles())
 
 	// Register all references as nodes
 	var nodes []referenceVertex
@@ -151,6 +148,9 @@ func ResolveReferences(references []Reference, resolveSource ReferenceSourceGett
 
 			err = g.AddEdge(refNode.TargetPath.String(), n.TargetPath.String())
 			if err != nil {
+				if errors.Is(err, graph.ErrEdgeCreatesCycle) {
+					return nil, fmt.Errorf("reference %s -> %s would introduce cycle: %w", refNode.Name(), refDep.Name(), ErrReferenceCycle)
+				}
 				return nil, err
 			}
 		}

@@ -1,0 +1,9 @@
+multi:
+  common:
+    repo_url: "github.com/lukasjarosch/skipper"
+  project:
+    name: "skipper"
+    repo: "${multi:common:repo_url}"
+    description: >
+      The ${project:name} project is very cool. Because ${multi:project:name} helps in working with the Infrastructure as Data concept.
+      The project '${project:name}' is hosted on ${multi:project:repo}.
