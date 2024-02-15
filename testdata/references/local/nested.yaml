@@ -10,6 +10,17 @@ nested:
     foo:
       bar:
         baz: qux
+  nested_mixed:
+    foo:
+      - bar: baz
+      - test
+      - foo:
+          bar: baz
+      - array:
+          - one
+          - two
+          - three
   target: ${source}
   target_array: ${source_array}
   target_nested_map: ${nested_map}
+  target_nested_mixed: ${nested_mixed}

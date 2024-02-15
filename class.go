@@ -133,6 +133,10 @@ func (c *Class) Set(path string, value interface{}) error {
 	return nil
 }
 
+func (c *Class) SetPath(path data.Path, value interface{}) error {
+	return c.Set(path.String(), value)
+}
+
 // SetPreSetHook sets the preSetHook of the class
 // The function can only be called ONCE, after that it will always error.
 // This is done to prevent circumventing an existing hook.

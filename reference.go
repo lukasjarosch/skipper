@@ -12,6 +12,8 @@ import (
 )
 
 // TODO: PathReferences which allow yaml keys to be references as well
+// TODO: test with Registry
+// TODO: test with Inventory
 
 var (
 	// ReferenceRegex defines the strings which are valid references
@@ -49,6 +51,10 @@ type ReferenceSourceWalker interface {
 	WalkValues(func(path data.Path, value data.Value) error) error
 }
 
+// ParseReferences will use the [ReferenceSourceWalker] to traverse all values
+// and search for References within those values.
+// The returned slice of references contains all found references, even
+// duplicates if a reference is used multiple times.
 func ParseReferences(source ReferenceSourceWalker) ([]Reference, error) {
 	if source == nil {
 		return nil, ErrReferenceSourceIsNil
@@ -188,6 +194,49 @@ func ResolveReferences(references []Reference, resolveSource ReferenceSourceGett
 	}
 
 	return orderedReferences, nil
+}
+
+type ReferenceSourceSetter interface {
+	SetPath(data.Path, interface{}) error
+}
+
+type ReferenceSourceGetterSetter interface {
+	ReferenceSourceGetter
+	ReferenceSourceSetter
+}
+
+func ReplaceReferences(references []Reference, source ReferenceSourceGetterSetter) error {
+	for _, reference := range references {
+		targetValue, err := source.GetPath(reference.TargetPath)
+		if err != nil {
+			return err
+		}
+		sourceValue, err := source.GetPath(reference.Path)
+		if err != nil {
+			return err
+		}
+
+		// If the sourceValue only contains the reference, then
+		// we just use the 'SetPath' function in order to preserve the type of targetValue.
+		// This is required to allow replacing maps and arrays.
+		if len(sourceValue.String()) == len(reference.Name()) {
+			err = source.SetPath(reference.Path, targetValue.Raw)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		// In this case the reference is 'embedded', e.g. "Hello there ${name}",
+		// therefore we can only perform a string replacement to not erase the surrounding context.
+		replacedValue := strings.Replace(sourceValue.String(), reference.Name(), targetValue.String(), 1)
+		err = source.SetPath(reference.Path, replacedValue)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ReferencePathToPath converts the path used within references (colon-separated) to a proper [data.Path]
