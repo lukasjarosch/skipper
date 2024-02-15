@@ -96,6 +96,10 @@ type ReferenceSourceGetter interface {
 	GetPath(path data.Path) (data.Value, error)
 }
 
+type ReferenceSourceRelativeGetter interface {
+	GetClassRelativePath(data.Path, data.Path) (data.Value, error)
+}
+
 // ResolveReferences will resolve dependencies between all given references and return
 // a sorted slice of the same references. This represents the order in which references should
 // be replaced without causing dependency issues.
@@ -113,7 +117,18 @@ func ResolveReferences(references []Reference, resolveSource ReferenceSourceGett
 	for _, ref := range references {
 		rawValue, err := resolveSource.GetPath(ref.TargetPath)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s at path %s", ErrUndefinedReferenceTarget, ref.Name(), ref.Path)
+			// In case the path cannot be resolved it might be a class-local reference.
+			// We can attempt to resolve the Class since we know where the reference is located.
+			if errors.Is(err, ErrPathNotFound) {
+				if relativeSource, ok := resolveSource.(ReferenceSourceRelativeGetter); ok {
+					rawValue, err = relativeSource.GetClassRelativePath(ref.Path, ref.TargetPath)
+					if err != nil {
+						return nil, fmt.Errorf("%w: %s at path %s: %w", ErrUndefinedReferenceTarget, ref.Name(), ref.Path, err)
+					}
+				}
+			} else {
+				return nil, fmt.Errorf("%w: %s at path %s: %w", ErrUndefinedReferenceTarget, ref.Name(), ref.Path, err)
+			}
 		}
 		node := referenceVertex{Reference: ref, RawValue: rawValue}
 		err = g.AddVertex(node)
@@ -199,11 +214,23 @@ func ReplaceReferences(references []Reference, source ReferenceSourceGetterSette
 	for _, reference := range references {
 		targetValue, err := source.GetPath(reference.TargetPath)
 		if err != nil {
-			return err
+			// In case the path cannot be resolved it might be a class-local reference.
+			// We can attempt to resolve the Class since we know where the reference is located.
+			if errors.Is(err, ErrPathNotFound) {
+				if relativeSource, ok := source.(ReferenceSourceRelativeGetter); ok {
+					targetValue, err = relativeSource.GetClassRelativePath(reference.Path, reference.TargetPath)
+					if err != nil {
+						return fmt.Errorf("cannot resolve reference target path: %w", err)
+					}
+				}
+			} else {
+				return fmt.Errorf("cannot resolve reference target path: %w", err)
+			}
 		}
+
 		sourceValue, err := source.GetPath(reference.Path)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot resolve reference path: %w", err)
 		}
 
 		// If the sourceValue only contains the reference, then
