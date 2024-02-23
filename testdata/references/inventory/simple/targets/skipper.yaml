@@ -1,0 +1,5 @@
+skipper:
+  greeting: Hello there, ${data:test:name}
+  default_state: hungry
+  hello: ${planet}
+  planet: world

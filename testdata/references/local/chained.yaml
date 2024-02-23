@@ -6,3 +6,9 @@ chained:
     last_name: Doe
   first_name: ${name_placeholder}
   name_placeholder: ${gotcha}
+  test: Test
+  ohai: ${test}
+  tesa: Tesa
+  whoop: ${tesa}
+  longer: ${longer_ref}
+  longer_ref: longer, lol

@@ -39,8 +39,6 @@ func NewRegistry() *Registry {
 
 type ClassLoaderFunc func(filePaths []string) ([]*Class, error)
 
-type RegistryWalkFunc func(class *Class, path data.Path, value data.Value, isLeaf bool) error
-
 func NewRegistryFromFiles(filePaths []string, classLoader ClassLoaderFunc) (*Registry, error) {
 	classes, err := classLoader(filePaths)
 	if err != nil {
@@ -151,20 +149,33 @@ func (reg *Registry) Get(path string) (data.Value, error) {
 		return data.NilValue, data.ErrEmptyPath
 	}
 
+	// The path is expected to be registry-absolute (i.e. has a classIdentifier prefix).
+	// Otherwise we cannot uniquely determine to which class the path belongs.
+	// This is because for a given path 'baz', there may be
+	// the classes 'foo' and 'foo.bar' in which the path 'baz' is valid.
+	// Hence we cannot decide whether 'foo.baz' or 'foo.bar.baz' is meant.
 	classIdentifier, exists := reg.paths[path]
-	if !exists {
-		return data.NilValue, fmt.Errorf("%s: %w", path, ErrPathNotFound)
+	if exists {
+		class := reg.classes[classIdentifier]
+		classPath := data.NewPath(path).StripPrefix(data.NewPath(classIdentifier))
+		return class.Get(classPath.String())
 	}
 
-	class := reg.classes[classIdentifier]
-	classPath := data.NewPath(path).StripPrefix(data.NewPath(classIdentifier))
-
-	return class.Get(classPath.String())
+	return data.NilValue, fmt.Errorf("path is not valid within the registry '%s': %w", path, ErrPathNotFound)
 }
 
 // GetPath is the same as Get, but it accepts a [data.Path] as path.
 func (reg *Registry) GetPath(path data.Path) (data.Value, error) {
 	return reg.Get(path.String())
+}
+
+// HasPath returns true if the path exists within the registry.
+func (reg *Registry) HasPath(path data.Path) bool {
+	_, err := reg.GetPath(path)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // GetClassRelativePath attempts to resolve the target-class using the given classPath.
@@ -194,7 +205,7 @@ func (reg *Registry) GetClassRelativePath(classPath data.Path, path data.Path) (
 func (reg *Registry) Set(path string, value interface{}) error {
 	classIdentifier, exists := reg.paths[path]
 	if !exists {
-		return fmt.Errorf("cannot set unknown path: %w", ErrPathNotFound)
+		return fmt.Errorf("cannot set unknown path: %s: %w", path, ErrPathNotFound)
 	}
 	return reg.classes[classIdentifier].Set(path, value)
 }
@@ -204,27 +215,14 @@ func (reg *Registry) SetPath(path data.Path, value interface{}) error {
 	return reg.Set(path.String(), value)
 }
 
-// Walk will traverse over every registered class and call [Class.Walk] on them to further traverse over all paths.
-func (reg *Registry) Walk(walkFunc RegistryWalkFunc) error {
-	for _, class := range reg.classes {
-		err := class.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
-			return walkFunc(class, path, value, isLeaf)
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// WalkValues will traverse over all leave paths of each class.
-func (reg *Registry) WalkValues(walkFunc func(data.Path, data.Value) error) error {
+// WalkValues implements the [DataWalker] interface for the [Registry]
+func (reg *Registry) Walk(walkFunc func(data.Path, data.Value, bool) error) error {
 	for _, class := range reg.classes {
 		err := class.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
 			if !isLeaf {
 				return nil
 			}
-			return walkFunc(path, value)
+			return walkFunc(path, value, false)
 		})
 		if err != nil {
 			return err
@@ -256,4 +254,25 @@ func (reg *Registry) ClassIdentifiers() []data.Path {
 		ns = append(ns, data.NewPath(namespace))
 	}
 	return ns
+}
+
+// AbsolutePath resolves the given, relative, path to an absolute path within the given context.
+// This function satisfies the [skipper.AbsolutePathMaker] interface.
+// The context is required to determine to which Class the path is relative to.
+// The context can be any path within the class to which the path is relative to, even just the classIdentifier.
+// In case the paths are empty or are not valid within the given context, an error is returned.
+func (reg *Registry) AbsolutePath(path data.Path, context data.Path) (data.Path, error) {
+	if path == nil || len(path) == 0 {
+		return nil, data.ErrEmptyPath
+	}
+	if context == nil || len(context) == 0 {
+		return nil, fmt.Errorf("context path cannot be empty: %w", data.ErrEmptyPath)
+	}
+
+	classIdentifier, exists := reg.paths[context.String()]
+	if !exists {
+		return nil, fmt.Errorf("unknown context path '%s': %w", context, ErrPathNotFound)
+	}
+
+	return reg.classes[classIdentifier].AbsolutePath(path, nil)
 }

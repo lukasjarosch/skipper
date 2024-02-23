@@ -6,12 +6,13 @@ import (
 )
 
 var (
-	ErrEmptyRootKeyName = fmt.Errorf("empty root key name")
-	ErrNilData          = fmt.Errorf("data is nil")
-	ErrNoRootKey        = fmt.Errorf("data has no root key (empty)")
-	ErrMultipleRootKeys = fmt.Errorf("multiple root keys")
-	ErrInvalidRootKey   = fmt.Errorf("invalid root key")
-	ErrNestedArrayPath  = fmt.Errorf("nested array paths are currently not supported")
+	ErrEmptyRootKeyName          = fmt.Errorf("empty root key name")
+	ErrNilData                   = fmt.Errorf("data is nil")
+	ErrNoRootKey                 = fmt.Errorf("data has no root key (empty)")
+	ErrMultipleRootKeys          = fmt.Errorf("multiple root keys")
+	ErrInvalidRootKey            = fmt.Errorf("invalid root key")
+	ErrNestedArrayPath           = fmt.Errorf("nested array paths are currently not supported")
+	ErrCannotResolveAbsolutePath = fmt.Errorf("cannot resolve absolute path")
 )
 
 // Container holds the raw data and provides access to it.
@@ -82,7 +83,7 @@ func NewContainer(rootKeyName string, data map[string]interface{}) (*Container, 
 // use the path 'foo.bar' or 'bar' to address the same value.
 //
 // If the path does not exist, a [ErrPathNotFound] error is returned.
-func (container *Container) Get(path Path) (Value, error) {
+func (container *Container) GetPath(path Path) (Value, error) {
 	if len(path) == 0 {
 		return NewValue(container.data), nil
 	}
@@ -115,12 +116,15 @@ func (container *Container) Get(path Path) (Value, error) {
 // found, an error is returned for the same reason; types are not changed.
 // This means that if there is a scalar value at 'foo.bar.baz', you
 // cannot set 'foo.bar.baz.qux'.
-func (container *Container) Set(path Path, value interface{}) error {
+func (container *Container) SetPath(path Path, value interface{}) error {
 	if len(path) == 0 {
 		return ErrEmptyPath
 	}
 
-	path = container.AbsolutePath(path)
+	path, err := container.AbsolutePath(path, nil)
+	if err != nil {
+		return err
+	}
 
 	ret, err := DeepSet(container.data, path, value)
 	if err != nil {
@@ -147,7 +151,7 @@ func (container *Container) Set(path Path, value interface{}) error {
 // Note: Only map types can be merged! So the given path must point to a map type.
 // TODO: Should empty paths (aka full data merging) be allowed?
 func (container *Container) Merge(path Path, data map[string]interface{}) error {
-	inputData, err := container.Get(path)
+	inputData, err := container.GetPath(path)
 	if err != nil {
 		return err
 	}
@@ -159,7 +163,7 @@ func (container *Container) Merge(path Path, data map[string]interface{}) error 
 
 	replaced := Merge(inputDataMap, data)
 
-	err = container.Set(path, NewValue(replaced))
+	err = container.SetPath(path, NewValue(replaced))
 	if err != nil {
 		return err
 	}
@@ -167,13 +171,15 @@ func (container *Container) Merge(path Path, data map[string]interface{}) error 
 	return nil
 }
 
-type WalkContainerFunc func(path Path, value Value, isLeaf bool) error
-
 // Walk is the container implementation of the general [Walk] function.
 // The only difference is that it uses [Value] types instead of arbitrary interfaces.
-func (container *Container) Walk(walkContainerFunc WalkContainerFunc) error {
+func (container *Container) Walk(walkFunc func(path Path, value Value, isLeaf bool) error) error {
 	return Walk(container.data, func(path Path, data interface{}, isLeaf bool) error {
-		return walkContainerFunc(container.AbsolutePath(path), NewValue(data), isLeaf)
+		absPath, err := container.AbsolutePath(path, nil)
+		if err != nil {
+			return err
+		}
+		return walkFunc(absPath, NewValue(data), isLeaf)
 	})
 }
 
@@ -189,7 +195,7 @@ func (container *Container) LeafPaths() []Path {
 
 // MustGet is a wrapper around [Container.Get] which panics on error.
 func (container *Container) MustGet(path Path) Value {
-	val, err := container.Get(path)
+	val, err := container.GetPath(path)
 	if err != nil {
 		panic(err)
 	}
@@ -198,16 +204,29 @@ func (container *Container) MustGet(path Path) Value {
 
 // HasPath returns true if the given path exists, false otherwise.
 func (container *Container) HasPath(path Path) bool {
-	if _, err := container.Get(path); err != nil {
+	if _, err := container.GetPath(path); err != nil {
 		return false
 	}
 	return true
 }
 
-// AbsolutePath ensures that the given path is absolute.
-func (container *Container) AbsolutePath(path Path) Path {
+// AbsolutePath ensures that the given path is absolute within the given context path.
+// This function satisfies the [skipper.AbsolutePathMaker] interface.
+// The second parameter is usually required to determine to which Class the path is relative to.
+// In this case, that context is not needed as there is only the one container context.
+// In case the path is empty or it is not valid within the given context, an error is returned.
+func (container *Container) AbsolutePath(path Path, _ Path) (Path, error) {
+	if path == nil || len(path) == 0 {
+		return nil, ErrEmptyPath
+	}
+
 	if path.First() != container.rootKey {
 		path = path.Prepend(container.rootKey)
 	}
-	return path
+
+	if !container.HasPath(path) {
+		return nil, fmt.Errorf("%w: path does not exist: %s", ErrCannotResolveAbsolutePath, path)
+	}
+
+	return path, nil
 }

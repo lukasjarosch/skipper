@@ -30,6 +30,39 @@ type (
 	ClassIdentifier = data.Path
 )
 
+type DataGetter interface {
+	GetPath(data.Path) (data.Value, error)
+}
+
+type DataSetter interface {
+	SetPath(data.Path, interface{}) error
+}
+
+type DataSetterGetter interface {
+	DataGetter
+	DataSetter
+}
+
+type DataWalker interface {
+	Walk(func(data.Path, data.Value, bool) error) error
+}
+
+type AbsolutePathMaker interface {
+	// AbsolutePath resolves the given path to an absolute path, within the given context.
+	// The context is required to resolve the Class to which the given path is relative to.
+	// If the path is 'foo.bar' and the context is 'foo.bar.baz.key' the latter
+	// can be used to uniquely identify which Class is the context of the path.
+	AbsolutePath(path data.Path, context data.Path) (data.Path, error)
+}
+
+type DataContainer interface {
+	DataSetterGetter
+	DataWalker
+	AbsolutePathMaker
+	AllPaths() []data.Path
+	LeafPaths() []data.Path
+}
+
 // Class defines the main file-data abstraction used by skipper.
 // Every file with hierarchical data can be represented by a Class.
 type Class struct {
@@ -42,7 +75,7 @@ type Class struct {
 	FilePath string
 	// Access to the underlying container is usually not advised.
 	// The Class itself exposes all the functionality of the container anyway.
-	container *data.Container
+	container DataContainer
 	// The class allows hooks to be registered to monitor each call to Set
 	preSetHook  SetHookFunc
 	postSetHook SetHookFunc
@@ -97,44 +130,57 @@ func NewClass(filePath string, codec Codec, identifier ClassIdentifier) (*Class,
 // Get the value at the given Path.
 // Wrapper for [data.Container#Get]
 func (c Class) Get(path string) (data.Value, error) {
-	return c.container.Get(data.NewPath(path))
+	return c.container.GetPath(data.NewPath(path))
 }
 
 func (c Class) GetPath(path data.Path) (data.Value, error) {
-	return c.container.Get(path)
+	return c.container.GetPath(path)
+}
+
+func (c Class) HasPath(path data.Path) bool {
+	_, err := c.container.GetPath(path)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // GetAll returns the whole data represented by this class.
 // Wrapper for [data.Container#Get]
 func (c Class) GetAll() data.Value {
-	ret, _ := c.container.Get(data.NewPath(""))
+	ret, _ := c.container.GetPath(data.NewPath(""))
 	return ret
 }
 
 // Set will set the given value at the specified path.
 // Wrapper for [data.Container#Set]
 func (c *Class) Set(path string, value interface{}) error {
+	absPath, err := c.container.AbsolutePath(data.NewPath(path), nil)
+	if err != nil {
+		return err
+	}
+
 	if c.preSetHook != nil {
-		err := c.preSetHook(*c, c.container.AbsolutePath(data.NewPath(path)), data.NewValue(value))
+		err = c.preSetHook(*c, absPath, data.NewValue(value))
 		if err != nil {
 			return err
 		}
 	}
 
-	err := c.container.Set(data.NewPath(path), value)
+	err = c.container.SetPath(absPath, value)
 	if err != nil {
 		return err
 	}
 
 	if c.postSetHook != nil {
-		return c.postSetHook(*c, c.container.AbsolutePath(data.NewPath(path)), data.NewValue(value))
+		return c.postSetHook(*c, absPath, data.NewValue(value))
 	}
 
 	return nil
 }
 
 func (c *Class) SetPath(path data.Path, value interface{}) error {
-	return c.Set(path.String(), value)
+	return c.container.SetPath(path, value)
 }
 
 // SetPreSetHook sets the preSetHook of the class
@@ -167,7 +213,7 @@ func (c *Class) AllPaths() []data.Path {
 }
 
 // Walk allows traversing the underlying container data.
-func (c *Class) Walk(walkFunc data.WalkContainerFunc) error {
+func (c *Class) Walk(walkFunc func(data.Path, data.Value, bool) error) error {
 	return c.container.Walk(walkFunc)
 }
 
@@ -181,6 +227,15 @@ func (c *Class) WalkValues(walkFunc func(data.Path, data.Value) error) error {
 		}
 		return walkFunc(path, value)
 	})
+}
+
+// AbsolutePath ensures that the given path is absolute within the given context path.
+// This function satisfies the [skipper.AbsolutePathMaker] interface.
+// The second parameter is usually required to determine to which Class the path is relative to.
+// In this case, that context is not needed as there is only this Class context.
+// In case the path is empty or it is not valid within the given context, an error is returned.
+func (c *Class) AbsolutePath(path data.Path, context data.Path) (data.Path, error) {
+	return c.container.AbsolutePath(path, context)
 }
 
 // ClassLoader is a simple helper function which accepts a list of paths which will be loaded a Classes.

@@ -1,0 +1,5 @@
+test:
+  name: John Doe
+  state: ${targets:skipper:default_state}
+  foo: ${bar}
+  bar: bar

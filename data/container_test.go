@@ -118,7 +118,7 @@ func TestContainer_Get(t *testing.T) {
 			assert.NoError(t, err)
 
 			// test
-			value, err := container.Get(tt.path)
+			value, err := container.GetPath(tt.path)
 			if tt.errExpected {
 				assert.ErrorContains(t, err, tt.err.Error())
 				assert.Equal(t, Value{}, value)
@@ -169,7 +169,7 @@ func TestContainer_Set(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, container)
 
-	err = container.Set(NewPath("test.array.1.0"), []interface{}{1, 2, 3})
+	err = container.SetPath(NewPath("test.array.1.0"), []interface{}{1, 2, 3})
 }
 
 func TestContainer_Merge(t *testing.T) {
@@ -211,5 +211,89 @@ func TestContainer_Merge(t *testing.T) {
 	err = container.Merge(NewPath("test"), mergeData)
 	if err != nil {
 		panic(err)
+	}
+}
+
+func TestContainerAbsolutePath(t *testing.T) {
+	containerName := "test"
+	data := map[string]interface{}{
+		containerName: map[string]interface{}{
+			"foo": map[string]interface{}{
+				"bar": map[string]interface{}{
+					"baz": "hello",
+					"qux": "ohai",
+				},
+			},
+			"array": []interface{}{
+				[]interface{}{"one"},
+				[]interface{}{
+					[]interface{}{
+						"two",
+					},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		input    Path
+		expected Path
+		err      error
+	}{
+		{
+			name:     "nil path",
+			input:    nil,
+			expected: nil,
+			err:      ErrEmptyPath,
+		},
+		{
+			name:     "empty path",
+			input:    Path{},
+			expected: nil,
+			err:      ErrEmptyPath,
+		},
+		{
+			name:     "already absolute path",
+			input:    NewPath("test.foo.bar.baz"),
+			expected: NewPath("test.foo.bar.baz"),
+			err:      nil,
+		},
+		{
+			name:     "valid relative path",
+			input:    NewPath("foo.bar.baz"),
+			expected: NewPath("test.foo.bar.baz"),
+			err:      nil,
+		},
+		{
+			name:     "invalid relative path",
+			input:    NewPath("some.path.which.does.not.exist"),
+			expected: nil,
+			err:      ErrCannotResolveAbsolutePath,
+		},
+		{
+			name:     "path is container name",
+			input:    NewPath(containerName),
+			expected: NewPath(containerName),
+			err:      nil,
+		},
+	}
+
+	container, err := NewContainer(containerName, data)
+	assert.NoError(t, err)
+	assert.NotNil(t, container)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			abs, err := container.AbsolutePath(tt.input, nil)
+
+			if tt.err != nil {
+				assert.ErrorIs(t, err, tt.err)
+				assert.Nil(t, abs)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, abs)
+			}
+		})
 	}
 }

@@ -170,3 +170,107 @@ func TestRegistryPostSetHook(t *testing.T) {
 	assert.NotNil(t, val.Raw)
 	assert.Equal(t, val.Raw, "very_juicy")
 }
+
+func TestRegistryAbsolutePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     data.Path
+		context  data.Path
+		expected data.Path
+		err      error
+	}{
+		{
+			name:     "path is nil",
+			path:     nil,
+			context:  data.NewPath("person.name"),
+			expected: nil,
+			err:      data.ErrEmptyPath,
+		},
+		{
+			name:     "path is empty",
+			path:     data.Path{},
+			context:  data.NewPath("person.name"),
+			expected: nil,
+			err:      data.ErrEmptyPath,
+		},
+		{
+			name:     "context is nil",
+			path:     data.NewPath("name"),
+			context:  nil,
+			expected: nil,
+			err:      data.ErrEmptyPath,
+		},
+		{
+			name:     "context is empty",
+			path:     data.NewPath("name"),
+			context:  data.Path{},
+			expected: nil,
+			err:      data.ErrEmptyPath,
+		},
+		{
+			name:     "context is classIdentifier",
+			path:     data.NewPath("name"),
+			context:  data.NewPath("person"),
+			expected: data.NewPath("person.name"),
+			err:      nil,
+		},
+		{
+			name:     "context is value path",
+			path:     data.NewPath("name"),
+			context:  data.NewPath("person.contact.email"),
+			expected: data.NewPath("person.name"),
+			err:      nil,
+		},
+		{
+			name:     "path does not exist in context class",
+			path:     data.NewPath("does.not.exist"),
+			context:  data.NewPath("person.contact.email"),
+			expected: nil,
+			err:      data.ErrCannotResolveAbsolutePath,
+		},
+		{
+			name:     "context path is unknown",
+			path:     data.NewPath("name"),
+			context:  data.NewPath("unknown.path"),
+			expected: nil,
+			err:      ErrPathNotFound,
+		},
+		{
+			name:     "context and path are value paths",
+			path:     data.NewPath("address.city"),
+			context:  data.NewPath("person.contact.phone"),
+			expected: data.NewPath("person.address.city"),
+			err:      nil,
+		},
+		{
+			name:     "context and path are relative paths",
+			path:     data.NewPath("address.city"),
+			context:  data.NewPath("contact.phone"),
+			expected: nil,
+			err:      ErrPathNotFound,
+		},
+		{
+			name:     "path is already absolute",
+			path:     data.NewPath("person.address.city"),
+			context:  data.NewPath("person.contact.phone"),
+			expected: data.NewPath("person.address.city"),
+			err:      nil,
+		},
+	}
+
+	registry := makeNewRegistry(t)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			abs, err := registry.AbsolutePath(tt.path, tt.context)
+
+			if tt.err != nil {
+				assert.ErrorIs(t, err, tt.err)
+				assert.Nil(t, abs)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, abs)
+			}
+		})
+	}
+}

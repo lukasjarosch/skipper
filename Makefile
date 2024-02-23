@@ -21,13 +21,13 @@ RESET  := $(shell tput -Txterm sgr0)
 test: ## Run all tests
 	$(GOTEST) -race -v $(GOLIST)
 
-coverage: ## Run tests with coverage and export it into 'profile.cov'. 
+coverage: ## Run tests with coverage and export it into 'profile.cov'.
 	$(GOTEST) -cover -covermode=count -coverprofile=$(COVERAGE_FILE) ./...
 	$(GO) tool cover -func $(COVERAGE_FILE)
 
-show-coverage: coverage ## Run coverage and open the rendered coverage site in the browser 
+show-coverage: coverage ## Run coverage and open the rendered coverage site in the browser
 	$(GO) tool cover -html=$(COVERAGE_FILE)
-	echo -e "\n=> Coverage report opened in your default browser"
+	@echo -e "\n=> Coverage report opened in your default browser"
 
 ## Lint
 
