@@ -3,11 +3,12 @@ package skipper
 import (
 	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/dominikbraun/graph"
+	"github.com/dominikbraun/graph/draw"
 
 	"github.com/lukasjarosch/skipper/data"
 )
@@ -17,15 +18,21 @@ import (
 // TODO: test with Inventory
 
 var (
-	// ReferenceRegex defines the strings which are valid references
+	// ValueReferenceRegex defines the strings which are valid references
 	// See: https://regex101.com/r/lIuuep/1
-	ReferenceRegex = regexp.MustCompile(`\${(?P<reference>[\w-]+(?:\:[\w-]+)*)}`)
+	ValueReferenceRegex = regexp.MustCompile(`\${(?P<reference>[\w-]+(?:\:[\w-]+)*)}`)
 
 	ErrUndefinedReferenceTarget = fmt.Errorf("undefined reference target path")
 	ErrReferenceSourceIsNil     = fmt.Errorf("reference source is nil")
 	ErrSelfReferencingReference = fmt.Errorf("self-referencing reference")
 	ErrCyclicReference          = fmt.Errorf("cyclic reference")
 )
+
+type ValueReferenceSource interface {
+	AbsolutePathMaker
+	// Values must return a map of absolute (!) paths to their respective [data.Value]s.
+	Values() map[string]data.Value
+}
 
 // ValueReference is a reference to a value with a different path.
 type ValueReference struct {
@@ -35,247 +42,61 @@ type ValueReference struct {
 	TargetPath data.Path
 	// AbsoluteTargetPath is the TargetPath, but absolute to the source
 	AbsoluteTargetPath data.Path
-	// If the value to which the reference (AbsoluteTargetPath) points to
-	// also contains references, then these are added as ChildReferences.
-	ChildReferences []ValueReference
 }
 
 func (ref ValueReference) Name() string {
 	return fmt.Sprintf("${%s}", strings.ReplaceAll(ref.TargetPath.String(), ".", ":"))
 }
 
-type ReferenceValueSource interface {
-	DataGetter
-	AbsolutePathMaker
-	// Values must return a map of absolute paths to their respective values.
-	// If the paths are not absolute then working with references will cause
-	// all sort of problems.
-	Values() map[string]data.Value
+func (ref ValueReference) Hash() string {
+	return fmt.Sprintf("%s|%s", ref.Path, ref.AbsoluteTargetPath)
 }
 
-// ParseValueReferences will, given the [ReferenceValueSource] extract a list
-// of [ValueReference]s which can then be resolved and ultimately replaced.
-func ParseValueReferences(source ReferenceValueSource) ([]ValueReference, error) {
+// ValueReferenceManager is responsible for handling [ValueReference]s.
+// It can parse, resolve and replace any value references.
+type ValueReferenceManager struct {
+	source ValueReferenceSource
+	// allReferences contains all found references, even duplicates
+	allReferences []ValueReference
+	// references maps reference hashes to references, hence being
+	// the deduplicated version of allReferences
+	references map[string]ValueReference
+	// stores all references and their dependencies
+	dependencyGraph graph.Graph[string, ValueReference]
+}
+
+// TODO: needs to provide function which is hooked into PostSetPath in each class
+// This is because references need to be re-evaluated if anything changes
+func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManager, error) {
 	if source == nil {
 		return nil, ErrReferenceSourceIsNil
 	}
 
-	// Discover all references within the source.
-	var references []ValueReference
-	for path, value := range source.Values() {
-		refs, err := FindValueReferences(source, data.NewPath(path), value)
-		if err != nil {
-			return nil, err
-		}
-		references = append(references, refs...)
+	m := &ValueReferenceManager{
+		source: source,
 	}
 
-	// Now, for each reference we need to determine whether their targetValue contains
-	// references again. If it does, add them as ChildReferences.
-	for _, ref := range references {
-		val, err := source.GetPath(ref.AbsoluteTargetPath)
-		if err != nil {
-			return nil, err
-		}
+	references, err := FindValueReferences(m.source)
+	if err != nil {
+		return nil, err
+	}
+	m.allReferences = references
 
-		childReferences, err := FindValueReferences(source, ref.AbsoluteTargetPath, val)
-		if err != nil {
-			return nil, err
-		}
-
-		ref.ChildReferences = append(ref.ChildReferences, childReferences...)
-		spew.Dump(val)
+	// deduplicate references in map
+	for _, ref := range m.allReferences {
+		m.references[ref.Hash()] = ref
 	}
 
-	return references, nil
+	return m, nil
 }
 
-func FindValueReferences(source AbsolutePathMaker, path data.Path, value data.Value) ([]ValueReference, error) {
-	var references []ValueReference
-	referenceMatches := ReferenceRegex.FindAllStringSubmatch(value.String(), -1)
-	if referenceMatches != nil {
-		for _, match := range referenceMatches {
-			// References can be relative to a Class. But that is hard to work with within a Registry or Inventory
-			// as a class-relative path can be valid within multiple classes / scopes.
-			// Hence an absolute path is resolved which we will be working with from now on.
-			// This works because the path returned by the 'Values()' call is expected to be
-			// absolute already. This then defines the context in which the reference is defined
-			// which in turn is used to resolve the absolute path to which the reference points to.
-			absPath, err := source.AbsolutePath(ReferencePathToPath(match[1]), path)
-			if err != nil {
-				return nil, fmt.Errorf("unable to resolve absolute path of '%s': %w", match[1], err)
-			}
-
-			references = append(references, ValueReference{
-				Path:               path,
-				TargetPath:         ReferencePathToPath(match[1]),
-				AbsoluteTargetPath: absPath,
-			})
-		}
-	}
-	return references, nil
-}
-
-type OldParseSource interface {
-	DataWalker
-	AbsolutePathMaker
-}
-
-// ParseReferences will use the [ReferenceSourceWalker] to traverse all values
-// and search for References within those values.
-// The returned slice of references contains all found references, even
-// duplicates if a reference is used multiple times.
-func ParseReferences(source OldParseSource) ([]ValueReference, error) {
-	if source == nil {
-		return nil, ErrReferenceSourceIsNil
-	}
-
-	var references []ValueReference
-	source.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
-		if !isLeaf {
-			return nil
-		}
-		referenceMatches := ReferenceRegex.FindAllStringSubmatch(value.String(), -1)
-
-		if referenceMatches != nil {
-			for _, match := range referenceMatches {
-				absPath, err := source.AbsolutePath(ReferencePathToPath(match[1]), path)
-				if err != nil {
-					return fmt.Errorf("unable to resolve absolute path of '%s': %w", match[1], err)
-				}
-				ref := ValueReference{
-					Path:               path,
-					TargetPath:         ReferencePathToPath(match[1]),
-					AbsoluteTargetPath: absPath,
-				}
-
-				references = append(references, ref)
-			}
-		}
-
-		return nil
-	})
-
-	return references, nil
-}
-
-// ReferencesInValue returns all references within the passed value.
-// Note that the returned references do not have a 'Path' set!
-// TODO: replace
-func ReferencesInValue(value data.Value) []ValueReference {
-	var references []ValueReference
-
-	referenceMatches := ReferenceRegex.FindAllStringSubmatch(value.String(), -1)
-	if referenceMatches != nil {
-		for _, match := range referenceMatches {
-			references = append(references, ValueReference{
-				TargetPath: ReferencePathToPath(match[1]),
-				Path:       data.Path{},
-			})
-		}
-	}
-
-	return references
-}
-
-type referenceVertex struct {
-	ValueReference
-	RawValue data.Value
-}
-
-type ReferenceSource interface {
-	DataSetterGetter
-	DataWalker
-}
-
-type ReferenceSourceRelativeGetter interface {
-	DataGetter
-	GetClassRelativePath(data.Path, data.Path) (data.Value, error)
-}
-
-// ResolveReferences will resolve dependencies between all given references and return
-// a sorted slice of the same references. This represents the order in which references should
-// be replaced without causing dependency issues.
-//
-// Note that the list of references passed must contain all existing references, even duplicates.
-func ResolveReferences(references []ValueReference, resolveSource DataGetter) ([]ValueReference, error) {
-	if resolveSource == nil {
-		return nil, ErrReferenceSourceIsNil
-	}
-
-	// used by the graph to tell vertecies apart
-	referenceVertexHash := func(ref referenceVertex) string {
-		return ref.TargetPath.String()
-	}
-
-	g := graph.New(referenceVertexHash, graph.Acyclic(), graph.Directed(), graph.PreventCycles())
-
-	// Register all references as vertecies
-	var vertecies []referenceVertex
-	for _, ref := range references {
-		rawValue, err := resolveSource.GetPath(ref.TargetPath)
-		if err != nil {
-			// In case the path cannot be resolved it might be a class-local reference.
-			// We can attempt to resolve the Class since we know where the reference is located.
-			if errors.Is(err, ErrPathNotFound) {
-				if relativeSource, ok := resolveSource.(ReferenceSourceRelativeGetter); ok {
-					rawValue, err = relativeSource.GetClassRelativePath(ref.Path, ref.TargetPath)
-					if err != nil {
-						return nil, fmt.Errorf("%w: %s at path '%s': %w", ErrUndefinedReferenceTarget, ref.Name(), ref.Path, err)
-					}
-				}
-				return nil, fmt.Errorf("%w: %s at path '%s': %w", ErrUndefinedReferenceTarget, ref.Name(), ref.Path, err)
-			} else {
-				return nil, fmt.Errorf("%w: %s at path '%s': %w", ErrUndefinedReferenceTarget, ref.Name(), ref.Path, err)
-			}
-		}
-		node := referenceVertex{ValueReference: ref, RawValue: rawValue}
-		err = g.AddVertex(node)
-		if err != nil {
-			// References can occur multiple times, but we only need to resolve them once.
-			// So we can ignore the ErrVertexAlreadyExists error.
-			if !errors.Is(err, graph.ErrVertexAlreadyExists) {
-				return nil, err
-			}
-		}
-		vertecies = append(vertecies, node)
-	}
-
-	// Create edges between dependent references by looking at the actual value the 'TargetPath' points to.
-	// If that value contains more references, then these are dependencies of the currently examined node (reference).
-	for _, referenceVertex := range vertecies {
-		referenceDependencies := ReferencesInValue(referenceVertex.RawValue)
-
-		for _, referenceDependency := range referenceDependencies {
-			// The dependency of the current vertex must already be a vertex in the graph; fetch it.
-			n, err := g.Vertex(referenceDependency.TargetPath.String())
-			if err != nil {
-				return nil, fmt.Errorf("%s: %w", referenceDependency.Name(), err)
-			}
-
-			if referenceVertex.TargetPath.Equals(n.TargetPath) {
-				return nil, fmt.Errorf("%s: %w", referenceVertex.Name(), ErrSelfReferencingReference)
-			}
-
-			err = g.AddEdge(referenceVertex.TargetPath.String(), n.TargetPath.String())
-			if err != nil {
-				if errors.Is(err, graph.ErrEdgeCreatesCycle) {
-					return nil, fmt.Errorf("%s -> %s: %w", referenceVertex.Name(), referenceDependency.Name(), ErrCyclicReference)
-				}
-				// If the edge already exists, we do not need to add it again. Hence we ignore that error.
-				if !errors.Is(err, graph.ErrEdgeAlreadyExists) {
-					return nil, err
-				}
-			}
-		}
-	}
-
+func CalculateReplacementOrder(dependencyGraph graph.Graph[string, ValueReference]) ([]ValueReference, error) {
 	// Perform a stable topological sort of the dependency graph.
-	// The returned order is stable in that the references are sorted
+	// The returned orderedHashes is stable in that the references are sorted
 	// by their name length or alphabetically if they are the same length.
 	// This eliminates the issue that the actual topological sorting algorithm usually
 	// has multiple valid solutions.
-	order, err := graph.StableTopologicalSort[string, referenceVertex](g, func(s1, s2 string) bool {
+	orderedHashes, err := graph.StableTopologicalSort[string, ValueReference](dependencyGraph, func(s1, s2 string) bool {
 		// Strings are of different length, sort by length
 		if len(s1) != len(s2) {
 			return len(s1) < len(s2)
@@ -287,92 +108,145 @@ func ResolveReferences(references []ValueReference, resolveSource DataGetter) ([
 		return nil, fmt.Errorf("failed to sort reference graph: %w", err)
 	}
 
-	// Perform TopologicalSort which returns a list of strings (TargetPaths)
-	// starting with the one which has the most dependencies.
-	// order, err := graph.TopologicalSort[string, referenceVertex](g)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// We need to reverse the result from the TopologicalSort.
-	// This is because the reference without dependencies will be sorted 'at the end'.
-	// But we want to resolve them first.
-	var reversedOrder []data.Path
-	for i := len(order) - 1; i >= 0; i-- {
-		reversedOrder = append(reversedOrder, data.NewPath(order[i]))
-	}
-
-	// Now that we have the order in which references must be replaced,
-	// lets finally re-order the passed (non-deduplicated) input references.
-	var orderedReferences []ValueReference
-	for _, refOrder := range reversedOrder {
-		for _, ref := range references {
-			if ref.TargetPath.Equals(refOrder) {
-				orderedReferences = append(orderedReferences, ref)
-			}
+	// The result of the topological sorting is reverse to what we want.
+	// We expect the ValueReference without any dependencies to be at the top.
+	var reversedOrder []ValueReference
+	for i := len(orderedHashes) - 1; i >= 0; i-- {
+		ref, err := dependencyGraph.Vertex(orderedHashes[i])
+		if err != nil {
+			return nil, err
 		}
+		reversedOrder = append(reversedOrder, ref)
 	}
 
-	// sanity check
-	if len(orderedReferences) != len(references) {
-		return nil, fmt.Errorf("unexpected amount of resolved references, this is a bug")
-	}
-
-	return orderedReferences, nil
+	return reversedOrder, nil
 }
 
-type ReferenceSourceSetter interface {
-	SetPath(data.Path, interface{}) error
-}
-
-func ReplaceReferences(references []ValueReference, source DataSetterGetter) error {
-	if source == nil {
-		return ErrReferenceSourceIsNil
+func BuildDependencyGraph(references map[string]ValueReference) (graph.Graph[string, ValueReference], error) {
+	vertexHashFunc := func(ref ValueReference) string {
+		return ref.Hash()
 	}
 
+	dependencyGraph := graph.New(vertexHashFunc, graph.Acyclic(), graph.Directed(), graph.PreventCycles())
+
+	// Tegister all references as graph vertecies
 	for _, reference := range references {
-		targetValue, err := source.GetPath(reference.TargetPath)
+		err := dependencyGraph.AddVertex(reference)
 		if err != nil {
-			// In case the path cannot be resolved it might be a class-local reference.
-			// We can attempt to resolve the Class since we know where the reference is located.
-			if errors.Is(err, ErrPathNotFound) {
-				if relativeSource, ok := source.(ReferenceSourceRelativeGetter); ok {
-					targetValue, err = relativeSource.GetClassRelativePath(reference.Path, reference.TargetPath)
-					if err != nil {
-						return fmt.Errorf("cannot resolve reference target path: %w", err)
-					}
-				}
-			} else {
-				return fmt.Errorf("cannot resolve reference target path: %w", err)
-			}
+			return nil, fmt.Errorf("cannot add reference %s: %w", reference.Name(), err)
 		}
+	}
 
-		sourceValue, err := source.GetPath(reference.Path)
-		if err != nil {
-			return fmt.Errorf("cannot resolve reference path: %w", err)
-		}
+	// Create edges between dependent references
+	for _, reference := range references {
+		dependencies := ResolveDependantValueReferences(reference, references)
 
-		// If the sourceValue only contains the reference, then
-		// we just use the 'SetPath' function in order to preserve the type of targetValue.
-		// This is required to allow replacing maps and arrays.
-		if len(sourceValue.String()) == len(reference.Name()) {
-			err = source.SetPath(reference.Path, targetValue.Raw)
+		for _, dependency := range dependencies {
+			dependencyVertex, err := dependencyGraph.Vertex(dependency.Hash())
 			if err != nil {
-				return err
+				return nil, fmt.Errorf("unexpectedly could not fetch reference vertex %s: %w", dependency.Hash(), err)
 			}
-			continue
-		}
 
-		// In this case the reference is 'embedded', e.g. "Hello there ${name}",
-		// therefore we can only perform a string replacement to not erase the surrounding context.
-		replacedValue := strings.Replace(sourceValue.String(), reference.Name(), targetValue.String(), 1)
-		err = source.SetPath(reference.Path, replacedValue)
-		if err != nil {
-			return err
+			// prevent self-referencing references
+			if dependencyVertex.AbsoluteTargetPath.Equals(reference.AbsoluteTargetPath) {
+				return nil, fmt.Errorf("%s: %w", reference.Name(), ErrSelfReferencingReference)
+			}
+
+			err = dependencyGraph.AddEdge(reference.Hash(), dependency.Hash())
+			if err != nil {
+				if errors.Is(err, graph.ErrEdgeCreatesCycle) {
+					return nil, fmt.Errorf("%s -> %s: %w", reference.Name(), dependency.Name(), ErrCyclicReference)
+				}
+				return nil, fmt.Errorf("failed to register dependency %s: %w", dependency.Name(), err)
+			}
 		}
+	}
+
+	return dependencyGraph, nil
+}
+
+func VisualizeDependencyGraph(graph graph.Graph[string, ValueReference], filePath string, label string) error {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	err = draw.DOT(graph, file,
+		draw.GraphAttribute("label", label),
+		draw.GraphAttribute("overlap", "prism"))
+	if err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func ResolveDependantValueReferences(reference ValueReference, allReferences map[string]ValueReference) []ValueReference {
+	var dependencies []ValueReference
+
+	// If the reference's AbsoluteTargetPath is a Path of any existing reference,
+	// the references depend on each other.
+	for _, ref := range allReferences {
+		if reference.AbsoluteTargetPath.Equals(ref.Path) {
+			dependencies = append(dependencies, ref)
+		}
+	}
+
+	return dependencies
+}
+
+// FindValueReferences searches for all ValueReferences within the given ValueReferenceSource.
+func FindValueReferences(source ValueReferenceSource) ([]ValueReference, error) {
+	var references []ValueReference
+	var errs error
+
+	for path, value := range source.Values() {
+		referenceTargetPaths := FindReferenceTargetPaths(ValueReferenceRegex, value)
+
+		// Create ValueReference structs for every found referenceTargetPaths
+		for _, refTargetPath := range referenceTargetPaths {
+			absTargetPath, err := source.AbsolutePath(refTargetPath, data.NewPath(path))
+			if err != nil {
+				return nil, errors.Join(errs, err)
+			}
+
+			ref := ValueReference{
+				Path:               data.NewPath(path),
+				TargetPath:         refTargetPath,
+				AbsoluteTargetPath: absTargetPath,
+			}
+			references = append(references, ref)
+		}
+	}
+
+	if errs != nil {
+		return nil, errs
+	}
+
+	return references, nil
+}
+
+// FindReferenceTargetPaths yields all the targetPaths of any references contained within the value.
+// If the value is 'foo ${bar:baz}', then the returned path would be `bar.baz`.
+// The returned paths should be considered relative!
+func FindReferenceTargetPaths(regex *regexp.Regexp, value data.Value) []data.Path {
+	var targetPaths []data.Path
+
+	referenceMatches := regex.FindAllStringSubmatch(value.String(), -1)
+	if referenceMatches == nil {
+		return nil
+	}
+
+	for _, match := range referenceMatches {
+		// If the regex itself is malformed, we can do nothing but panic.
+		// The first element (match[0]) will be the full string (aka the input).
+		// And the second element is expected to contain the part between the brackets.
+		if len(match) < 2 {
+			panic("regex match has not enough elements; this is a bug in the regex itself!")
+		}
+		targetPaths = append(targetPaths, ReferencePathToPath(match[1]))
+	}
+
+	return targetPaths
 }
 
 // ReferencePathToPath converts the path used within references (colon-separated) to a proper [data.Path]

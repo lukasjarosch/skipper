@@ -178,8 +178,7 @@ func (reg *Registry) HasPath(path data.Path) bool {
 	return true
 }
 
-// GetClassRelativePath attempts to resolve the target-class using the given classPath.
-// Then it attempts to resolve the path (which might be class-local only).
+// GetClassRelativePath attempts to resolve the target-class using the given classPath. Then it attempts to resolve the path (which might be class-local only).
 // The given classPath can be any path which is known to the registry which is enough to resolve the Class.
 func (reg *Registry) GetClassRelativePath(classPath data.Path, path data.Path) (data.Value, error) {
 	classIdentifier, exists := reg.paths[classPath.String()]
@@ -207,7 +206,7 @@ func (reg *Registry) Set(path string, value interface{}) error {
 	if !exists {
 		return fmt.Errorf("cannot set unknown path: %s: %w", path, ErrPathNotFound)
 	}
-	return reg.classes[classIdentifier].Set(path, value)
+	return reg.classes[classIdentifier].Set(data.NewPath(path).StripPrefix(data.NewPath(classIdentifier)).String(), value)
 }
 
 // SetPath is just a wrapper for Set

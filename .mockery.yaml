@@ -3,8 +3,9 @@ dir: "mocks/"
 packages:
   github.com/lukasjarosch/skipper:
     interfaces:
-      Codec:
-      DataContainer:
-      ReferenceValueSource:
-      ReferenceSourceGetter:
-      ReferenceSourceRelativeGetter:
+      ValueReferenceSource:
+      # Codec:
+      # DataContainer:
+      # ReferenceValueSource:
+      # ReferenceSourceGetter:
+      # ReferenceSourceRelativeGetter:
