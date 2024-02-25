@@ -19,14 +19,12 @@ var (
 )
 
 type Inventory struct {
-	scopes       map[Scope]*Registry
-	defaultScope Scope
+	scopes map[Scope]*Registry
 }
 
 func NewInventory() (*Inventory, error) {
 	return &Inventory{
-		scopes:       make(map[Scope]*Registry),
-		defaultScope: "",
+		scopes: make(map[Scope]*Registry),
 	}, nil
 }
 
@@ -118,24 +116,6 @@ func (inv *Inventory) Set(path string, value interface{}) error {
 
 func (inv *Inventory) SetPath(path data.Path, value interface{}) error {
 	return inv.Set(path.String(), value)
-}
-
-func (inv *Inventory) SetDefaultScope(scope Scope) error {
-	if scope == "" {
-		return ErrEmptyScope
-	}
-
-	if _, exists := inv.scopes[scope]; !exists {
-		return fmt.Errorf("%s: %w", scope, ErrScopeDoesNotExist)
-	}
-
-	inv.defaultScope = scope
-
-	return nil
-}
-
-func (inv *Inventory) HasDefaultScope() bool {
-	return inv.defaultScope != ""
 }
 
 func (inv *Inventory) Scopes() []Scope {

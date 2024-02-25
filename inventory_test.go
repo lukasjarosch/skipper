@@ -45,24 +45,8 @@ func TestInventoryGet(t *testing.T) {
 
 	// Test: get existing path without scope prefix and without default scope
 	val, err = inv.Get("pizza.description")
-
-func TestInventorySetDefaultScope(t *testing.T) {
-	inv, _ := NewInventory()
-
-	err := inv.RegisterScope(DataScope, skipper.NewRegistry())
-	assert.NoError(t, err)
-
-	// Test: empty scope
-	err = inv.SetDefaultScope("")
-	assert.ErrorIs(t, err, ErrEmptyScope)
-
-	// Test: not existing scope
-	err = inv.SetDefaultScope("something")
-	assert.ErrorIs(t, err, ErrScopeDoesNotExist)
-
-	// Test: valid, existing scope
-	err = inv.SetDefaultScope(DataScope)
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, ErrPathNotFound)
+	assert.Nil(t, val.Raw)
 }
 
 func TestInventoryAbsolutePath(t *testing.T) {
