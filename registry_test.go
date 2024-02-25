@@ -222,13 +222,6 @@ func TestRegistryAbsolutePath(t *testing.T) {
 			err:      nil,
 		},
 		{
-			name:     "path does not exist in context class",
-			path:     data.NewPath("does.not.exist"),
-			context:  data.NewPath("person.contact.email"),
-			expected: nil,
-			err:      data.ErrCannotResolveAbsolutePath,
-		},
-		{
 			name:     "context path is unknown",
 			path:     data.NewPath("name"),
 			context:  data.NewPath("unknown.path"),

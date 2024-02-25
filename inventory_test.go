@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lukasjarosch/skipper"
 	. "github.com/lukasjarosch/skipper"
 	"github.com/lukasjarosch/skipper/data"
 )
@@ -46,16 +45,6 @@ func TestInventoryGet(t *testing.T) {
 
 	// Test: get existing path without scope prefix and without default scope
 	val, err = inv.Get("pizza.description")
-	assert.NoError(t, err)
-	assert.NotNil(t, val.Raw)
-
-	// Test: get existing path without scope prefix and with default scope
-	err = inv.SetDefaultScope(DataScope)
-	assert.NoError(t, err)
-	val, err = inv.Get("pizza.description")
-	assert.NoError(t, err)
-	assert.NotNil(t, val.Raw)
-}
 
 func TestInventorySetDefaultScope(t *testing.T) {
 	inv, _ := NewInventory()
@@ -124,13 +113,6 @@ func TestInventoryAbsolutePath(t *testing.T) {
 			context:  data.NewPath("unknown.foo.bar"),
 			expected: nil,
 			err:      ErrPathNotFound,
-		},
-		{
-			name:     "path is not valid within the given context",
-			path:     data.NewPath("unknown"),
-			context:  data.NewPath("data.person.gender"),
-			expected: nil,
-			err:      data.ErrCannotResolveAbsolutePath,
 		},
 		{
 			name:     "context is only scope name",

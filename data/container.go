@@ -214,7 +214,8 @@ func (container *Container) HasPath(path Path) bool {
 // This function satisfies the [skipper.AbsolutePathMaker] interface.
 // The second parameter is usually required to determine to which Class the path is relative to.
 // In this case, that context is not needed as there is only the one container context.
-// In case the path is empty or it is not valid within the given context, an error is returned.
+// The function does not check whether the path is valid within the container.
+// This is to allow setting new paths, which do not yet exist.
 func (container *Container) AbsolutePath(path Path, _ Path) (Path, error) {
 	if path == nil || len(path) == 0 {
 		return nil, ErrEmptyPath
@@ -222,10 +223,6 @@ func (container *Container) AbsolutePath(path Path, _ Path) (Path, error) {
 
 	if path.First() != container.rootKey {
 		path = path.Prepend(container.rootKey)
-	}
-
-	if !container.HasPath(path) {
-		return nil, fmt.Errorf("%w: path does not exist: %s", ErrCannotResolveAbsolutePath, path)
 	}
 
 	return path, nil

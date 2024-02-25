@@ -266,12 +266,6 @@ func TestContainerAbsolutePath(t *testing.T) {
 			err:      nil,
 		},
 		{
-			name:     "invalid relative path",
-			input:    NewPath("some.path.which.does.not.exist"),
-			expected: nil,
-			err:      ErrCannotResolveAbsolutePath,
-		},
-		{
 			name:     "path is container name",
 			input:    NewPath(containerName),
 			expected: NewPath(containerName),
