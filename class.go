@@ -11,7 +11,6 @@ import (
 
 var (
 	ErrEmptyFilePath          = fmt.Errorf("file path cannot be empty")
-	ErrCannotOverwriteHook    = fmt.Errorf("cannot overwrite existing hook")
 	ErrEmptyClassId           = fmt.Errorf("empty class id")
 	ErrEmptyClassIdentifier   = fmt.Errorf("class identifier cannot be empty")
 	ErrInvalidClassIdentifier = fmt.Errorf("invalid class identifier")
@@ -59,8 +58,6 @@ type DataContainer interface {
 	DataSetterGetter
 	DataWalker
 	AbsolutePathMaker
-	AllPaths() []data.Path
-	LeafPaths() []data.Path
 }
 
 // Class defines the main file-data abstraction used by skipper.
@@ -77,8 +74,8 @@ type Class struct {
 	// The Class itself exposes all the functionality of the container anyway.
 	container DataContainer
 	// The class allows hooks to be registered to monitor each call to Set
-	preSetHook  SetHookFunc
-	postSetHook SetHookFunc
+	preSetHooks  []SetHookFunc
+	postSetHooks []SetHookFunc
 }
 
 // NewClass attempts to create a new class given a filesystem path and a codec.
@@ -118,12 +115,12 @@ func NewClass(filePath string, codec Codec, identifier ClassIdentifier) (*Class,
 	}
 
 	return &Class{
-		container:   container,
-		Identifier:  identifier,
-		FilePath:    filePath,
-		Name:        className,
-		preSetHook:  nil,
-		postSetHook: nil,
+		container:    container,
+		Identifier:   identifier,
+		FilePath:     filePath,
+		Name:         className,
+		preSetHooks:  nil,
+		postSetHooks: nil,
 	}, nil
 }
 
@@ -133,10 +130,12 @@ func (c Class) Get(path string) (data.Value, error) {
 	return c.container.GetPath(data.NewPath(path))
 }
 
+// GetPath is the same as [Class#Get], but it accepts a [data.Path]
 func (c Class) GetPath(path data.Path) (data.Value, error) {
 	return c.container.GetPath(path)
 }
 
+// HasPath returns true if the given path exists within the Class.
 func (c Class) HasPath(path data.Path) bool {
 	_, err := c.container.GetPath(path)
 	if err != nil {
@@ -160,11 +159,9 @@ func (c *Class) Set(path string, value interface{}) error {
 		return err
 	}
 
-	if c.preSetHook != nil {
-		err = c.preSetHook(*c, absPath, data.NewValue(value))
-		if err != nil {
-			return err
-		}
+	err = c.callPreSetHooks(absPath, data.NewValue(value))
+	if err != nil {
+		return err
 	}
 
 	err = c.container.SetPath(absPath, value)
@@ -172,44 +169,53 @@ func (c *Class) Set(path string, value interface{}) error {
 		return err
 	}
 
-	if c.postSetHook != nil {
-		return c.postSetHook(*c, absPath, data.NewValue(value))
+	err = c.callPostSetHooks(absPath, data.NewValue(value))
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
+// SetPath the same as [Class#Set], but it accepts a [data.Path] instead.
 func (c *Class) SetPath(path data.Path, value interface{}) error {
 	return c.container.SetPath(path, value)
 }
 
-// SetPreSetHook sets the preSetHook of the class
-// The function can only be called ONCE, after that it will always error.
-// This is done to prevent circumventing an existing hook.
-// TODO: Allow registration of multiple hooks
-func (c *Class) SetPreSetHook(setHookFunc SetHookFunc) error {
-	if c.preSetHook != nil {
-		return ErrCannotOverwriteHook
+// RegisterPreSetHook registers a new pre-Set-hook.
+// Hooks are called in the order they were registered.
+func (c *Class) RegisterPreSetHook(preSetHookFunc SetHookFunc) {
+	c.preSetHooks = append(c.preSetHooks, preSetHookFunc)
+}
+
+// RegisterPostSetHook registers a new post-Set-hook.
+// Hooks are called in the order they were registered.
+func (c *Class) RegisterPostSetHook(postSetHookFunc SetHookFunc) {
+	c.postSetHooks = append(c.postSetHooks, postSetHookFunc)
+}
+
+// callPreSetHooks will call all registered preSetHooks in the order they were registered.
+// If one hook returns an error, the execution is halted and the error is returned immediately.
+func (c *Class) callPreSetHooks(path data.Path, value data.Value) error {
+	for _, hook := range c.preSetHooks {
+		err := hook(*c, path, value)
+		if err != nil {
+			return err
+		}
 	}
-	c.preSetHook = setHookFunc
 	return nil
 }
 
-// SetPostSetHook sets the postSetHook of the class
-// The function can only be called ONCE, after that it will always error.
-// This is done to prevent circumventing an existing hook.
-// TODO: Allow registration of multiple hooks
-func (c *Class) SetPostSetHook(setHookFunc SetHookFunc) error {
-	if c.postSetHook != nil {
-		return ErrCannotOverwriteHook
+// callPostSetHooks will call all registered postSetHooks in the order they were registered.
+// If one hook returns an error, the execution is halted and the error is returned immediately.
+func (c *Class) callPostSetHooks(path data.Path, value data.Value) error {
+	for _, hook := range c.postSetHooks {
+		err := hook(*c, path, value)
+		if err != nil {
+			return err
+		}
 	}
-	c.postSetHook = setHookFunc
 	return nil
-}
-
-// AllPaths returns every single path of the underlying container
-func (c *Class) AllPaths() []data.Path {
-	return c.container.AllPaths()
 }
 
 // Walk allows traversing the underlying container data.
@@ -267,12 +273,4 @@ func ClassLoader(basePath string, files []string, codec Codec) ([]*Class, error)
 	}
 
 	return classes, nil
-}
-
-func CreateClassIdentifier(filePaths []string, classFilePath string) data.Path {
-	commonPathPrefix := CommonPathPrefix(filePaths)
-	strippedPath := strings.Replace(classFilePath, commonPathPrefix, "", 1)
-	classIdentifier := data.NewPathFromOsPath(strippedPath)
-
-	return classIdentifier
 }

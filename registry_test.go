@@ -113,22 +113,6 @@ func TestRegistryRegisterClass(t *testing.T) {
 	// Test: register a class which introduces a duplicate path
 	err = registry.RegisterClass(peopleClass)
 	assert.ErrorIs(t, err, ErrDuplicatePath)
-
-	// Test: class already has a pre-set hook
-	jane, err := NewClass(janeClassPath, codec.NewYamlCodec(), data.NewPath("people.jane"))
-	assert.NoError(t, err)
-	assert.NotNil(t, jane)
-	jane.SetPreSetHook(func(class Class, path data.Path, value data.Value) error { return nil })
-	err = registry.RegisterClass(jane)
-	assert.ErrorIs(t, err, ErrCannotOverwriteHook)
-
-	// Test: class already has a post-set hook
-	jane, err = NewClass(janeClassPath, codec.NewYamlCodec(), data.NewPath("people.jane"))
-	assert.NoError(t, err)
-	assert.NotNil(t, jane)
-	jane.SetPostSetHook(func(class Class, path data.Path, value data.Value) error { return nil })
-	err = registry.RegisterClass(jane)
-	assert.ErrorIs(t, err, ErrCannotOverwriteHook)
 }
 
 func TestRegistryPreSetHook(t *testing.T) {

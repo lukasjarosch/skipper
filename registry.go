@@ -90,16 +90,9 @@ func (reg *Registry) RegisterClass(class *Class) error {
 		return errs
 	}
 
-	// inject hooks to monitor writes to the class which
-	// ensure that the registry stays valid
-	err := class.SetPreSetHook(reg.classPreSetHook())
-	if err != nil {
-		return fmt.Errorf("failed to register pre-set hook in class: %w", err)
-	}
-	err = class.SetPostSetHook(reg.classPostSetHook())
-	if err != nil {
-		return fmt.Errorf("failed to register post-set hook in class: %w", err)
-	}
+	// inject hooks to monitor writes to the class which ensure that the registry can stay valid
+	class.RegisterPreSetHook(reg.classPreSetHook())
+	class.RegisterPostSetHook(reg.classPostSetHook())
 
 	// register class and all its paths
 	for _, classPath := range classPaths {
