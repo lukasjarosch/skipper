@@ -1,0 +1,11 @@
+valid:
+  common:
+    default_age: 35
+  person:
+    first_name: John
+    last_name: Doe
+    age: ${common:default_age}
+  greetings:
+    casual: "Hey ${valid:person:first_name}"
+    formal: "Hello, ${person:first_name} ${person:last_name}"
+    age: "You are ${person:age} years old"

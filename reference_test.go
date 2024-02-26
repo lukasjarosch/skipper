@@ -8,16 +8,14 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	. "github.com/lukasjarosch/skipper"
+	"github.com/lukasjarosch/skipper/codec"
 	"github.com/lukasjarosch/skipper/data"
 	mocks "github.com/lukasjarosch/skipper/mocks"
 )
 
-func TestNewValueReferenceManager(t *testing.T) {
-	// TEST: source is nil
-	manager, err := NewValueReferenceManager(nil)
-	assert.ErrorIs(t, err, ErrReferenceSourceIsNil)
-	assert.Nil(t, manager)
-}
+// ==============================================================
+// == UNIT TESTS
+// ==============================================================
 
 func TestReplaceValueReferences(t *testing.T) {
 	first_name := ValueReference{
@@ -637,5 +635,78 @@ func TestFindReferenceTargetPaths(t *testing.T) {
 			targetPaths := FindReferenceTargetPaths(tt.regex, tt.value)
 			assert.ElementsMatch(t, tt.expected, targetPaths)
 		})
+	}
+}
+
+// ==============================================================
+// == INTEGRATION TESTS: Class
+// ==============================================================
+
+func TestValueReference_Class_Valid(t *testing.T) {
+	filePath := "testdata/references/class/valid.yaml"
+	class, err := NewClass(filePath, codec.NewYamlCodec(), data.NewPath("valid"))
+	assert.NoError(t, err)
+
+	expectedReferences := []ValueReference{
+		{
+			Path:               data.NewPath("valid.person.age"),
+			TargetPath:         data.NewPath("common.default_age"),
+			AbsoluteTargetPath: data.NewPath("valid.common.default_age"),
+		},
+		{
+			Path:               data.NewPath("valid.greetings.casual"),
+			TargetPath:         data.NewPath("valid.person.first_name"),
+			AbsoluteTargetPath: data.NewPath("valid.person.first_name"),
+		},
+		{
+			Path:               data.NewPath("valid.greetings.formal"),
+			TargetPath:         data.NewPath("person.first_name"),
+			AbsoluteTargetPath: data.NewPath("valid.person.first_name"),
+		},
+		{
+			Path:               data.NewPath("valid.greetings.formal"),
+			TargetPath:         data.NewPath("person.last_name"),
+			AbsoluteTargetPath: data.NewPath("valid.person.last_name"),
+		},
+		{
+			Path:               data.NewPath("valid.greetings.age"),
+			TargetPath:         data.NewPath("person.age"),
+			AbsoluteTargetPath: data.NewPath("valid.person.age"),
+		},
+	}
+	expectedReplacedValues := map[string]data.Value{
+		"valid.person.age":       data.NewValue(35),
+		"valid.greetings.casual": data.NewValue("Hey John"),
+		"valid.greetings.formal": data.NewValue("Hello, John Doe"),
+		"valid.greetings.age":    data.NewValue("You are 35 years old"),
+	}
+
+	// TEST: find all references
+	allReferences, err := FindValueReferences(class)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, expectedReferences, allReferences)
+
+	// TEST:building a dependencyGraph
+	dependencyGraph, err := BuildDependencyGraph(allReferences)
+	assert.NoError(t, err)
+	assert.NotNil(t, dependencyGraph)
+
+	// TEST: calculate replacement order
+	replacementOrder, err := CalculateReplacementOrder(dependencyGraph)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedReferences, replacementOrder)
+
+	// TEST: reorder value references
+	replaceReferences := ReorderValueReferences(replacementOrder, allReferences)
+	assert.Equal(t, expectedReferences, replaceReferences)
+
+	// TEST: replace references
+	err = ReplaceValueReferences(class, replaceReferences)
+	assert.NoError(t, err)
+
+	for path, expectedValue := range expectedReplacedValues {
+		ret, err := class.Get(path)
+		assert.NoError(t, err)
+		assert.Equal(t, expectedValue.Raw, ret.Raw)
 	}
 }
