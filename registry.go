@@ -37,8 +37,10 @@ func NewRegistry() *Registry {
 	}
 }
 
+// ClassLoaderFunc is used to load a Class given a slice of filePaths.
 type ClassLoaderFunc func(filePaths []string) ([]*Class, error)
 
+// NewRegistryFromFiles quickly creates a Registry from the given filePaths.
 func NewRegistryFromFiles(filePaths []string, classLoader ClassLoaderFunc) (*Registry, error) {
 	classes, err := classLoader(filePaths)
 	if err != nil {
@@ -56,6 +58,14 @@ func NewRegistryFromFiles(filePaths []string, classLoader ClassLoaderFunc) (*Reg
 	return registry, nil
 }
 
+// RegisterClass adds the class to the registry.
+//
+// A class can only be registered once, this is determined keeping classIdentifiers unique.
+// If the class is not yet registered, all paths which the class provides, are registered
+// in the registry given the class does not provide a path which already exists within the registry.
+// This is because it is imperative that paths within the registry stay unique and not become ambiguous.
+// Once everything looks good, the registry registers pre- and post-Set hooks with the class in order
+// to keep monitoring any path changes.
 func (reg *Registry) RegisterClass(class *Class) error {
 	if _, exists := reg.classes[class.Identifier.String()]; exists {
 		return fmt.Errorf("%s: %w", class.Identifier.String(), ErrClassAlreadyRegistered)
@@ -90,7 +100,8 @@ func (reg *Registry) RegisterClass(class *Class) error {
 		return errs
 	}
 
-	// inject hooks to monitor writes to the class which ensure that the registry can stay valid
+	// Register registry hooks to monitor writes to the class.
+	// This is required to prevent illegal writes and to update in case new paths are added
 	class.RegisterPreSetHook(reg.classPreSetHook())
 	class.RegisterPostSetHook(reg.classPostSetHook())
 
