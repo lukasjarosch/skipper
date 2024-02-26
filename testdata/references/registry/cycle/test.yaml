@@ -1,3 +1,0 @@
-test:
-  foo: ${cycle:foo}
-  baz: ${foo}

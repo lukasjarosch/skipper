@@ -1,4 +1,0 @@
-cycle:
-  john: ${middle}
-  name: ${john}
-  middle: ${name}
