@@ -25,8 +25,6 @@ type (
 	// SetHookFunc can be registered as either preSetHook or postSetHook
 	// and will then be called respectively.
 	SetHookFunc func(class Class, path data.Path, value data.Value) error
-	// ClassIdentifier is an identifier used to identify a Class
-	ClassIdentifier = data.Path
 )
 
 type DataGetter interface {
@@ -67,7 +65,7 @@ type Class struct {
 	// It is derived from the filename which this class represents.
 	Name string
 	// Identifier
-	Identifier ClassIdentifier
+	Identifier data.Path
 	// FilePath is the path to the underlying file on the filesystem.
 	FilePath string
 	// Access to the underlying container is usually not advised.
@@ -81,7 +79,7 @@ type Class struct {
 // NewClass attempts to create a new class given a filesystem path and a codec.
 // The class will only be created if the file is readable, can be decoded and
 // adheres to the constraints set by [data.Container].
-func NewClass(filePath string, codec Codec, identifier ClassIdentifier) (*Class, error) {
+func NewClass(filePath string, codec Codec, identifier data.Path) (*Class, error) {
 	if len(filePath) == 0 {
 		return nil, ErrEmptyFilePath
 	}
