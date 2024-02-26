@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/dominikbraun/graph"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -188,19 +187,19 @@ func TestReorderValueReferences(t *testing.T) {
 func TestCalculateReplacementOrder(t *testing.T) {
 	tests := []struct {
 		name          string
-		references    map[string]ValueReference
+		references    []ValueReference
 		errExpected   error
 		expectedOrder []ValueReference
 	}{
 		{
 			name: "non dependent references",
-			references: map[string]ValueReference{
-				"ref1": {
+			references: []ValueReference{
+				{
 					Path:               data.NewPath("foo.bar"),
 					TargetPath:         data.NewPath("name"),
 					AbsoluteTargetPath: data.NewPath("person.name"),
 				},
-				"ref2": {
+				{
 					Path:               data.NewPath("foo.baz"),
 					TargetPath:         data.NewPath("age"),
 					AbsoluteTargetPath: data.NewPath("person.age"),
@@ -221,23 +220,23 @@ func TestCalculateReplacementOrder(t *testing.T) {
 		},
 		{
 			name: "long dependency chain",
-			references: map[string]ValueReference{
-				"ref1": {
+			references: []ValueReference{
+				{
 					Path:               data.NewPath("foo.bar"),
 					TargetPath:         data.NewPath("bar"),
 					AbsoluteTargetPath: data.NewPath("common.bar"),
 				},
-				"ref2": {
+				{
 					Path:               data.NewPath("common.bar"),
 					TargetPath:         data.NewPath("name"),
 					AbsoluteTargetPath: data.NewPath("common.name"),
 				},
-				"ref3": {
+				{
 					Path:               data.NewPath("common.name"),
 					TargetPath:         data.NewPath("peter"),
 					AbsoluteTargetPath: data.NewPath("common.peter"),
 				},
-				"ref4": {
+				{
 					Path:               data.NewPath("common.peter"),
 					TargetPath:         data.NewPath("hans"),
 					AbsoluteTargetPath: data.NewPath("common.hans"),
@@ -290,18 +289,18 @@ func TestCalculateReplacementOrder(t *testing.T) {
 func TestBuildDependencyGraph(t *testing.T) {
 	tests := []struct {
 		name        string
-		references  map[string]ValueReference
+		references  []ValueReference
 		errExpected error
 	}{
 		{
 			name: "non dependent references",
-			references: map[string]ValueReference{
-				"ref1": {
+			references: []ValueReference{
+				{
 					Path:               data.NewPath("foo.bar"),
 					TargetPath:         data.NewPath("name"),
 					AbsoluteTargetPath: data.NewPath("person.name"),
 				},
-				"ref2": {
+				{
 					Path:               data.NewPath("foo.baz"),
 					TargetPath:         data.NewPath("age"),
 					AbsoluteTargetPath: data.NewPath("person.age"),
@@ -309,30 +308,14 @@ func TestBuildDependencyGraph(t *testing.T) {
 			},
 		},
 		{
-			name: "references must be deduplicated",
-			references: map[string]ValueReference{
-				"ref1": {
-					Path:               data.NewPath("foo.bar"),
-					TargetPath:         data.NewPath("name"),
-					AbsoluteTargetPath: data.NewPath("person.name"),
-				},
-				"ref2": {
-					Path:               data.NewPath("foo.bar"),
-					TargetPath:         data.NewPath("name"),
-					AbsoluteTargetPath: data.NewPath("person.name"),
-				},
-			},
-			errExpected: graph.ErrVertexAlreadyExists,
-		},
-		{
 			name: "self-referencing references are not allowed",
-			references: map[string]ValueReference{
-				"ref1": {
+			references: []ValueReference{
+				{
 					Path:               data.NewPath("foo.bar"),
 					TargetPath:         data.NewPath("bar"),
 					AbsoluteTargetPath: data.NewPath("foo.bar"),
 				},
-				"ref2": {
+				{
 					Path:               data.NewPath("foo.baz"),
 					TargetPath:         data.NewPath("baz"),
 					AbsoluteTargetPath: data.NewPath("foo.baz"),
@@ -342,18 +325,18 @@ func TestBuildDependencyGraph(t *testing.T) {
 		},
 		{
 			name: "dependency cycles are not allowed",
-			references: map[string]ValueReference{
-				"ref1": {
+			references: []ValueReference{
+				{
 					Path:               data.NewPath("foo.bar"),
 					TargetPath:         data.NewPath("name"),
 					AbsoluteTargetPath: data.NewPath("person.name"),
 				},
-				"ref2": {
+				{
 					Path:               data.NewPath("person.name"),
 					TargetPath:         data.NewPath("some_name"),
 					AbsoluteTargetPath: data.NewPath("person.some_name"),
 				},
-				"ref3": {
+				{
 					Path:               data.NewPath("person.some_name"),
 					TargetPath:         data.NewPath("foo.bar"),
 					AbsoluteTargetPath: data.NewPath("foo.bar"),
@@ -363,23 +346,23 @@ func TestBuildDependencyGraph(t *testing.T) {
 		},
 		{
 			name: "multiple dependencies",
-			references: map[string]ValueReference{
-				"ref1": {
+			references: []ValueReference{
+				{
 					Path:               data.NewPath("foo.bar"),
 					TargetPath:         data.NewPath("bar"),
 					AbsoluteTargetPath: data.NewPath("common.bar"),
 				},
-				"ref2": {
+				{
 					Path:               data.NewPath("common.bar"),
 					TargetPath:         data.NewPath("name"),
 					AbsoluteTargetPath: data.NewPath("common.name"),
 				},
-				"ref3": {
+				{
 					Path:               data.NewPath("foo.bar"),
 					TargetPath:         data.NewPath("baz"),
 					AbsoluteTargetPath: data.NewPath("common.baz"),
 				},
-				"ref4": {
+				{
 					Path:               data.NewPath("common.baz"),
 					TargetPath:         data.NewPath("ohai"),
 					AbsoluteTargetPath: data.NewPath("common.ohai"),
@@ -388,23 +371,23 @@ func TestBuildDependencyGraph(t *testing.T) {
 		},
 		{
 			name: "long dependency chain",
-			references: map[string]ValueReference{
-				"ref1": {
+			references: []ValueReference{
+				{
 					Path:               data.NewPath("foo.bar"),
 					TargetPath:         data.NewPath("bar"),
 					AbsoluteTargetPath: data.NewPath("common.bar"),
 				},
-				"ref2": {
+				{
 					Path:               data.NewPath("common.bar"),
 					TargetPath:         data.NewPath("name"),
 					AbsoluteTargetPath: data.NewPath("common.name"),
 				},
-				"ref3": {
+				{
 					Path:               data.NewPath("common.name"),
 					TargetPath:         data.NewPath("peter"),
 					AbsoluteTargetPath: data.NewPath("common.peter"),
 				},
-				"ref4": {
+				{
 					Path:               data.NewPath("common.peter"),
 					TargetPath:         data.NewPath("hans"),
 					AbsoluteTargetPath: data.NewPath("common.hans"),
@@ -492,13 +475,7 @@ func TestResolveDependantValueReferences(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// allReferences needs to be a map
-			allReferenceMap := make(map[string]ValueReference, len(tt.allReferences))
-			for _, ref := range tt.allReferences {
-				allReferenceMap[ref.Hash()] = ref
-			}
-
-			result := ResolveDependantValueReferences(tt.reference, allReferenceMap)
+			result := ResolveDependantValueReferences(tt.reference, tt.allReferences)
 
 			if tt.expected == nil {
 				assert.Nil(t, result)

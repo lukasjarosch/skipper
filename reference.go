@@ -45,10 +45,16 @@ type ValueReference struct {
 	AbsoluteTargetPath data.Path
 }
 
+// Name returns the full name of the reference, just as it was written within the data.
+// Note that this DOES NOT use the AbsoluteTargetPath on purpose!
+// That path is calculated and will
+//  1. confuse anyone if the reference suddenly uses a calculated full path
+//  2. replacing the reference will not work because there we need the exact string how it appeared in the data.
 func (ref ValueReference) Name() string {
 	return fmt.Sprintf("${%s}", strings.ReplaceAll(ref.TargetPath.String(), ".", ":"))
 }
 
+// Hash returns the reference-unique hash which is used to de-duplicate references.
 func (ref ValueReference) Hash() string {
 	return fmt.Sprintf("%s|%s", ref.Path, ref.AbsoluteTargetPath)
 }
@@ -91,6 +97,7 @@ func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManag
 	return m, nil
 }
 
+// ValueReferenceTarget is the required interface in order to replace references.
 type ValueReferenceTarget interface {
 	DataGetter
 	DataSetter
@@ -169,6 +176,9 @@ func ReorderValueReferences(order []ValueReference, allReferences []ValueReferen
 	return orderedReferences
 }
 
+// CalculateReplacementOrder takes an dependencyGraph and performs a stable topological sort.
+// The returned slice of ValueReferences is in the order in which the references
+// can be replaced without any dependency issues like re-introducing references during replacement.
 func CalculateReplacementOrder(dependencyGraph graph.Graph[string, ValueReference]) ([]ValueReference, error) {
 	// Perform a stable topological sort of the dependency graph.
 	// The returned orderedHashes is stable in that the references are sorted
@@ -201,10 +211,17 @@ func CalculateReplacementOrder(dependencyGraph graph.Graph[string, ValueReferenc
 	return reversedOrder, nil
 }
 
-func BuildDependencyGraph(references map[string]ValueReference) (graph.Graph[string, ValueReference], error) {
+// BuildDependencyGraph will take a list of ValueReferences, deduplicate it and then create
+// a vertex within a graph for each ValueReference.
+// Then, for each ValueReference, all dependent ValueReference (i.e. if the reference points to a value which again contains a reference)
+// are resolved and directed edges are created.
+// The parameters of the graph ensure that the resulting dependencyGraph is acyclic, directed and does not contain any self-references.
+func BuildDependencyGraph(references []ValueReference) (graph.Graph[string, ValueReference], error) {
 	vertexHashFunc := func(ref ValueReference) string {
 		return ref.Hash()
 	}
+
+	references = DeduplicateValueReferences(references)
 
 	dependencyGraph := graph.New(vertexHashFunc, graph.Acyclic(), graph.Directed(), graph.PreventCycles())
 
@@ -244,6 +261,8 @@ func BuildDependencyGraph(references map[string]ValueReference) (graph.Graph[str
 	return dependencyGraph, nil
 }
 
+// VisualizeDependencyGraph is mainly a debugging function which will render a DOT file
+// of the dependencyGraph into the given filePath and add the label as graph description.
 func VisualizeDependencyGraph(graph graph.Graph[string, ValueReference], filePath string, label string) error {
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -259,12 +278,33 @@ func VisualizeDependencyGraph(graph graph.Graph[string, ValueReference], filePat
 	return nil
 }
 
-func ResolveDependantValueReferences(reference ValueReference, allReferences map[string]ValueReference) []ValueReference {
+// DeduplicateValueReferences takes a list of ValueReferences and
+// deduplicates them based on the `Hash`.
+func DeduplicateValueReferences(references []ValueReference) []ValueReference {
+	visited := make(map[string]bool)
+	deduplicated := []ValueReference{}
+
+	for _, ref := range references {
+		if _, seen := visited[ref.Hash()]; !seen {
+			visited[ref.Hash()] = true
+			deduplicated = append(deduplicated, ref)
+		}
+	}
+
+	return deduplicated
+}
+
+// ResolveDependantValueReferences takes a reference and a list of all existing references
+// and checks whether the AbsoluteTargetPath of said reference is the Path of any other reference.
+// Note that even if allReferences may not be deduplicated, the function will only work with a deduplicated version.
+// So if a reference `${person:name}` exists, as well as a reference `${common:name}` at path `person.name`,
+// then the latter is a direct dependency of the `${person:name}` reference.
+func ResolveDependantValueReferences(reference ValueReference, allReferences []ValueReference) []ValueReference {
 	var dependencies []ValueReference
 
 	// If the reference's AbsoluteTargetPath is a Path of any existing reference,
 	// the references depend on each other.
-	for _, ref := range allReferences {
+	for _, ref := range DeduplicateValueReferences(allReferences) {
 		if reference.AbsoluteTargetPath.Equals(ref.Path) {
 			dependencies = append(dependencies, ref)
 		}
