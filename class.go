@@ -229,6 +229,18 @@ func (c *Class) WalkValues(walkFunc func(data.Path, data.Value) error) error {
 	})
 }
 
+// Values returns a map of path -> data.Value where each value is a leaf value.
+func (c *Class) Values() map[string]data.Value {
+	valueMap := make(map[string]data.Value)
+
+	c.WalkValues(func(p data.Path, v data.Value) error {
+		valueMap[p.String()] = v
+		return nil
+	})
+
+	return valueMap
+}
+
 // AbsolutePath ensures that the given path is absolute within the given context path.
 // This function satisfies the [skipper.AbsolutePathMaker] interface.
 // The second parameter is usually required to determine to which Class the path is relative to.
