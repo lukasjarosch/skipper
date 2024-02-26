@@ -20,6 +20,171 @@ func TestNewValueReferenceManager(t *testing.T) {
 	assert.Nil(t, manager)
 }
 
+func TestReplaceValueReferences(t *testing.T) {
+	first_name := ValueReference{
+		Path:               data.NewPath("foo.bar"),
+		TargetPath:         data.NewPath("first_name"),
+		AbsoluteTargetPath: data.NewPath("person.first_name"),
+	}
+	last_name := ValueReference{
+		Path:               data.NewPath("foo.baz"),
+		TargetPath:         data.NewPath("last_name"),
+		AbsoluteTargetPath: data.NewPath("person.last_name"),
+	}
+	age := ValueReference{
+		Path:               data.NewPath("foo.qux"),
+		TargetPath:         data.NewPath("age"),
+		AbsoluteTargetPath: data.NewPath("person.age"),
+	}
+
+	tests := []struct {
+		name         string
+		references   []ValueReference
+		targetValues map[string]data.Value
+		sourceValues map[string]data.Value
+		errExpected  error
+	}{
+		{
+			name:        "without any references, nothing should be done and no error returned",
+			references:  nil,
+			errExpected: nil,
+		},
+		{
+			name:       "single reference replacement",
+			references: []ValueReference{first_name},
+			targetValues: map[string]data.Value{
+				"person.first_name": data.NewValue("john"),
+			},
+			sourceValues: map[string]data.Value{
+				"foo.bar": data.NewValue("${last_name}"),
+			},
+			errExpected: nil,
+		},
+		{
+			name:       "multiple reference replacement",
+			references: []ValueReference{first_name, last_name, age},
+			targetValues: map[string]data.Value{
+				"person.first_name": data.NewValue("john"),
+				"person.last_name":  data.NewValue("doe"),
+			},
+			sourceValues: map[string]data.Value{
+				"foo.bar": data.NewValue("${last_name}"),
+				"foo.baz": data.NewValue("${first_name}"),
+				"foo.qux": data.NewValue("${age}"),
+			},
+			errExpected: nil,
+		},
+		{
+			name:       "multiple embedded reference replacement",
+			references: []ValueReference{first_name, last_name, age},
+			targetValues: map[string]data.Value{
+				"person.first_name": data.NewValue("john"),
+				"person.last_name":  data.NewValue("doe"),
+			},
+			sourceValues: map[string]data.Value{
+				"foo.bar": data.NewValue("First name is: ${last_name}"),
+				"foo.baz": data.NewValue("Last name is: ${first_name}"),
+				"foo.qux": data.NewValue("Age is: ${age}"),
+			},
+			errExpected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target := mocks.NewMockValueReferenceTarget(t)
+			for _, ref := range tt.references {
+				target.EXPECT().GetPath(ref.AbsoluteTargetPath).Return(tt.targetValues[ref.AbsoluteTargetPath.String()], nil)
+				target.EXPECT().GetPath(ref.Path).Return(tt.sourceValues[ref.Path.String()], nil)
+				target.EXPECT().SetPath(ref.Path, mock.Anything).Return(nil)
+			}
+			_, _, _ = first_name, last_name, age
+
+			err := ReplaceValueReferences(target, tt.references)
+			if tt.errExpected != nil {
+				assert.ErrorIs(t, err, tt.errExpected)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestReorderValueReferences(t *testing.T) {
+	first_name := ValueReference{
+		Path:               data.NewPath("foo.bar"),
+		TargetPath:         data.NewPath("first_name"),
+		AbsoluteTargetPath: data.NewPath("person.first_name"),
+	}
+	last_name := ValueReference{
+		Path:               data.NewPath("foo.baz"),
+		TargetPath:         data.NewPath("last_name"),
+		AbsoluteTargetPath: data.NewPath("person.last_name"),
+	}
+	age := ValueReference{
+		Path:               data.NewPath("foo.qux"),
+		TargetPath:         data.NewPath("age"),
+		AbsoluteTargetPath: data.NewPath("person.age"),
+	}
+
+	tests := []struct {
+		name          string
+		order         []ValueReference
+		allReferences []ValueReference
+		expected      []ValueReference
+	}{
+		{
+			name:          "empty order must return the same unordered references",
+			order:         []ValueReference{},
+			allReferences: []ValueReference{first_name, last_name, age},
+			expected:      []ValueReference{first_name, last_name, age},
+		},
+		{
+			name:          "nil order must return the same unordered references",
+			order:         nil,
+			allReferences: []ValueReference{first_name, last_name, age},
+			expected:      []ValueReference{first_name, last_name, age},
+		},
+		{
+			name:          "empty allReferences must return nil",
+			order:         []ValueReference{first_name, last_name, age},
+			allReferences: []ValueReference{},
+			expected:      []ValueReference(nil),
+		},
+		{
+			name:          "nil allReferences must return nil",
+			order:         []ValueReference{first_name, last_name, age},
+			allReferences: nil,
+			expected:      []ValueReference(nil),
+		},
+		{
+			name:          "ordered, non-duplicate, allReferences must not be altered",
+			order:         []ValueReference{first_name, last_name, age},
+			allReferences: []ValueReference{first_name, last_name, age},
+			expected:      []ValueReference{first_name, last_name, age},
+		},
+		{
+			name:          "unordered, non-duplicate, allReferences must be ordered",
+			order:         []ValueReference{first_name, last_name, age},
+			allReferences: []ValueReference{age, first_name, last_name},
+			expected:      []ValueReference{first_name, last_name, age},
+		},
+		{
+			name:          "unordered, duplicate, allReferences must be ordered",
+			order:         []ValueReference{first_name, last_name, age},
+			allReferences: []ValueReference{age, first_name, age, age, last_name, first_name, last_name},
+			expected:      []ValueReference{first_name, first_name, last_name, last_name, age, age, age},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := ReorderValueReferences(tt.order, tt.allReferences)
+			assert.Equal(t, tt.expected, res)
+		})
+	}
+}
+
 func TestCalculateReplacementOrder(t *testing.T) {
 	tests := []struct {
 		name          string

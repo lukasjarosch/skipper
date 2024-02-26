@@ -24,6 +24,7 @@ var (
 
 	ErrUndefinedReferenceTarget = fmt.Errorf("undefined reference target path")
 	ErrReferenceSourceIsNil     = fmt.Errorf("reference source is nil")
+	ErrReferenceTargetIsNil     = fmt.Errorf("reference target is nil")
 	ErrSelfReferencingReference = fmt.Errorf("self-referencing reference")
 	ErrCyclicReference          = fmt.Errorf("cyclic reference")
 )
@@ -88,6 +89,84 @@ func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManag
 	}
 
 	return m, nil
+}
+
+type ValueReferenceTarget interface {
+	DataGetter
+	DataSetter
+}
+
+// ReplaceValueReferences will replace all given references within the given ValueReferenceTarget.
+func ReplaceValueReferences(target ValueReferenceTarget, references []ValueReference) error {
+	if references == nil || len(references) == 0 {
+		return nil
+	}
+	if target == nil {
+		return ErrReferenceTargetIsNil
+	}
+
+	for _, reference := range references {
+		// The targetValue is the value to which the reference points to.
+		targetValue, err := target.GetPath(reference.AbsoluteTargetPath)
+		if err != nil {
+			return err
+		}
+
+		// The sourceValue is the value in which the reference is found and where it is
+		// going to be replaced by the targetValue
+		sourceValue, err := target.GetPath(reference.Path)
+		if err != nil {
+			return err
+		}
+
+		// If the sourceValue contains exactly the reference and nothing else,
+		// we can just swap out the raw value completely.
+		if strings.EqualFold(sourceValue.String(), reference.Name()) {
+			err = target.SetPath(reference.Path, targetValue.Raw)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		// If the reference is embedded within literals (e.g. 'hello there ${name}'),
+		// then we need to just perform one string replacement the sourceValue.
+		// We do this only once, even if the same reference may exist multiple times.
+		// But since the references slice can contain duplicates, we expect the
+		// references to appear multiple times in the slice in such cases.
+		replacedValue := strings.Replace(sourceValue.String(), reference.Name(), targetValue.String(), 1)
+		err = target.SetPath(reference.Path, replacedValue)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ReorderValueReferences will take a slice of ordered, deduplicated ValueReferences
+// and a slice of unordered, non-deduplicated ValueReferences.
+// The unordered slice is then rearranged based and returned as determined by the order.
+// References are compared using their `Hash` function.
+// If the order is empty/nil, then allReferences is just re-emitted.
+// If allReferences is empty/nil, then nil is returned.
+func ReorderValueReferences(order []ValueReference, allReferences []ValueReference) []ValueReference {
+	if order == nil || len(order) == 0 {
+		return allReferences
+	}
+	if allReferences == nil || len(allReferences) == 0 {
+		return nil
+	}
+
+	var orderedReferences []ValueReference
+	for _, orderedReference := range order {
+		for _, ref := range allReferences {
+			if orderedReference.Hash() == ref.Hash() {
+				orderedReferences = append(orderedReferences, ref)
+			}
+		}
+	}
+	return orderedReferences
 }
 
 func CalculateReplacementOrder(dependencyGraph graph.Graph[string, ValueReference]) ([]ValueReference, error) {

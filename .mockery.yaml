@@ -4,6 +4,7 @@ packages:
   github.com/lukasjarosch/skipper:
     interfaces:
       ValueReferenceSource:
+      ValueReferenceTarget:
       # Codec:
       # DataContainer:
       # ReferenceValueSource:
