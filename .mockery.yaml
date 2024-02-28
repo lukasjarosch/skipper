@@ -1,12 +1,10 @@
 with-expecter: True
-dir: "mocks/"
+dir: "mocks/{{ .PackageName }}"
 packages:
   github.com/lukasjarosch/skipper:
     interfaces:
       ValueReferenceSource:
-      ValueReferenceTarget:
-      # Codec:
-      # DataContainer:
-      # ReferenceValueSource:
-      # ReferenceSourceGetter:
-      # ReferenceSourceRelativeGetter:
+  github.com/lukasjarosch/skipper/reference:
+    interfaces:
+      ValueSource:
+      ValueTarget:

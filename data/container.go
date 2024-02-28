@@ -121,7 +121,7 @@ func (container *Container) SetPath(path Path, value interface{}) error {
 		return ErrEmptyPath
 	}
 
-	path, err := container.AbsolutePath(path, nil)
+	path, err := container.AbsolutePath(path)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (container *Container) Merge(path Path, data map[string]interface{}) error 
 // The only difference is that it uses [Value] types instead of arbitrary interfaces.
 func (container *Container) Walk(walkFunc func(path Path, value Value, isLeaf bool) error) error {
 	return Walk(container.data, func(path Path, data interface{}, isLeaf bool) error {
-		absPath, err := container.AbsolutePath(path, nil)
+		absPath, err := container.AbsolutePath(path)
 		if err != nil {
 			return err
 		}
@@ -210,13 +210,10 @@ func (container *Container) HasPath(path Path) bool {
 	return true
 }
 
-// AbsolutePath ensures that the given path is absolute within the given context path.
-// This function satisfies the [skipper.AbsolutePathMaker] interface.
-// The second parameter is usually required to determine to which Class the path is relative to.
-// In this case, that context is not needed as there is only the one container context.
+// AbsolutePath ensures that the given path is absolute.
 // The function does not check whether the path is valid within the container.
 // This is to allow setting new paths, which do not yet exist.
-func (container *Container) AbsolutePath(path Path, _ Path) (Path, error) {
+func (container *Container) AbsolutePath(path Path) (Path, error) {
 	if path == nil || len(path) == 0 {
 		return nil, ErrEmptyPath
 	}

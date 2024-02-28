@@ -21,12 +21,6 @@ type Codec interface {
 	Unmarshal([]byte) (map[string]interface{}, error)
 }
 
-type (
-	// SetHookFunc can be registered as either preSetHook or postSetHook
-	// and will then be called respectively.
-	SetHookFunc func(class Class, path data.Path, value data.Value) error
-)
-
 type DataGetter interface {
 	GetPath(data.Path) (data.Value, error)
 }
@@ -35,7 +29,7 @@ type DataSetter interface {
 	SetPath(data.Path, interface{}) error
 }
 
-type DataSetterGetter interface {
+type DataGetterSetter interface {
 	DataGetter
 	DataSetter
 }
@@ -44,18 +38,11 @@ type DataWalker interface {
 	Walk(func(data.Path, data.Value, bool) error) error
 }
 
-type AbsolutePathMaker interface {
-	// AbsolutePath resolves the given path to an absolute path, within the given context.
-	// The context is required to resolve the Class to which the given path is relative to.
-	// If the path is 'foo.bar' and the context is 'foo.bar.baz.key' the latter
-	// can be used to uniquely identify which Class is the context of the path.
-	AbsolutePath(path data.Path, context data.Path) (data.Path, error)
-}
-
 type DataContainer interface {
-	DataSetterGetter
+	DataGetter
+	DataSetter
 	DataWalker
-	AbsolutePathMaker
+	AbsolutePath(data.Path) (data.Path, error)
 }
 
 // Class defines the main file-data abstraction used by skipper.
@@ -68,8 +55,7 @@ type Class struct {
 	Identifier data.Path
 	// FilePath is the path to the underlying file on the filesystem.
 	FilePath string
-	// Access to the underlying container is usually not advised.
-	// The Class itself exposes all the functionality of the container anyway.
+	// The container provides access to the low-level data.
 	container DataContainer
 	// The class allows hooks to be registered to monitor each call to Set
 	preSetHooks  []SetHookFunc
@@ -152,7 +138,7 @@ func (c Class) GetAll() data.Value {
 // Set will set the given value at the specified path.
 // Wrapper for [data.Container#Set]
 func (c *Class) Set(path string, value interface{}) error {
-	absPath, err := c.container.AbsolutePath(data.NewPath(path), nil)
+	absPath, err := c.container.AbsolutePath(data.NewPath(path))
 	if err != nil {
 		return err
 	}
@@ -196,7 +182,7 @@ func (c *Class) RegisterPostSetHook(postSetHookFunc SetHookFunc) {
 // If one hook returns an error, the execution is halted and the error is returned immediately.
 func (c *Class) callPreSetHooks(path data.Path, value data.Value) error {
 	for _, hook := range c.preSetHooks {
-		err := hook(*c, path, value)
+		err := hook(path, value)
 		if err != nil {
 			return err
 		}
@@ -208,7 +194,7 @@ func (c *Class) callPreSetHooks(path data.Path, value data.Value) error {
 // If one hook returns an error, the execution is halted and the error is returned immediately.
 func (c *Class) callPostSetHooks(path data.Path, value data.Value) error {
 	for _, hook := range c.postSetHooks {
-		err := hook(*c, path, value)
+		err := hook(path, value)
 		if err != nil {
 			return err
 		}
@@ -250,8 +236,8 @@ func (c *Class) Values() map[string]data.Value {
 // The second parameter is usually required to determine to which Class the path is relative to.
 // In this case, that context is not needed as there is only this Class context.
 // In case the path is empty or it is not valid within the given context, an error is returned.
-func (c *Class) AbsolutePath(path data.Path, context data.Path) (data.Path, error) {
-	return c.container.AbsolutePath(path, context)
+func (c Class) AbsolutePath(path data.Path, _ data.Path) (data.Path, error) {
+	return c.container.AbsolutePath(path)
 }
 
 // ClassLoader is a simple helper function which accepts a list of paths which will be loaded a Classes.

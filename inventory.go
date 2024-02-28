@@ -18,6 +18,10 @@ var (
 	TargetsScope Scope = "targets"
 )
 
+// Inventory is the top-level abstraction which represents all data.
+// The Inventory is essentially just a wrapper over a map of Registries.
+// It introduces the [Scope] which separates collections of Classes (Registries).
+// Put simply, the Inventory is the projection of whatever is within the `inventory/` folder of a Skipper project.
 type Inventory struct {
 	scopes map[Scope]*Registry
 }
@@ -44,7 +48,9 @@ func (inv *Inventory) RegisterScope(scope Scope, registry *Registry) error {
 	return nil
 }
 
-// TODO: use same method as in 'Set'
+// Get attempts to retrieve a [data.Value] from within the inventory.
+// The path must begin with a valid [Scope], otherwise the Inventory
+// will not be able to determine the correct [Registry] to search in.
 func (inv *Inventory) Get(path string) (data.Value, error) {
 	pathScope, err := inv.PathScope(data.NewPath(path))
 	if err != nil {
@@ -139,7 +145,7 @@ func (inv *Inventory) PathScope(path data.Path) (Scope, error) {
 	return Scope(""), fmt.Errorf("path is not valid in any scope '%s': %w", path, ErrPathNotFound)
 }
 
-// Walk implements the [DataWalker] interface for the [Inventory]
+// Walk allows to use depth-first-search to walk over all paths within the Inventory.
 func (inv *Inventory) Walk(walkFunc func(data.Path, data.Value, bool) error) error {
 	for scope, registry := range inv.scopes {
 		err := registry.Walk(func(path data.Path, value data.Value, isLeaf bool) error {

@@ -279,7 +279,7 @@ func TestContainerAbsolutePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			abs, err := container.AbsolutePath(tt.input, nil)
+			abs, err := container.AbsolutePath(tt.input)
 
 			if tt.err != nil {
 				assert.ErrorIs(t, err, tt.err)

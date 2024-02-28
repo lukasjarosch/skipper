@@ -102,8 +102,8 @@ func (reg *Registry) RegisterClass(class *Class) error {
 
 	// Register registry hooks to monitor writes to the class.
 	// This is required to prevent illegal writes and to update in case new paths are added
-	class.RegisterPreSetHook(reg.classPreSetHook())
-	class.RegisterPostSetHook(reg.classPostSetHook())
+	class.RegisterPreSetHook(reg.classPreSetHook(class))
+	class.RegisterPostSetHook(reg.classPostSetHook(class))
 
 	// register class and all its paths
 	for _, classPath := range classPaths {
@@ -118,8 +118,8 @@ func (reg *Registry) RegisterClass(class *Class) error {
 // The hook makes sure that before a Class path is set, the action will not
 // introduce any anomalies into the registry in order to keep its integrity
 // and ensure that every path is uniquely pointing to just one value/class.
-func (reg *Registry) classPreSetHook() SetHookFunc {
-	return func(class Class, path data.Path, _ data.Value) error {
+func (reg *Registry) classPreSetHook(class *Class) SetHookFunc {
+	return func(path data.Path, _ data.Value) error {
 		registryPath := class.Identifier.StripSuffix(class.Identifier.LastSegment()).AppendPath(path)
 
 		// if the path does already exist and is owned by a *different* class, then
@@ -138,8 +138,8 @@ func (reg *Registry) classPreSetHook() SetHookFunc {
 // the Set call on the Class introduced new path(s).
 // Otherwise the registry would not know of the new paths and
 // hence could not resolve the values at those paths.
-func (reg *Registry) classPostSetHook() SetHookFunc {
-	return func(class Class, path data.Path, value data.Value) error {
+func (reg *Registry) classPostSetHook(class *Class) SetHookFunc {
+	return func(path data.Path, value data.Value) error {
 		registryPath := class.Identifier.StripSuffix(class.Identifier.LastSegment()).AppendPath(path)
 		reg.paths[registryPath.String()] = class.Identifier.String()
 
@@ -218,7 +218,7 @@ func (reg *Registry) SetPath(path data.Path, value interface{}) error {
 	return reg.Set(path.String(), value)
 }
 
-// WalkValues implements the [DataWalker] interface for the [Registry]
+// Walk allows to use depth-first-search to walk over all paths within the Registry.
 func (reg *Registry) Walk(walkFunc func(data.Path, data.Value, bool) error) error {
 	for _, class := range reg.classes {
 		err := class.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
