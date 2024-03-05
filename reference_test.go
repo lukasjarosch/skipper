@@ -3,7 +3,6 @@ package skipper_test
 import (
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/lukasjarosch/skipper"
@@ -52,7 +51,7 @@ func TestValueManager_SetHooks(t *testing.T) {
 
 		err = class.Set("valid.new.test3", data.NewValue("reference vanished *shocked*"))
 		assert.NoError(t, err)
-		assert.Equal(t, preReferenceCount-1, len(manager.AllReferences()), "expected one less reference in all references")
+		assert.Equal(t, preReferenceCount, len(manager.AllReferences()), "expected initial reference count")
 		assert.Equal(t, preUniqueReferenceCount, len(manager.ReferenceMap()), "expected no additional unique references")
 	})
 
@@ -69,8 +68,15 @@ func TestValueManager_SetHooks(t *testing.T) {
 	})
 
 	t.Run("adding an invalid reference must fail", func(t *testing.T) {
-		err = class.Set("valid.new.test5", data.NewValue("${this:is:invalid}"))
+		err = class.Set("valid.new.test5", data.NewValue("${valid:this:is:invalid}"))
 		assert.ErrorIs(t, err, ErrInvalidReferenceTargetPath)
+	})
+
+	t.Run("adding a reference to a new path must only work if the target path is added first", func(t *testing.T) {
+		err = class.Set("valid.this.is.invalid", data.NewValue("yeah, no this works :)"))
+		assert.NoError(t, err)
+		err = class.Set("valid.new.test5", data.NewValue("${valid:this:is:invalid}"))
+		assert.NoError(t, err)
 	})
 }
 
@@ -84,23 +90,60 @@ func TestValueManager_ReplaceReferences(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, manager)
 
+	expected := map[string]data.Value{
+		"valid.person.age":       data.NewValue(35),
+		"valid.greetings.casual": data.NewValue("Hey John"),
+		"valid.greetings.formal": data.NewValue("Welcome, John Doe"),
+		"valid.greetings.age":    data.NewValue("You are 35 years old"),
+	}
+
 	t.Run("valid class without modifications", func(t *testing.T) {
 		err := manager.ReplaceReferences()
 		assert.NoError(t, err)
 
+		for path, expectedValue := range expected {
+			val, err := class.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+	})
+
+	t.Run("replacing should be idempotent", func(t *testing.T) {
+		err := manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := class.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+
+		err = manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := class.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+	})
+
+	t.Run("valid class but one reference is overwritten with a literal before replacement", func(t *testing.T) {
+		// NOTE: at this point in the test, all age references have been replaced with '35'
+		err = class.Set("valid.person.age", "over 9000") // lol
+		assert.NoError(t, err)
+		err = manager.ReplaceReferences()
+		assert.NoError(t, err)
+
 		expected := map[string]data.Value{
-			"valid.person.age":       data.NewValue(35),
+			"valid.person.age":       data.NewValue("over 9000"),
 			"valid.greetings.casual": data.NewValue("Hey John"),
 			"valid.greetings.formal": data.NewValue("Welcome, John Doe"),
-			"valid.greetings.age":    data.NewValue("You are 35 years old"),
+			"valid.greetings.age":    data.NewValue("You are over 9000 years old"),
 		}
 
 		for path, expectedValue := range expected {
 			val, err := class.Get(path)
 			assert.NoError(t, err)
-			assert.Equal(t, expectedValue, val)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
 		}
-
-		spew.Dump(class.GetAll())
 	})
 }

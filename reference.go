@@ -100,6 +100,8 @@ func (manager *ValueReferenceManager) getAllReferencesWithHash(hash string) []re
 // within the source of the manager.
 // If any references are added/removed after this call, this
 // method needs to be called again.
+//
+// This method is idempotent.
 func (manager *ValueReferenceManager) ReplaceReferences() error {
 	uniqueReplacementOrder, err := reference.ValueReplacementOrder(manager.dependencyGraph)
 	if err != nil {
@@ -136,7 +138,26 @@ func (manager *ValueReferenceManager) ReplaceReferences() error {
 			continue
 		}
 
-		// Otherwise, we need to do a string substitution.
+		// Maybe this is not the first time calling 'ReplaceReferences'
+		// And the sourceValue was not within a context.
+		//
+		// Let's say that sourceValue is '${foo:bar}' and targetValue '35' (int)
+		// On the first call, '${foo:bar}' is replaced by 35 (integer) above.
+		// But on the second call, the above condition is not valid anymore.
+		// Hence we would need to resort to a string replacement (below),
+		// which would change 35 (int) to "35" (string).
+		// Instead we check if the sourceValue is already the same as the targetValue
+		// and thus are able to preserve the underlying datatype of [data.Value].
+		if strings.EqualFold(sourceValue.String(), targetValue.String()) {
+			err = manager.source.SetPath(ref.Path, targetValue.Raw)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		// If the reference is within a string context (e.g. 'Hello ${person:name}'),
+		// we can only perform a string substitution of the targetValue.
 		replacedValue := strings.Replace(sourceValue.String(), ref.Name(), targetValue.String(), 1)
 		err = manager.source.SetPath(ref.Path, replacedValue)
 		if err != nil {
