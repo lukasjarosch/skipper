@@ -139,14 +139,14 @@ func (manager *ValueReferenceManager) ValidateReference(ref reference.ValueRefer
 	return nil
 }
 
-// AddReference can be used to add a [reference.ValueReference] to the manager.
-// This method is meant to add references which have been properly parsed from the source.
-//
-// Note that the method will not check whether the reference really exists
-// within the value at the given source. It will only check that the paths itself exist.
-// This means that adding a 'virtual' reference where the [data.Value] doesn't really
-// contain a reference, will cause issues down the line!
+// addReference adds a new [reference.ValueReference] to the manager.
+// It takes care that new, unique, references are also added to the hash-map and the graph.
 func (manager *ValueReferenceManager) addReference(ref reference.ValueReference) error {
+	err := manager.ValidateReference(ref)
+	if err != nil {
+		return fmt.Errorf("invalid reference: %w", err)
+	}
+
 	manager.allReferences = append(manager.allReferences, ref)
 
 	// If the new reference does not introduce a new hash, nothing needs to be resolved.
@@ -154,11 +154,11 @@ func (manager *ValueReferenceManager) addReference(ref reference.ValueReference)
 	if _, exists := manager.references[ref.Hash()]; exists {
 		return nil
 	}
-	manager.references[ref.Hash()] = ref
 
-	// Resolve dependencies and update the graph
+	// Otherwise, register the hash, resolve the dependencies and update the graph
+	manager.references[ref.Hash()] = ref
 	dependencies := reference.ValueDependencies(ref, manager.allReferences)
-	err := reference.AddReferenceVertex(manager.dependencyGraph, ref, dependencies)
+	err = reference.AddReferenceVertex(manager.dependencyGraph, ref, dependencies)
 	if err != nil {
 		return err
 	}
@@ -261,14 +261,6 @@ func (manager *ValueReferenceManager) postSetHook() SetHookFunc {
 			return err
 		}
 
-		for _, newReference := range newReferences {
-			err = manager.ValidateReference(newReference)
-			if err != nil {
-				return fmt.Errorf("invalid reference: %w", err)
-			}
-		}
-
-		// At this point we know that all new references are valid.
 		// Instead of figuring out which reference was added or removed,
 		// we simply remove all existing references and add the new ones.
 		for _, existingRef := range manager.ReferencesAtPath(path) {
