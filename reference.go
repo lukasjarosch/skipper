@@ -142,7 +142,6 @@ func (manager *ValueReferenceManager) ReplaceReferences() error {
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
@@ -256,7 +255,7 @@ func (manager *ValueReferenceManager) removeReference(ref reference.ValueReferen
 
 	// forget about the reference at 'removeIndex' by overwriting it with the last reference in the slice
 	manager.allReferences[removeIndex] = manager.allReferences[len(manager.allReferences)-1]
-	manager.allReferences = manager.allReferences[:len(manager.allReferences)-2]
+	manager.allReferences = manager.allReferences[:len(manager.allReferences)-1]
 
 	// determine if there are any instances of the reference left
 	var forgetReference bool
