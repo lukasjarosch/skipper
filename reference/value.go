@@ -278,11 +278,27 @@ func AddReferenceVertex(dependencyGraph graph.Graph[string, ValueReference], ref
 	return nil
 }
 
-func RemoveReferenceVertex(dependencyGraph graph.Graph[string, ValueReference], reference ValueReference, dependencies []ValueReference) error {
-	for _, dependency := range dependencies {
-		err := dependencyGraph.RemoveEdge(reference.Hash(), dependency.Hash())
-		if err != nil {
-			return fmt.Errorf("failed to remove dependency %s: %w", dependency.Name(), err)
+func RemoveReferenceVertex(dependencyGraph graph.Graph[string, ValueReference], reference ValueReference) error {
+	edges, err := dependencyGraph.Edges()
+	if err != nil {
+		return err
+	}
+
+	// Find all edges with either originate from or point to the reference and remove them.
+	for _, edge := range edges {
+		if edge.Source == reference.Hash() {
+			err = dependencyGraph.RemoveEdge(edge.Source, edge.Target)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		if edge.Target == reference.Hash() {
+			err = dependencyGraph.RemoveEdge(edge.Source, edge.Target)
+			if err != nil {
+				return err
+			}
+			continue
 		}
 	}
 
