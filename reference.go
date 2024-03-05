@@ -23,6 +23,12 @@ var (
 	ErrInvalidReferenceNotInValue = fmt.Errorf("invalid reference, no reference in value")
 )
 
+// ValueReferenceManager is responsible for managing all [reference.ValueReference]
+// within the given [ValueReferenceSource].
+// It leverages hooks to monitor any runtime changes of the source to keep a
+// consistent list of all references within it.
+// The ValueReferenceManager is also able to perform a replace of all
+// references within the source.
 type ValueReferenceManager struct {
 	source ValueReferenceSource
 	// allReferences contains all found references, even duplicates
@@ -34,6 +40,9 @@ type ValueReferenceManager struct {
 	dependencyGraph graph.Graph[string, reference.ValueReference]
 }
 
+// NewValueReferenceManager constructs a new [ValueReferenceManager] with the given [ValueReferenceSource].
+// The source is completely parsed for [reference.ValueReference]s and an initial dependency-graph is constructed.
+// Additionally, all hooks of the manager are registered with the source.
 func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManager, error) {
 	if source == nil {
 		return nil, ErrValueReferenceSourceIsNil
@@ -67,14 +76,14 @@ func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManag
 	return manager, nil
 }
 
-func (manager ValueReferenceManager) AllReferences() []reference.ValueReference {
-	return manager.allReferences
-}
-
-func (manager ValueReferenceManager) ReferenceMap() map[string]reference.ValueReference {
-	return manager.references
-}
-
+// registerHooks is responsible for registering all possible hooks which
+// this manager provides.
+// It will always register the 'preSetHook' and 'postSetHook' functions
+// to the source.
+// If the source implements the [HookableRegisterClass] interface,
+// the 'preRegisterClassHook' and 'postRegisterClassHook' are registered.
+// If the source implements the [HookableRegisterScope] interface,
+// the 'preRegisterScopeHook' and 'postRegisterScopeHook' are registered
 func (manager *ValueReferenceManager) registerHooks() {
 	// We need to be aware of every 'write' (Set) operation
 	// within the source.
@@ -94,16 +103,6 @@ func (manager *ValueReferenceManager) registerHooks() {
 		invSource.RegisterPreRegisterScopeHook(manager.preRegisterScopeHook())
 		invSource.RegisterPostRegisterScopeHook(manager.postRegisterScopeHook())
 	}
-}
-
-func (manager *ValueReferenceManager) ReferencesAtPath(path data.Path) []reference.ValueReference {
-	var refs []reference.ValueReference
-	for _, ref := range manager.allReferences {
-		if ref.Path.Equals(path) {
-			refs = append(refs, ref)
-		}
-	}
-	return refs
 }
 
 // ValidateReference checks whether the given reference is valid within the manager's source.
@@ -211,6 +210,11 @@ func (manager *ValueReferenceManager) removeReference(ref reference.ValueReferen
 	return nil
 }
 
+// preSetHook is called before 'SetPath' within the [ValueReferenceSource]
+// It checks if a new reference is added within the [data.Value] that
+// said reference is valid and can be properly resolved.
+// If the reference is not valid, an error is returned which aborts the SetPath call.
+// The state of the manager will not have changed after this function is called.
 func (manager *ValueReferenceManager) preSetHook() SetHookFunc {
 	return func(path data.Path, value data.Value) error {
 		references, err := reference.FindValueReference(manager.source, reference.ValueReferenceRegex, path, value)
@@ -254,6 +258,10 @@ func (manager *ValueReferenceManager) preSetHook() SetHookFunc {
 	}
 }
 
+// postSetHook is called after [reference.ValueTarget.SetPath] on the [ValueReferenceSource] is called.
+// In order to ensure that the manager knows about all (new/removed) references,
+// it will simply remove all known references at the path and add
+// whatever references were introduced back.
 func (manager *ValueReferenceManager) postSetHook() SetHookFunc {
 	return func(path data.Path, value data.Value) error {
 		newReferences, err := reference.FindValueReference(manager.source, reference.ValueReferenceRegex, path, value)
@@ -302,4 +310,26 @@ func (manager *ValueReferenceManager) postRegisterClassHook() RegisterClassHookF
 	return func(class *Class) error {
 		return nil
 	}
+}
+
+// ReferencesAtPath returns all known references at the given [data.Path]
+func (manager *ValueReferenceManager) ReferencesAtPath(path data.Path) []reference.ValueReference {
+	var refs []reference.ValueReference
+	for _, ref := range manager.allReferences {
+		if ref.Path.Equals(path) {
+			refs = append(refs, ref)
+		}
+	}
+	return refs
+}
+
+// AllReferences returns all known references. This slice may very well contain duplicates.
+func (manager ValueReferenceManager) AllReferences() []reference.ValueReference {
+	return manager.allReferences
+}
+
+// ReferenceMap returns a hash-map of all references.
+// The key of the map is the result of the [reference.ValueReference.Hash] method.
+func (manager ValueReferenceManager) ReferenceMap() map[string]reference.ValueReference {
+	return manager.references
 }
