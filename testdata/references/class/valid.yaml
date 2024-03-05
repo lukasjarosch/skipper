@@ -9,5 +9,5 @@ valid:
     occupation: Mechanic
   greetings:
     casual: "Hey ${valid:person:first_name}"
-    formal: "${prefixes:formal} ${person:first_name} ${person:last_name}"
+    formal: "Welcome, ${person:first_name} ${person:last_name}"
     age: "You are ${person:age} years old"

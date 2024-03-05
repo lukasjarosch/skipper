@@ -58,6 +58,14 @@ func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManag
 	if err != nil {
 		return nil, err
 	}
+
+	// make sure the references are valid
+	for _, newRef := range references {
+		err := manager.ValidateReference(newRef)
+		if err != nil {
+			return nil, err
+		}
+	}
 	manager.allReferences = references
 
 	// deduplicate references in map
