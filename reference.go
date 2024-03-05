@@ -32,22 +32,9 @@ type ValueReferenceManager struct {
 	references map[string]reference.ValueReference
 	// stores all references and their dependencies
 	dependencyGraph graph.Graph[string, reference.ValueReference]
-	opts            *ValueReferenceManagerOptions
 }
 
-type ValueReferenceManagerOptions struct {
-	registerHooks bool
-}
-
-type ValueReferenceManagerOption func(*ValueReferenceManager)
-
-func RegisterHooks(enable bool) ValueReferenceManagerOption {
-	return func(vrm *ValueReferenceManager) {
-		vrm.opts.registerHooks = enable
-	}
-}
-
-func NewValueReferenceManager(source ValueReferenceSource, opts ...ValueReferenceManagerOption) (*ValueReferenceManager, error) {
+func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManager, error) {
 	if source == nil {
 		return nil, ErrValueReferenceSourceIsNil
 	}
@@ -55,12 +42,6 @@ func NewValueReferenceManager(source ValueReferenceSource, opts ...ValueReferenc
 	manager := &ValueReferenceManager{
 		source:     source,
 		references: make(map[string]reference.ValueReference),
-		opts: &ValueReferenceManagerOptions{
-			registerHooks: true,
-		},
-	}
-	for _, setOption := range opts {
-		setOption(manager)
 	}
 
 	// parse out all value references
@@ -75,9 +56,7 @@ func NewValueReferenceManager(source ValueReferenceSource, opts ...ValueReferenc
 		manager.references[ref.Hash()] = ref
 	}
 
-	if manager.opts.registerHooks {
-		manager.registerHooks()
-	}
+	manager.registerHooks()
 
 	// create dependency graph
 	manager.dependencyGraph, err = reference.ValueDependencyGraph(references)
