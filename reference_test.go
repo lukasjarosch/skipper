@@ -3,6 +3,7 @@ package skipper_test
 import (
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/lukasjarosch/skipper"
@@ -70,5 +71,36 @@ func TestValueManager_SetHooks(t *testing.T) {
 	t.Run("adding an invalid reference must fail", func(t *testing.T) {
 		err = class.Set("valid.new.test5", data.NewValue("${this:is:invalid}"))
 		assert.ErrorIs(t, err, ErrInvalidReferenceTargetPath)
+	})
+}
+
+func TestValueManager_ReplaceReferences(t *testing.T) {
+	filePath := "testdata/references/class/valid.yaml"
+	class, err := NewClass(filePath, codec.NewYamlCodec(), data.NewPath("valid"))
+	assert.NoError(t, err)
+	assert.NotNil(t, class)
+
+	manager, err := NewValueReferenceManager(class)
+	assert.NoError(t, err)
+	assert.NotNil(t, manager)
+
+	t.Run("valid class without modifications", func(t *testing.T) {
+		err := manager.ReplaceReferences()
+		assert.NoError(t, err)
+
+		expected := map[string]data.Value{
+			"valid.person.age":       data.NewValue(35),
+			"valid.greetings.casual": data.NewValue("Hey John"),
+			"valid.greetings.formal": data.NewValue("Welcome, John Doe"),
+			"valid.greetings.age":    data.NewValue("You are 35 years old"),
+		}
+
+		for path, expectedValue := range expected {
+			val, err := class.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue, val)
+		}
+
+		spew.Dump(class.GetAll())
 	})
 }

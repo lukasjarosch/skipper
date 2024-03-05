@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dominikbraun/graph"
 
@@ -66,6 +67,7 @@ func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManag
 			return nil, err
 		}
 	}
+
 	manager.allReferences = references
 
 	// deduplicate references in map
@@ -82,6 +84,68 @@ func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManag
 	}
 
 	return manager, nil
+}
+
+func (manager *ValueReferenceManager) getAllReferencesWithHash(hash string) []reference.ValueReference {
+	var result []reference.ValueReference
+	for _, ref := range manager.AllReferences() {
+		if ref.Hash() == hash {
+			result = append(result, ref)
+		}
+	}
+	return result
+}
+
+// ReplaceReferences will replace all - currently known - references
+// within the source of the manager.
+// If any references are added/removed after this call, this
+// method needs to be called again.
+func (manager *ValueReferenceManager) ReplaceReferences() error {
+	uniqueReplacementOrder, err := reference.ValueReplacementOrder(manager.dependencyGraph)
+	if err != nil {
+		return err
+	}
+
+	// The replacementOrder is derived from the hash-map, hence it does
+	// not know about duplicate references.
+	// Calculate the actual replacement order including the duplicates.
+	var replacementOrder []reference.ValueReference
+	for _, orderedRef := range uniqueReplacementOrder {
+		replacementOrder = append(replacementOrder, manager.getAllReferencesWithHash(orderedRef.Hash())...)
+	}
+
+	for _, ref := range replacementOrder {
+
+		targetValue, err := manager.source.GetPath(ref.AbsoluteTargetPath)
+		if err != nil {
+			return err
+		}
+
+		sourceValue, err := manager.source.GetPath(ref.Path)
+		if err != nil {
+			return err
+		}
+
+		// If the sourceValue is the full reference name,
+		// we can just replace the value with the targetValue completely.
+		if strings.EqualFold(sourceValue.String(), ref.Name()) {
+			err = manager.source.SetPath(ref.Path, targetValue.Raw)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Otherwise, we need to do a string substitution.
+		replacedValue := strings.Replace(sourceValue.String(), ref.Name(), targetValue.String(), 1)
+		err = manager.source.SetPath(ref.Path, replacedValue)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return nil
 }
 
 // registerHooks is responsible for registering all possible hooks which
