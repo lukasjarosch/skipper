@@ -66,4 +66,9 @@ func TestValueManager_SetHooks(t *testing.T) {
 		assert.Equal(t, preReferenceCount+1, len(manager.AllReferences()), "expected one more reference in all references")
 		assert.Equal(t, preUniqueReferenceCount+1, len(manager.ReferenceMap()), "expected one more additional unique reference")
 	})
+
+	t.Run("adding an invalid reference must fail", func(t *testing.T) {
+		err = class.Set("valid.new.test5", data.NewValue("${this:is:invalid}"))
+		assert.ErrorIs(t, err, ErrInvalidReferenceTargetPath)
+	})
 }
