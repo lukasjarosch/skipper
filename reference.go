@@ -15,7 +15,13 @@ type ValueReferenceSource interface {
 	reference.ValueTarget
 }
 
-var ErrValueReferenceSourceIsNil = fmt.Errorf("ValueReferenceSource cannot be nil")
+var (
+	ErrValueReferenceSourceIsNil  = fmt.Errorf("ValueReferenceSource cannot be nil")
+	ErrReferenceDoesNotExist      = fmt.Errorf("reference does not exist")
+	ErrInvalidReferencePath       = fmt.Errorf("invalid reference path")
+	ErrInvalidReferenceTargetPath = fmt.Errorf("invalid reference target path")
+	ErrInvalidReferenceNotInValue = fmt.Errorf("invalid reference, no reference in value")
+)
 
 type ValueReferenceManager struct {
 	source ValueReferenceSource
@@ -26,9 +32,22 @@ type ValueReferenceManager struct {
 	references map[string]reference.ValueReference
 	// stores all references and their dependencies
 	dependencyGraph graph.Graph[string, reference.ValueReference]
+	opts            *ValueReferenceManagerOptions
 }
 
-func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManager, error) {
+type ValueReferenceManagerOptions struct {
+	registerHooks bool
+}
+
+type ValueReferenceManagerOption func(*ValueReferenceManager)
+
+func RegisterHooks(enable bool) ValueReferenceManagerOption {
+	return func(vrm *ValueReferenceManager) {
+		vrm.opts.registerHooks = enable
+	}
+}
+
+func NewValueReferenceManager(source ValueReferenceSource, opts ...ValueReferenceManagerOption) (*ValueReferenceManager, error) {
 	if source == nil {
 		return nil, ErrValueReferenceSourceIsNil
 	}
@@ -36,6 +55,12 @@ func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManag
 	manager := &ValueReferenceManager{
 		source:     source,
 		references: make(map[string]reference.ValueReference),
+		opts: &ValueReferenceManagerOptions{
+			registerHooks: true,
+		},
+	}
+	for _, setOption := range opts {
+		setOption(manager)
 	}
 
 	// parse out all value references
@@ -50,8 +75,9 @@ func NewValueReferenceManager(source ValueReferenceSource) (*ValueReferenceManag
 		manager.references[ref.Hash()] = ref
 	}
 
-	// register hooks to monitor the source
-	manager.registerHooks()
+	if manager.opts.registerHooks {
+		manager.registerHooks()
+	}
 
 	// create dependency graph
 	manager.dependencyGraph, err = reference.ValueDependencyGraph(references)
@@ -91,6 +117,121 @@ func (manager *ValueReferenceManager) registerHooks() {
 	}
 }
 
+func (manager *ValueReferenceManager) ReferencesAtPath(path data.Path) []reference.ValueReference {
+	var refs []reference.ValueReference
+	for _, ref := range manager.allReferences {
+		if ref.Path.Equals(path) {
+			refs = append(refs, ref)
+		}
+	}
+	return refs
+}
+
+// ValidateReference checks whether the given reference is valid within the manager's source.
+// It will check that the 'Path' and 'AbsoluteTargetPath' exist.
+// It will also parse the value at 'Path' and ensure that the given reference exists within that value.
+// Note: Because of this, do not use this function before a value has been set (postSet)!
+func (manager *ValueReferenceManager) ValidateReference(ref reference.ValueReference) error {
+	if _, err := manager.source.GetPath(ref.Path); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidReferencePath, err)
+	}
+	if _, err := manager.source.GetPath(ref.AbsoluteTargetPath); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidReferenceTargetPath, err)
+	}
+
+	refPathValue, _ := manager.source.GetPath(ref.Path)
+	foundRefs, err := reference.FindValueReference(manager.source, reference.ValueReferenceRegex, ref.Path, refPathValue)
+	if err != nil {
+		return err
+	}
+
+	// at that path, there may exist multiple references, but at least the reference which is to be added must exist.
+	foundRef := false
+	for _, found := range foundRefs {
+		if found.Hash() == ref.Hash() {
+			foundRef = true
+			break
+		}
+	}
+	if !foundRef {
+		return fmt.Errorf("reference '%s' does not exist at path %s: %w", ref.Name(), ref.Path, ErrInvalidReferenceNotInValue)
+	}
+
+	return nil
+}
+
+// AddReference can be used to add a [reference.ValueReference] to the manager.
+// This method is meant to add references which have been properly parsed from the source.
+//
+// Note that the method will not check whether the reference really exists
+// within the value at the given source. It will only check that the paths itself exist.
+// This means that adding a 'virtual' reference where the [data.Value] doesn't really
+// contain a reference, will cause issues down the line!
+func (manager *ValueReferenceManager) addReference(ref reference.ValueReference) error {
+	manager.allReferences = append(manager.allReferences, ref)
+
+	// If the new reference does not introduce a new hash, nothing needs to be resolved.
+	// We can add the reference to the list of known references and be done.
+	if _, exists := manager.references[ref.Hash()]; exists {
+		return nil
+	}
+	manager.references[ref.Hash()] = ref
+
+	// Resolve dependencies and update the graph
+	dependencies := reference.ValueDependencies(ref, manager.allReferences)
+	err := reference.AddReferenceVertex(manager.dependencyGraph, ref, dependencies)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// removeReference removes one instance of the given reference.
+// If after the removal, no other instances of the same reference are known by the manager,
+// it is forgotten about completely.
+func (manager *ValueReferenceManager) removeReference(ref reference.ValueReference) error {
+	if _, exists := manager.references[ref.Hash()]; !exists {
+		return ErrReferenceDoesNotExist
+	}
+
+	// find any instance of the reference and safe its index
+	var removeIndex int
+	for i, existingRef := range manager.AllReferences() {
+		if existingRef.Hash() == ref.Hash() {
+			removeIndex = i
+			break
+		}
+	}
+
+	// forget about the reference at 'removeIndex' by overwriting it with the last reference in the slice
+	manager.allReferences[removeIndex] = manager.allReferences[len(manager.allReferences)-1]
+	manager.allReferences = manager.allReferences[:len(manager.allReferences)-2]
+
+	// determine if there are any instances of the reference left
+	var forgetReference bool
+	for _, existingRef := range manager.AllReferences() {
+		if existingRef.Hash() == ref.Hash() {
+			forgetReference = false
+		}
+	}
+
+	if !forgetReference {
+		return nil
+	}
+
+	// remove reference from graph
+	err := reference.RemoveReferenceVertex(manager.dependencyGraph, ref)
+	if err != nil {
+		return fmt.Errorf("failed to remove reference from graph: %w", err)
+	}
+
+	// forget about the reference
+	delete(manager.references, ref.Hash())
+
+	return nil
+}
+
 func (manager *ValueReferenceManager) preSetHook() SetHookFunc {
 	return func(path data.Path, value data.Value) error {
 		references, err := reference.FindValueReference(manager.source, reference.ValueReferenceRegex, path, value)
@@ -106,22 +247,14 @@ func (manager *ValueReferenceManager) preSetHook() SetHookFunc {
 		}
 
 		for _, newReference := range references {
-
-			// check if the reference is valid within the source,
-			// otherwise there is no point in setting the value at all.
-			_, err := manager.source.GetPath(newReference.AbsoluteTargetPath)
-			if err != nil {
-				return fmt.Errorf("invalid reference: %w", err)
+			if _, err := manager.source.GetPath(newReference.AbsoluteTargetPath); err != nil {
+				return fmt.Errorf("%w: %w", ErrInvalidReferenceTargetPath, err)
 			}
 
-			// if the reference is already known and thus does not needed to be
-			// added to the graph, continue
+			// continue, if the reference is already known and hence does not needed to be added to the graph
 			if _, exists := manager.references[newReference.Hash()]; exists {
 				continue
 			}
-
-			// TODO: remove
-			reference.VisualizeDependencyGraph(manager.dependencyGraph, "/tmp/graph-pre.dot", "pre")
 
 			// temporarily add the reference to the dependencyGraph to see whether
 			// it will still be valid after the reference and it's dependencies are added.
@@ -131,31 +264,15 @@ func (manager *ValueReferenceManager) preSetHook() SetHookFunc {
 				return err
 			}
 
-			// TODO: remove
-			reference.VisualizeDependencyGraph(manager.dependencyGraph, "/tmp/graph-post.dot", "post")
-
-			err = reference.RemoveReferenceVertex(manager.dependencyGraph, newReference, newReferenceDependencies)
+			// nice, now remove it from the graph again
+			err = reference.RemoveReferenceVertex(manager.dependencyGraph, newReference)
 			if err != nil {
 				return err
 			}
-
-			// TODO: remove
-			reference.VisualizeDependencyGraph(manager.dependencyGraph, "/tmp/graph-post-delete.dot", "post-delete")
-
 		}
 
 		return nil
 	}
-}
-
-func (manager *ValueReferenceManager) ReferencesAtPath(path data.Path) []reference.ValueReference {
-	var refs []reference.ValueReference
-	for _, ref := range manager.allReferences {
-		if ref.Path.Equals(path) {
-			refs = append(refs, ref)
-		}
-	}
-	return refs
 }
 
 func (manager *ValueReferenceManager) postSetHook() SetHookFunc {
@@ -165,73 +282,27 @@ func (manager *ValueReferenceManager) postSetHook() SetHookFunc {
 			return err
 		}
 
-		existingReferences := manager.ReferencesAtPath(path)
-
-		// Case 1: newReferences === existingReferences
-		//
-		// Case 2.1: newReferences !== existingReferences && len(newReferences) > len(existingReferences)
-		// Case 2.2: newReferences !== existingReferences && len(newReferences) == len(existingReferences)
-		// Case 2.3: newReferences !== existingReferences && len(newReferences) < len(existingReferences)
-		//
-		// For every case 2.x it might be easiest to just remove all existing references and add the newReferences
-
-		_ = existingReferences
-
-		// // No reference in value.
-		// // This could still mean that there was a reference at the given path which is now being overwritten.
-		// if len(references) == 0 {
-		// 	var deleteIndices []int
-		// 	for _, newReference := range references {
-		// 		for i, reference := range manager.allReferences {
-		// 			if reference.Path.Equals(newReference.Path) {
-		// 				deleteIndices = append(deleteIndices, i)
-		// 				break
-		// 			}
-		// 		}
-		// 	}
-		// }
-
-		// TODO: what if the same reference was at that path multiple times and now is more/less times?
-		// TODO: what if there were 3 references, but now are 2, or 4?
-
 		for _, newReference := range newReferences {
-
-			// check if the reference is still valid within the source,
-			// otherwise there is no point in setting the value at all.
-			_, err := manager.source.GetPath(newReference.AbsoluteTargetPath)
+			err = manager.ValidateReference(newReference)
 			if err != nil {
 				return fmt.Errorf("invalid reference: %w", err)
 			}
+		}
 
-			// if the reference is already known it does not needed
-			// to be resolved via the graph, but added to the list of all references.
-			if _, exists := manager.references[newReference.Hash()]; exists {
-				manager.allReferences = append(manager.allReferences, newReference)
-				continue
-			}
-
-			// TODO: remove
-			reference.VisualizeDependencyGraph(manager.dependencyGraph, "/tmp/graph-pre.dot", "pre")
-
-			// temporarily add the reference to the dependencyGraph to see whether
-			// it will still be valid after the reference and it's dependencies are added.
-			newReferenceDependencies := reference.ValueDependencies(newReference, manager.allReferences)
-			err = reference.AddReferenceVertex(manager.dependencyGraph, newReference, newReferenceDependencies)
+		// At this point we know that all new references are valid.
+		// Instead of figuring out which reference was added or removed,
+		// we simply remove all existing references and add the new ones.
+		for _, existingRef := range manager.ReferencesAtPath(path) {
+			err = manager.removeReference(existingRef)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to remove existing reference: %w", err)
 			}
-
-			// TODO: remove
-			reference.VisualizeDependencyGraph(manager.dependencyGraph, "/tmp/graph-post.dot", "post")
-
-			err = reference.RemoveReferenceVertex(manager.dependencyGraph, newReference, newReferenceDependencies)
+		}
+		for _, newRef := range newReferences {
+			err = manager.addReference(newRef)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to add new reference: %w", err)
 			}
-
-			// TODO: remove
-			reference.VisualizeDependencyGraph(manager.dependencyGraph, "/tmp/graph-post-delete.dot", "post-delete")
-
 		}
 
 		return nil

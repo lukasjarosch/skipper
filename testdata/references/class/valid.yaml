@@ -1,10 +1,12 @@
 valid:
   common:
     default_age: 35
+    occupation: DEFAULT_JOB_LOL
   person:
     first_name: John
     last_name: Doe
     age: ${common:default_age}
+    occupation: Mechanic
   greetings:
     casual: "Hey ${valid:person:first_name}"
     formal: "${prefixes:formal} ${person:first_name} ${person:last_name}"
