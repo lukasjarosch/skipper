@@ -101,7 +101,7 @@ func FindValueReference(source ValueSource, regex *regexp.Regexp, path data.Path
 	for _, refTargetPath := range referenceTargetPaths {
 		absTargetPath, err := source.AbsolutePath(refTargetPath, path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to resolve absolute path: %w", err)
 		}
 
 		ref := ValueReference{
