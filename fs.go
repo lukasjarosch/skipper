@@ -36,7 +36,7 @@ func DiscoverFiles(rootPath string, pathSelector *regexp.Regexp) ([]string, erro
 	}
 
 	var files []string
-	filepath.Walk(rootPath, func(path string, info fs.FileInfo, err error) error {
+	err = filepath.Walk(rootPath, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
@@ -47,6 +47,9 @@ func DiscoverFiles(rootPath string, pathSelector *regexp.Regexp) ([]string, erro
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return files, nil
 }

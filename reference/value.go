@@ -153,7 +153,7 @@ type ValueTarget interface {
 
 // ReplaceValues will replace all given references within the given ValueReferenceTarget.
 func ReplaceValues(target ValueTarget, references []ValueReference) error {
-	if references == nil || len(references) == 0 {
+	if len(references) == 0 {
 		return nil
 	}
 	if target == nil {
@@ -366,10 +366,10 @@ func ValueReplacementOrder(dependencyGraph graph.Graph[string, ValueReference]) 
 // If the order is empty/nil, then allReferences is just re-emitted.
 // If allReferences is empty/nil, then nil is returned.
 func ReorderValueReferences(order []ValueReference, allReferences []ValueReference) []ValueReference {
-	if order == nil || len(order) == 0 {
+	if len(order) == 0 {
 		return allReferences
 	}
-	if allReferences == nil || len(allReferences) == 0 {
+	if len(allReferences) == 0 {
 		return nil
 	}
 

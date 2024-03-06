@@ -1,39 +1,47 @@
 on: [push, pull_request]
-name: Test
-jobs:
-  test:
-    strategy:
-      matrix:
-        go-version: [1.20.x, 1.21.x]
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/setup-go@v3
-      with:
-        go-version: ${{ matrix.go-version }}
-    - uses: actions/checkout@v3
-    - run: go test ./...
+name: skipper-test
 
-  test-cache:
+env:
+  GO_VERSION: "1.21.0"
+  GO_VERSION_SHORT: "1.21"
+  GOLANGCI_VERSION: "v1.54.0"
+
+permissions:
+  contents: read
+
+jobs:
+  vet:
+    name: "go vet"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/setup-go@v3
-      with:
-        go-version: 1.19.x
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
-      with:
-        # In order:
-        # * Module download cache
-        # * Build cache (Linux)
-        # * Build cache (Mac)
-        # * Build cache (Windows)
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-          ~/Library/Caches/go-build
-          ~\AppData\Local\go-build
-        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-${{ matrix.go-version }}-
-    - run: go test ./...
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go vet $(go list ./... | grep -v /vendor/)
+
+  golangci-lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-go@v5
+        with:
+          cache: false
+          go-version: ${{ env.GO_VERSION }}
+      - uses: golangci/golangci-lint-action@v4
+        with:
+          version: ${{ env.GOLANGCI_VERSION }}
+
+  test:
+    name: "go test"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/checkout@v4
+      - run: go test $(go list ./... | grep -v /vendor/)

@@ -20,8 +20,6 @@ var (
 	janeClassPath       = "testdata/classes/people/jane.yaml"
 	peopleClassPath     = "testdata/classes/people.yaml"
 
-	stripPrefix = data.NewPathFromOsPath("testdata/classes")
-
 	personClass,
 	pizzaClass,
 	foodCommonClass,

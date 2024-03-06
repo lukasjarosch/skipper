@@ -80,7 +80,7 @@ func (reg *Registry) RegisterClass(class *Class) error {
 
 	// Create a slice of all absolute paths defined by the class
 	var classPaths []string
-	class.Walk(func(path data.Path, _ data.Value, _ bool) error {
+	_ = class.Walk(func(path data.Path, _ data.Value, _ bool) error {
 		classPaths = append(classPaths, pathPrefix.AppendPath(path).String())
 		return nil
 	})
@@ -137,7 +137,7 @@ func (reg *Registry) classPreSetHook(class *Class) SetHookFunc {
 		// if the path does already exist and is owned by a *different* class, then
 		// we need to prevent the Set call as it would introduce a duplicate path.
 		if classIdentifier, exists := reg.paths[registryPath.String()]; exists {
-			existingPathClass, _ := reg.classes[classIdentifier]
+			existingPathClass := reg.classes[classIdentifier]
 			if !existingPathClass.Identifier.Equals(class.Identifier) {
 				return fmt.Errorf("path already owned by '%s': %w: %s", classIdentifier, ErrDuplicatePath, registryPath)
 			}
@@ -206,10 +206,7 @@ func (reg *Registry) GetPath(path data.Path) (data.Value, error) {
 // HasPath returns true if the path exists within the registry.
 func (reg *Registry) HasPath(path data.Path) bool {
 	_, err := reg.GetPath(path)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // GetClassRelativePath attempts to resolve the target-class using the given classPath. Then it attempts to resolve the path (which might be class-local only).
@@ -265,7 +262,7 @@ func (reg *Registry) WalkValues(walkFunc func(data.Path, data.Value) error) erro
 func (reg *Registry) Values() map[string]data.Value {
 	valueMap := make(map[string]data.Value)
 
-	reg.WalkValues(func(p data.Path, v data.Value) error {
+	_ = reg.WalkValues(func(p data.Path, v data.Value) error {
 		valueMap[p.String()] = v
 		return nil
 	})
@@ -304,10 +301,10 @@ func (reg *Registry) ClassIdentifiers() []data.Path {
 // The context can be any path within the class to which the path is relative to, even just the classIdentifier.
 // In case the paths are empty or are not valid within the given context, an error is returned.
 func (reg *Registry) AbsolutePath(path data.Path, context data.Path) (data.Path, error) {
-	if path == nil || len(path) == 0 {
+	if len(path) == 0 {
 		return nil, data.ErrEmptyPath
 	}
-	if context == nil || len(context) == 0 {
+	if len(context) == 0 {
 		return nil, fmt.Errorf("context path cannot be empty: %w", data.ErrEmptyPath)
 	}
 

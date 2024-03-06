@@ -382,10 +382,7 @@ var SelectAllPaths PathSelectorFunc = func(_ interface{}, path Path, isLeaf bool
 }
 
 var SelectLeafPaths PathSelectorFunc = func(_ interface{}, path Path, isLeaf bool) bool {
-	if isLeaf {
-		return true
-	}
-	return false
+	return isLeaf
 }
 
 func Paths(data map[string]interface{}, selectorFn PathSelectorFunc) []Path {

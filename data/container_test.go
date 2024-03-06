@@ -170,6 +170,7 @@ func TestContainer_Set(t *testing.T) {
 	assert.NotNil(t, container)
 
 	err = container.SetPath(NewPath("test.array.1.0"), []interface{}{1, 2, 3})
+	assert.NoError(t, err)
 }
 
 func TestContainer_Merge(t *testing.T) {

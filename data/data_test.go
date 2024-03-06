@@ -4,8 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/lukasjarosch/skipper/data"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/lukasjarosch/skipper/data"
 )
 
 func TestWalk(t *testing.T) {
@@ -186,7 +187,6 @@ func TestWalk(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			// we need to store the paths in a map to prevent the 'append' behavior
 			// where the last element is overwritten by the next
 			pathMap := make(map[string]bool)
@@ -211,8 +211,6 @@ func TestWalk(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
-
-	return
 }
 
 func TestGet(t *testing.T) {
@@ -224,7 +222,6 @@ func TestGet(t *testing.T) {
 		errExpected bool
 		err         error
 	}{
-
 		{
 			name:        "nil data",
 			data:        nil,
@@ -503,7 +500,6 @@ func TestSet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			returned, err := data.Set(tt.input, tt.key, tt.value)
 
 			if tt.errExpected {
@@ -824,7 +820,6 @@ func TestDeepSet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			returned, err := data.DeepSet(tt.input, tt.path, tt.value)
 
 			if tt.errExpected {
@@ -853,7 +848,8 @@ func TestPaths_SelectAll(t *testing.T) {
 			},
 			expected: []data.Path{
 				data.NewPath("foo"),
-				data.NewPath("baz")},
+				data.NewPath("baz"),
+			},
 		},
 		{
 			name: "NestedMap",
@@ -866,21 +862,24 @@ func TestPaths_SelectAll(t *testing.T) {
 			expected: []data.Path{
 				data.NewPath("parent"),
 				data.NewPath("parent.foo"),
-				data.NewPath("parent.baz")},
+				data.NewPath("parent.baz"),
+			},
 		},
 		{
 			name: "ArrayWithNestedMap",
 			input: map[string]interface{}{
 				"items": []interface{}{
 					map[string]interface{}{"name": "item1"},
-					map[string]interface{}{"name": "item2"}},
+					map[string]interface{}{"name": "item2"},
+				},
 			},
 			expected: []data.Path{
 				data.NewPath("items"),
 				data.NewPath("items.0"),
 				data.NewPath("items.0.name"),
 				data.NewPath("items.1"),
-				data.NewPath("items.1.name")},
+				data.NewPath("items.1.name"),
+			},
 		},
 		{
 			name: "SliceOfSlices",
@@ -945,7 +944,6 @@ func TestPaths_SelectAll(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-
 			result := data.Paths(tt.input, data.SelectAllPaths)
 
 			data.SortPaths(result)
@@ -970,7 +968,8 @@ func TestPaths_SelectLeaves(t *testing.T) {
 			},
 			expected: []data.Path{
 				data.NewPath("foo"),
-				data.NewPath("baz")},
+				data.NewPath("baz"),
+			},
 		},
 		{
 			name: "NestedMap",
@@ -982,18 +981,21 @@ func TestPaths_SelectLeaves(t *testing.T) {
 			},
 			expected: []data.Path{
 				data.NewPath("parent.foo"),
-				data.NewPath("parent.baz")},
+				data.NewPath("parent.baz"),
+			},
 		},
 		{
 			name: "ArrayWithNestedMap",
 			input: map[string]interface{}{
 				"items": []interface{}{
 					map[string]interface{}{"name": "item1"},
-					map[string]interface{}{"name": "item2"}},
+					map[string]interface{}{"name": "item2"},
+				},
 			},
 			expected: []data.Path{
 				data.NewPath("items.0.name"),
-				data.NewPath("items.1.name")},
+				data.NewPath("items.1.name"),
+			},
 		},
 		{
 			name: "SliceOfSlices",
@@ -1051,7 +1053,6 @@ func TestPaths_SelectLeaves(t *testing.T) {
 	// Run test cases
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-
 			result := data.Paths(tt.input, data.SelectLeafPaths)
 
 			data.SortPaths(result)
