@@ -24,14 +24,15 @@ jobs:
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v4
+      - uses: actions/checkout@v4
         with:
-          version: v1.54
+          fetch-depth: 1
+      - uses: golangci/golangci-lint-action@v4
+        with:
+          version: ${{ env.GOLANGCI_VERSION }}
 
   test:
     name: "go test"
