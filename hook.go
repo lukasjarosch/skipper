@@ -6,21 +6,18 @@ import "github.com/lukasjarosch/skipper/data"
 // and will then be called respectively.
 type SetHookFunc func(path data.Path, value data.Value) error
 
-type HookableSet interface {
-	RegisterPreSetHook(SetHookFunc)
+type HookablePostSet interface {
 	RegisterPostSetHook(SetHookFunc)
 }
 
 type RegisterClassHookFunc func(class *Class) error
 
-type HookableRegisterClass interface {
-	RegisterPreRegisterClassHook(RegisterClassHookFunc)
+type HookablePostRegisterClass interface {
 	RegisterPostRegisterClassHook(RegisterClassHookFunc)
 }
 
 type RegisterScopeHookFunc func(scope Scope, registry *Registry) error
 
-type HookableRegisterScope interface {
-	RegisterPreRegisterScopeHook(RegisterScopeHookFunc)
+type HookablePostRegisterScope interface {
 	RegisterPostRegisterScopeHook(RegisterScopeHookFunc)
 }

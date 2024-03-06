@@ -147,6 +147,24 @@ func (reg *Registry) classPostSetHook(class *Class) SetHookFunc {
 	}
 }
 
+// RegisterPreSetHook implements the [HookableSet] interface.
+// Because each [Class] also implements that interface, this
+// func is just going to redirect the call to every class within the registry.
+func (reg *Registry) RegisterPreSetHook(hook SetHookFunc) {
+	for _, class := range reg.classes {
+		class.RegisterPreSetHook(hook)
+	}
+}
+
+// RegisterPostSetHook implements the [HookableSet] interface.
+// Because each [Class] also implements that interface, this
+// func is just going to redirect the call to every class within the registry.
+func (reg *Registry) RegisterPostSetHook(hook SetHookFunc) {
+	for _, class := range reg.classes {
+		class.RegisterPostSetHook(hook)
+	}
+}
+
 // Get retrieves the value of a given Path if it exists.
 func (reg *Registry) Get(path string) (data.Value, error) {
 	if path == "" {
