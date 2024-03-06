@@ -95,6 +95,7 @@ func TestValueManager_SetHooks_Registry(t *testing.T) {
 	manager, err := NewValueReferenceManager(registry)
 	assert.NoError(t, err)
 
+	// These are the same tests as above, just to be sure that also works.
 	t.Run("expect no change if no reference is added/removed", func(t *testing.T) {
 		preReferenceCount := len(manager.AllReferences())
 		err = person.Set("test1", data.NewValue("hello there"))
@@ -113,6 +114,26 @@ func TestValueManager_SetHooks_Registry(t *testing.T) {
 		assert.NoError(t, err)
 		err = person.Set("valid.new.test5", data.NewValue("${valid:this:is:invalid}"))
 		assert.NoError(t, err)
+	})
+
+	// These tests are registry-specific as they use the postRegisterClass hook
+	t.Run("register a new class with only valid references", func(t *testing.T) {
+		common, err := NewClass("testdata/references/registry/common.yaml", codec.NewYamlCodec(), data.NewPath("common"))
+		assert.NoError(t, err)
+
+		err = registry.RegisterClass(common)
+		assert.NoError(t, err)
+	})
+	t.Run("registering a new class with invalid references must fail", func(t *testing.T) {
+		registry := NewRegistry()
+		NewValueReferenceManager(registry)
+
+		// the common class is the only class, hence some references are invalid
+		common, err := NewClass("testdata/references/registry/common.yaml", codec.NewYamlCodec(), data.NewPath("common"))
+		assert.NoError(t, err)
+
+		err = registry.RegisterClass(common)
+		assert.ErrorIs(t, err, ErrInvalidReferenceTargetPath)
 	})
 }
 
@@ -187,6 +208,74 @@ func TestValueManager_ReplaceReferences(t *testing.T) {
 
 		for path, expectedValue := range expected {
 			val, err := class.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+	})
+}
+
+func TestValueManager_ReplaceReferences_Registry(t *testing.T) {
+	person, err := NewClass("testdata/references/registry/person.yaml", codec.NewYamlCodec(), data.NewPath("person"))
+	assert.NoError(t, err)
+	greeting, err := NewClass("testdata/references/registry/greeting.yaml", codec.NewYamlCodec(), data.NewPath("greeting"))
+	assert.NoError(t, err)
+
+	registry := NewRegistry()
+	err = registry.RegisterClass(person)
+	assert.NoError(t, err)
+	err = registry.RegisterClass(greeting)
+	assert.NoError(t, err)
+
+	manager, err := NewValueReferenceManager(registry)
+	assert.NoError(t, err)
+
+	expected := map[string]data.Value{
+		"person.n":        data.NewValue(35),
+		"greeting.casual": data.NewValue("Hey, John"),
+	}
+
+	t.Run("replace valid registry", func(t *testing.T) {
+		err = manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := registry.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+	})
+
+	t.Run("replacing should be idempotent", func(t *testing.T) {
+		err := manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := registry.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+
+		err = manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := registry.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+	})
+
+	t.Run("replace again after adding a new class", func(t *testing.T) {
+		common, err := NewClass("testdata/references/registry/common.yaml", codec.NewYamlCodec(), data.NewPath("common"))
+		assert.NoError(t, err)
+		err = registry.RegisterClass(common)
+		assert.NoError(t, err)
+
+		// extend expected map
+		expected["common.bar"] = data.NewValue("bar")
+		expected["common.greeting"] = data.NewValue("Hey,")
+
+		err = manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := registry.Get(path)
 			assert.NoError(t, err)
 			assert.Equal(t, expectedValue.Raw, val.Raw)
 		}

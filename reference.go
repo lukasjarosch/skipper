@@ -177,19 +177,12 @@ func (manager *ValueReferenceManager) ReplaceReferences() error {
 // If the source implements the [HookableRegisterScope] interface,
 // the 'postRegisterScopeHook' is registered
 func (manager *ValueReferenceManager) registerHooks() {
-	// We need to be aware of every 'write' (Set) operation
-	// within the source.
 	manager.source.RegisterPostSetHook(manager.postSetHook())
 
-	// In case we're dealing with a Registry, we also need to
-	// track any new classes being added to it.
-	if regSource, ok := manager.source.(HookableRegisterClass); ok {
+	if regSource, ok := manager.source.(HookablePostRegisterClass); ok {
 		regSource.RegisterPostRegisterClassHook(manager.postRegisterClassHook())
 	}
-
-	// In case we're dealing with an Inventory, we also need to
-	// track any new scopes being added.
-	if invSource, ok := manager.source.(HookableRegisterScope); ok {
+	if invSource, ok := manager.source.(HookablePostRegisterScope); ok {
 		invSource.RegisterPostRegisterScopeHook(manager.postRegisterScopeHook())
 	}
 }
@@ -331,14 +324,33 @@ func (manager *ValueReferenceManager) postSetHook() SetHookFunc {
 
 // TODO: dont forget to register the class hooks on the new class(es)!
 
-func (manager *ValueReferenceManager) postRegisterScopeHook() RegisterScopeHookFunc {
-	return func(scope Scope, registry *Registry) error {
+func (manager *ValueReferenceManager) postRegisterClassHook() RegisterClassHookFunc {
+	return func(class *Class) error {
+		// We cannot just use the class as source for the 'FindAllValueReferences' call.
+		// This is because it will then make all reference target paths absolute to the class.
+		// That's not what we want, the paths need to be relative to the managers source.
+		// Hence we need to re-discover all references within the managers source.
+		references, err := reference.FindAllValueReferences(manager.source)
+		if err != nil {
+			return err
+		}
+
+		// Add all references which originate from the newly added class.
+		for _, ref := range references {
+			if ref.Path.HasPrefix(class.Identifier) {
+				err = manager.addReference(ref)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		return nil
 	}
 }
 
-func (manager *ValueReferenceManager) postRegisterClassHook() RegisterClassHookFunc {
-	return func(class *Class) error {
+func (manager *ValueReferenceManager) postRegisterScopeHook() RegisterScopeHookFunc {
+	return func(scope Scope, registry *Registry) error {
 		return nil
 	}
 }

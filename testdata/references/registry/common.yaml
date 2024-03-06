@@ -1,0 +1,4 @@
+common:
+  foo: bar
+  bar: ${foo}
+  greeting: ${greeting:prefix}

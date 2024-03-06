@@ -26,7 +26,9 @@ type Registry struct {
 	// classes map a classIdentifier string to the actual classes
 	classes map[string]*Class
 	// paths map absolute data paths to a classIdentifier string (key of the classes map)
-	paths map[string]string
+	paths                  map[string]string
+	preRegisterClassHooks  []RegisterClassHookFunc
+	postRegisterClassHooks []RegisterClassHookFunc
 }
 
 // NewRegistry returns a new, empty, registry.
@@ -105,11 +107,21 @@ func (reg *Registry) RegisterClass(class *Class) error {
 	class.RegisterPreSetHook(reg.classPreSetHook(class))
 	class.RegisterPostSetHook(reg.classPostSetHook(class))
 
-	// register class and all its paths
+	// register class and all its paths and call the hooks
+	err := reg.callPreRegisterClassHooks(class)
+	if err != nil {
+		return err
+	}
+
 	for _, classPath := range classPaths {
 		reg.paths[classPath] = class.Identifier.String()
 	}
 	reg.classes[class.Identifier.String()] = class
+
+	err = reg.callPostRegisterClassHooks(class)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -319,4 +331,32 @@ func (reg *Registry) AllPaths() map[string]data.Path {
 		paths[id] = data.NewPath(path)
 	}
 	return paths
+}
+
+func (reg *Registry) RegisterPreRegisterClassHook(hook RegisterClassHookFunc) {
+	reg.preRegisterClassHooks = append(reg.preRegisterClassHooks, hook)
+}
+
+func (reg *Registry) RegisterPostRegisterClassHook(hook RegisterClassHookFunc) {
+	reg.postRegisterClassHooks = append(reg.postRegisterClassHooks, hook)
+}
+
+func (reg *Registry) callPreRegisterClassHooks(class *Class) error {
+	for _, hook := range reg.preRegisterClassHooks {
+		err := hook(class)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (reg *Registry) callPostRegisterClassHooks(class *Class) error {
+	for _, hook := range reg.postRegisterClassHooks {
+		err := hook(class)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
