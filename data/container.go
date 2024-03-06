@@ -8,7 +8,7 @@ import (
 var (
 	ErrEmptyRootKeyName          = fmt.Errorf("empty root key name")
 	ErrNilData                   = fmt.Errorf("data is nil")
-	ErrNoRootKey                 = fmt.Errorf("data has no root key (empty)")
+	ErrNoRootKey                 = fmt.Errorf("data has no root key")
 	ErrMultipleRootKeys          = fmt.Errorf("multiple root keys")
 	ErrInvalidRootKey            = fmt.Errorf("invalid root key")
 	ErrNestedArrayPath           = fmt.Errorf("nested array paths are currently not supported")
