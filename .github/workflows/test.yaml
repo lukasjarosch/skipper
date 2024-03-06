@@ -21,7 +21,7 @@ jobs:
       - run: go vet $(go list ./... | grep -v /vendor/)
 
   golangci-lint:
-    name: lint
+    name: golangci-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
           version: v1.54
 
   test:
-    name: "test"
+    name: "go test"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v5
