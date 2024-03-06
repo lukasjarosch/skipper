@@ -126,7 +126,7 @@ func TestValueManager_SetHooks_Registry(t *testing.T) {
 	})
 	t.Run("registering a new class with invalid references must fail", func(t *testing.T) {
 		registry := NewRegistry()
-		NewValueReferenceManager(registry)
+		_, _ = NewValueReferenceManager(registry)
 
 		// the common class is the only class, hence some references are invalid
 		common, err := NewClass("testdata/references/registry/common.yaml", codec.NewYamlCodec(), data.NewPath("common"))

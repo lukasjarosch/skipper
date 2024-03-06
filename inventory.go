@@ -165,10 +165,10 @@ func (inv *Inventory) WalkValues(walkFunc func(data.Path, data.Value) error) err
 // The context can be any path within the class to which the path is relative to.
 // In case the paths are empty or are not valid within the given context, an error is returned.
 func (inv *Inventory) AbsolutePath(path data.Path, context data.Path) (data.Path, error) {
-	if path == nil || len(path) == 0 {
+	if len(path) == 0 {
 		return nil, data.ErrEmptyPath
 	}
-	if context == nil || len(context) == 0 {
+	if len(context) == 0 {
 		return nil, fmt.Errorf("context path cannot be empty: %w", data.ErrEmptyPath)
 	}
 

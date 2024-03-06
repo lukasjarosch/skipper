@@ -126,10 +126,7 @@ func (c Class) GetPath(path data.Path) (data.Value, error) {
 // HasPath returns true if the given path exists within the Class.
 func (c Class) HasPath(path data.Path) bool {
 	_, err := c.container.GetPath(path)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // GetAll returns the whole data represented by this class.
@@ -227,7 +224,7 @@ func (c *Class) WalkValues(walkFunc func(data.Path, data.Value) error) error {
 func (c *Class) Values() map[string]data.Value {
 	valueMap := make(map[string]data.Value)
 
-	c.WalkValues(func(p data.Path, v data.Value) error {
+	_ = c.WalkValues(func(p data.Path, v data.Value) error {
 		valueMap[p.String()] = v
 		return nil
 	})

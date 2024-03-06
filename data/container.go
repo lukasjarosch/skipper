@@ -214,7 +214,7 @@ func (container *Container) HasPath(path Path) bool {
 // The function does not check whether the path is valid within the container.
 // This is to allow setting new paths, which do not yet exist.
 func (container *Container) AbsolutePath(path Path) (Path, error) {
-	if path == nil || len(path) == 0 {
+	if len(path) == 0 {
 		return nil, ErrEmptyPath
 	}
 
