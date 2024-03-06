@@ -83,6 +83,10 @@ func NewClass(filePath string, codec Codec, identifier data.Path) (*Class, error
 		return nil, fmt.Errorf("unable to read file: %w", err)
 	}
 
+	if len(fileBytes) == 0 {
+		return nil, fmt.Errorf("file is empty: %s", filePath)
+	}
+
 	fileData, err := codec.Unmarshal(fileBytes)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode class data: %w", err)
