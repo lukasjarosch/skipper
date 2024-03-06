@@ -1,0 +1,2 @@
+greeting:
+  casual: "Hey, ${person:first_name}"

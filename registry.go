@@ -249,6 +249,18 @@ func (reg *Registry) WalkValues(walkFunc func(data.Path, data.Value) error) erro
 	return nil
 }
 
+// Values returns a map of path -> data.Value where each value is a leaf value.
+func (reg *Registry) Values() map[string]data.Value {
+	valueMap := make(map[string]data.Value)
+
+	reg.WalkValues(func(p data.Path, v data.Value) error {
+		valueMap[p.String()] = v
+		return nil
+	})
+
+	return valueMap
+}
+
 // GetClassByIdentifier attempts to return a class which is associated with the
 // given classIdentifier.
 // The classIdentifier cannot be empty.
@@ -287,10 +299,24 @@ func (reg *Registry) AbsolutePath(path data.Path, context data.Path) (data.Path,
 		return nil, fmt.Errorf("context path cannot be empty: %w", data.ErrEmptyPath)
 	}
 
+	// If the path is already registry-absolute, just return it again.
+	if _, exists := reg.paths[path.String()]; exists {
+		return path, nil
+	}
+
+	// Otherwise attempt to resolve it using the context
 	classIdentifier, exists := reg.paths[context.String()]
 	if !exists {
 		return nil, fmt.Errorf("unknown context path '%s': %w", context, ErrPathNotFound)
 	}
 
 	return reg.classes[classIdentifier].AbsolutePath(path, nil)
+}
+
+func (reg *Registry) AllPaths() map[string]data.Path {
+	paths := make(map[string]data.Path)
+	for id, path := range reg.paths {
+		paths[id] = data.NewPath(path)
+	}
+	return paths
 }

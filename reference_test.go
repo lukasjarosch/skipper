@@ -80,6 +80,42 @@ func TestValueManager_SetHooks(t *testing.T) {
 	})
 }
 
+func TestValueManager_SetHooks_Registry(t *testing.T) {
+	person, err := NewClass("testdata/references/registry/person.yaml", codec.NewYamlCodec(), data.NewPath("person"))
+	assert.NoError(t, err)
+	greeting, err := NewClass("testdata/references/registry/greeting.yaml", codec.NewYamlCodec(), data.NewPath("greeting"))
+	assert.NoError(t, err)
+
+	registry := NewRegistry()
+	err = registry.RegisterClass(person)
+	assert.NoError(t, err)
+	err = registry.RegisterClass(greeting)
+	assert.NoError(t, err)
+
+	manager, err := NewValueReferenceManager(registry)
+	assert.NoError(t, err)
+
+	t.Run("expect no change if no reference is added/removed", func(t *testing.T) {
+		preReferenceCount := len(manager.AllReferences())
+		err = person.Set("test1", data.NewValue("hello there"))
+		assert.NoError(t, err)
+		posReferenceCount := len(manager.AllReferences())
+		assert.Equal(t, preReferenceCount, posReferenceCount)
+	})
+
+	t.Run("adding an invalid reference must fail", func(t *testing.T) {
+		err = person.Set("valid.new.test5", data.NewValue("${valid:this:is:invalid}"))
+		assert.ErrorIs(t, err, ErrInvalidReferenceTargetPath)
+	})
+
+	t.Run("adding a reference to a new path must only work if the target path is added first", func(t *testing.T) {
+		err = person.Set("valid.this.is.invalid", data.NewValue("yeah, no this works :)"))
+		assert.NoError(t, err)
+		err = person.Set("valid.new.test5", data.NewValue("${valid:this:is:invalid}"))
+		assert.NoError(t, err)
+	})
+}
+
 func TestValueManager_ReplaceReferences(t *testing.T) {
 	filePath := "testdata/references/class/valid.yaml"
 	class, err := NewClass(filePath, codec.NewYamlCodec(), data.NewPath("valid"))
@@ -127,7 +163,16 @@ func TestValueManager_ReplaceReferences(t *testing.T) {
 	})
 
 	t.Run("valid class but one reference is overwritten with a literal before replacement", func(t *testing.T) {
-		// NOTE: at this point in the test, all age references have been replaced with '35'
+		// we need a clean class and manager in this case, otherwise the references have already been replaced
+		filePath := "testdata/references/class/valid.yaml"
+		class, err := NewClass(filePath, codec.NewYamlCodec(), data.NewPath("valid"))
+		assert.NoError(t, err)
+		assert.NotNil(t, class)
+
+		manager, err := NewValueReferenceManager(class)
+		assert.NoError(t, err)
+		assert.NotNil(t, manager)
+
 		err = class.Set("valid.person.age", "over 9000") // lol
 		assert.NoError(t, err)
 		err = manager.ReplaceReferences()

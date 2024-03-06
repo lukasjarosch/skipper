@@ -11,7 +11,7 @@ import (
 )
 
 type ValueReferenceSource interface {
-	HookableSet
+	HookablePostSet
 	reference.ValueSource
 	reference.ValueTarget
 }
@@ -142,7 +142,7 @@ func (manager *ValueReferenceManager) ReplaceReferences() error {
 		// And the sourceValue was not within a context.
 		//
 		// Let's say that sourceValue is '${foo:bar}' and targetValue '35' (int)
-		// On the first call, '${foo:bar}' is replaced by 35 (integer) above.
+		// On the first call, '${foo:bar}' is replaced by 35 (int) above.
 		// But on the second call, the above condition is not valid anymore.
 		// Hence we would need to resort to a string replacement (below),
 		// which would change 35 (int) to "35" (string).
@@ -173,26 +173,23 @@ func (manager *ValueReferenceManager) ReplaceReferences() error {
 // It will always register the 'preSetHook' and 'postSetHook' functions
 // to the source.
 // If the source implements the [HookableRegisterClass] interface,
-// the 'preRegisterClassHook' and 'postRegisterClassHook' are registered.
+// the 'postRegisterClassHook' is registered.
 // If the source implements the [HookableRegisterScope] interface,
-// the 'preRegisterScopeHook' and 'postRegisterScopeHook' are registered
+// the 'postRegisterScopeHook' is registered
 func (manager *ValueReferenceManager) registerHooks() {
 	// We need to be aware of every 'write' (Set) operation
 	// within the source.
-	manager.source.RegisterPreSetHook(manager.preSetHook())
 	manager.source.RegisterPostSetHook(manager.postSetHook())
 
 	// In case we're dealing with a Registry, we also need to
 	// track any new classes being added to it.
 	if regSource, ok := manager.source.(HookableRegisterClass); ok {
-		regSource.RegisterPreRegisterClassHook(manager.preRegisterClassHook())
 		regSource.RegisterPostRegisterClassHook(manager.postRegisterClassHook())
 	}
 
 	// In case we're dealing with an Inventory, we also need to
 	// track any new scopes being added.
 	if invSource, ok := manager.source.(HookableRegisterScope); ok {
-		invSource.RegisterPreRegisterScopeHook(manager.preRegisterScopeHook())
 		invSource.RegisterPostRegisterScopeHook(manager.postRegisterScopeHook())
 	}
 }
@@ -212,7 +209,7 @@ func (manager *ValueReferenceManager) ValidateReference(ref reference.ValueRefer
 	refPathValue, _ := manager.source.GetPath(ref.Path)
 	foundRefs, err := reference.FindValueReference(manager.source, reference.ValueReferenceRegex, ref.Path, refPathValue)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find references: %w", err)
 	}
 
 	// at that path, there may exist multiple references, but at least the reference which is to be added must exist.
@@ -302,54 +299,6 @@ func (manager *ValueReferenceManager) removeReference(ref reference.ValueReferen
 	return nil
 }
 
-// preSetHook is called before 'SetPath' within the [ValueReferenceSource]
-// It checks if a new reference is added within the [data.Value] that
-// said reference is valid and can be properly resolved.
-// If the reference is not valid, an error is returned which aborts the SetPath call.
-// The state of the manager will not have changed after this function is called.
-func (manager *ValueReferenceManager) preSetHook() SetHookFunc {
-	return func(path data.Path, value data.Value) error {
-		references, err := reference.FindValueReference(manager.source, reference.ValueReferenceRegex, path, value)
-		if err != nil {
-			return err
-		}
-
-		// If there is no reference in the value, there is nothing to do before setting the value.
-		// It could still be that there was a reference at that path which needs to be removed.
-		// That case is handled in postSetHook, though.
-		if len(references) == 0 {
-			return nil
-		}
-
-		for _, newReference := range references {
-			if _, err := manager.source.GetPath(newReference.AbsoluteTargetPath); err != nil {
-				return fmt.Errorf("%w: %w", ErrInvalidReferenceTargetPath, err)
-			}
-
-			// continue, if the reference is already known and hence does not needed to be added to the graph
-			if _, exists := manager.references[newReference.Hash()]; exists {
-				continue
-			}
-
-			// temporarily add the reference to the dependencyGraph to see whether
-			// it will still be valid after the reference and it's dependencies are added.
-			newReferenceDependencies := reference.ValueDependencies(newReference, manager.allReferences)
-			err = reference.AddReferenceVertex(manager.dependencyGraph, newReference, newReferenceDependencies)
-			if err != nil {
-				return err
-			}
-
-			// nice, now remove it from the graph again
-			err = reference.RemoveReferenceVertex(manager.dependencyGraph, newReference)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-}
-
 // postSetHook is called after [reference.ValueTarget.SetPath] on the [ValueReferenceSource] is called.
 // In order to ensure that the manager knows about all (new/removed) references,
 // it will simply remove all known references at the path and add
@@ -358,7 +307,7 @@ func (manager *ValueReferenceManager) postSetHook() SetHookFunc {
 	return func(path data.Path, value data.Value) error {
 		newReferences, err := reference.FindValueReference(manager.source, reference.ValueReferenceRegex, path, value)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to find references: %w", err)
 		}
 
 		// Instead of figuring out which reference was added or removed,
@@ -380,20 +329,10 @@ func (manager *ValueReferenceManager) postSetHook() SetHookFunc {
 	}
 }
 
-func (manager *ValueReferenceManager) preRegisterScopeHook() RegisterScopeHookFunc {
-	return func(scope Scope, registry *Registry) error {
-		return nil
-	}
-}
+// TODO: dont forget to register the class hooks on the new class(es)!
 
 func (manager *ValueReferenceManager) postRegisterScopeHook() RegisterScopeHookFunc {
 	return func(scope Scope, registry *Registry) error {
-		return nil
-	}
-}
-
-func (manager *ValueReferenceManager) preRegisterClassHook() RegisterClassHookFunc {
-	return func(class *Class) error {
 		return nil
 	}
 }
