@@ -236,14 +236,11 @@ func (reg *Registry) SetPath(path data.Path, value interface{}) error {
 	return reg.Set(path.String(), value)
 }
 
-// Walk allows to use depth-first-search to walk over all paths within the Registry.
-func (reg *Registry) Walk(walkFunc func(data.Path, data.Value, bool) error) error {
+// Walk allows to use depth-first-search to walk over all paths which point to scalars (leaf nodes).
+func (reg *Registry) WalkValues(walkFunc func(data.Path, data.Value) error) error {
 	for _, class := range reg.classes {
-		err := class.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
-			if !isLeaf {
-				return nil
-			}
-			return walkFunc(path, value, false)
+		err := class.WalkValues(func(path data.Path, value data.Value) error {
+			return walkFunc(path, value)
 		})
 		if err != nil {
 			return err

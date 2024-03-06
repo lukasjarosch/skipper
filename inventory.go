@@ -145,14 +145,11 @@ func (inv *Inventory) PathScope(path data.Path) (Scope, error) {
 	return Scope(""), fmt.Errorf("path is not valid in any scope '%s': %w", path, ErrPathNotFound)
 }
 
-// Walk allows to use depth-first-search to walk over all paths within the Inventory.
-func (inv *Inventory) Walk(walkFunc func(data.Path, data.Value, bool) error) error {
+// Walk allows to use depth-first-search to walk over all paths which point to scalars (leaf nodes).
+func (inv *Inventory) WalkValues(walkFunc func(data.Path, data.Value) error) error {
 	for scope, registry := range inv.scopes {
-		err := registry.Walk(func(path data.Path, value data.Value, isLeaf bool) error {
-			if !isLeaf {
-				return nil
-			}
-			return walkFunc(path.Prepend(string(scope)), value, false)
+		err := registry.WalkValues(func(path data.Path, value data.Value) error {
+			return walkFunc(path.Prepend(string(scope)), value)
 		})
 		if err != nil {
 			return err
