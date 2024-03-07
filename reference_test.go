@@ -204,6 +204,7 @@ func TestValueManager_SetHooks_Inventory(t *testing.T) {
 		testTarget, err := NewClass("testdata/references/inventory/targets/test.yaml", codec.NewYamlCodec(), data.NewPath("test"))
 		assert.NoError(t, err)
 		err = targetScope.RegisterClass(testTarget)
+		assert.NoError(t, err)
 
 		err = inventory.RegisterScope(TargetsScope, targetScope)
 		assert.NoError(t, err)
@@ -225,6 +226,7 @@ func TestValueManager_SetHooks_Inventory(t *testing.T) {
 		testTarget, err := NewClass("testdata/references/inventory/targets/test.yaml", codec.NewYamlCodec(), data.NewPath("test"))
 		assert.NoError(t, err)
 		err = targetScope.RegisterClass(testTarget)
+		assert.NoError(t, err)
 
 		err = testTarget.Set("invalid.ref", data.NewValue("${data:does:not:exist}"))
 		assert.NoError(t, err)
