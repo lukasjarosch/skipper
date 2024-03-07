@@ -42,12 +42,12 @@ you to create the own - custom built - template and inventory engine, without ha
 # TODO
 
 - [ ] Core Features
-  - [ ] Data Abstraction Layer
-  - [ ] New Class structure
-  - [ ] Namespacing / Inventory
+  - [x] Data Abstraction Layer
+  - [x] New Class structure
+  - [x] Namespacing / Inventory
   - [ ] Project Configuration
   - [ ] Target + Target-Inventory
-  - [ ] References (local, global, target)
+  - [x] References (local, global, target)
   - [ ] Template Engine
 - [ ] Plugin System
   - [ ] Hook System
