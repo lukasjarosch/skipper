@@ -2,7 +2,6 @@ package skipper
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/dominikbraun/graph"
 
@@ -116,56 +115,7 @@ func (manager *ValueReferenceManager) ReplaceReferences() error {
 		replacementOrder = append(replacementOrder, manager.getAllReferencesWithHash(orderedRef.Hash())...)
 	}
 
-	for _, ref := range replacementOrder {
-
-		targetValue, err := manager.source.GetPath(ref.AbsoluteTargetPath)
-		if err != nil {
-			return err
-		}
-
-		sourceValue, err := manager.source.GetPath(ref.Path)
-		if err != nil {
-			return err
-		}
-
-		// If the sourceValue is the full reference name,
-		// we can just replace the value with the targetValue completely.
-		if strings.EqualFold(sourceValue.String(), ref.Name()) {
-			err = manager.source.SetPath(ref.Path, targetValue.Raw)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-
-		// Maybe this is not the first time calling 'ReplaceReferences'
-		// And the sourceValue was not within a context.
-		//
-		// Let's say that sourceValue is '${foo:bar}' and targetValue '35' (int)
-		// On the first call, '${foo:bar}' is replaced by 35 (int) above.
-		// But on the second call, the above condition is not valid anymore.
-		// Hence we would need to resort to a string replacement (below),
-		// which would change 35 (int) to "35" (string).
-		// Instead we check if the sourceValue is already the same as the targetValue
-		// and thus are able to preserve the underlying datatype of [data.Value].
-		if strings.EqualFold(sourceValue.String(), targetValue.String()) {
-			err = manager.source.SetPath(ref.Path, targetValue.Raw)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-
-		// If the reference is within a string context (e.g. 'Hello ${person:name}'),
-		// we can only perform a string substitution of the targetValue.
-		replacedValue := strings.Replace(sourceValue.String(), ref.Name(), targetValue.String(), 1)
-		err = manager.source.SetPath(ref.Path, replacedValue)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return reference.ReplaceValues(manager.source, replacementOrder)
 }
 
 // registerHooks is responsible for registering all possible hooks which

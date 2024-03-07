@@ -184,6 +184,24 @@ func ReplaceValues(target ValueTarget, references []ValueReference) error {
 			continue
 		}
 
+		// Maybe this is not the first time calling 'ReplaceReferences'
+		// And the sourceValue was not within a context.
+		//
+		// Let's say that sourceValue is '${foo:bar}' and targetValue '35' (int)
+		// On the first call, '${foo:bar}' is replaced by 35 (int) above.
+		// But on the second call, the above condition is not valid anymore.
+		// Hence we would need to resort to a string replacement (below),
+		// which would change 35 (int) to "35" (string).
+		// Instead we check if the sourceValue is already the same as the targetValue
+		// and thus are able to preserve the underlying datatype of [data.Value].
+		if strings.EqualFold(sourceValue.String(), targetValue.String()) {
+			err = target.SetPath(reference.Path, targetValue.Raw)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
 		// If the reference is embedded within literals (e.g. 'hello there ${name}'),
 		// then we need to just perform one string replacement the sourceValue.
 		// We do this only once, even if the same reference may exist multiple times.
