@@ -440,9 +440,11 @@ func TestValueManager_ReplaceReferences_Inventory(t *testing.T) {
 		assert.NoError(t, err)
 		err = targetScope.RegisterClass(testTarget)
 		assert.NoError(t, err)
+		err = inventory.RegisterScope(TargetsScope, targetScope)
+		assert.NoError(t, err)
 
-		expected["data.test.casual"] = data.NewValue("Hey, John")
-		expected["data.test.formal"] = data.NewValue("Hello, John Doe")
+		expected["targets.test.casual"] = data.NewValue("Hey, John")
+		expected["targets.test.formal"] = data.NewValue("Hello, John Doe")
 
 		err = manager.ReplaceReferences()
 		assert.NoError(t, err)
