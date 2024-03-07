@@ -1,0 +1,3 @@
+test:
+  casual: "${data:greeting:casual} ${data:person:first_name}"
+  formal: "${data:greeting:formal} ${data:person:first_name} ${data:person:last_name}"

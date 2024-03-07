@@ -24,6 +24,9 @@ var (
 // Put simply, the Inventory is the projection of whatever is within the `inventory/` folder of a Skipper project.
 type Inventory struct {
 	scopes map[Scope]*Registry
+	// hooks
+	preRegisterScopeHooks  []RegisterScopeHookFunc
+	postRegisterScopeHooks []RegisterScopeHookFunc
 }
 
 func NewInventory() (*Inventory, error) {
@@ -43,7 +46,17 @@ func (inv *Inventory) RegisterScope(scope Scope, registry *Registry) error {
 		return fmt.Errorf("%s: %w", scope, ErrScopeAlreadyRegistered)
 	}
 
+	err := inv.callPreRegisterScopeHooks(scope, registry)
+	if err != nil {
+		return err
+	}
+
 	inv.scopes[scope] = registry
+
+	err = inv.callPostRegisterScopeHooks(scope, registry)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -196,4 +209,73 @@ func (inv *Inventory) AbsolutePath(path data.Path, context data.Path) (data.Path
 	}
 
 	return abs, nil
+}
+
+func (inv *Inventory) Values() map[string]data.Value {
+	valueMap := make(map[string]data.Value)
+
+	_ = inv.WalkValues(func(p data.Path, v data.Value) error {
+		valueMap[p.String()] = v
+		return nil
+	})
+
+	return valueMap
+}
+
+// RegisterPreSetHook implements the [HookableSet] interface.
+// Because each [Class] also implements that interface, this
+// func is just going to redirect the call to every class within each registry.
+func (inv *Inventory) RegisterPreSetHook(hook SetHookFunc) {
+	for scope, reg := range inv.scopes {
+		for _, class := range reg.ClassMap() {
+			class.RegisterPreSetHook(func(path data.Path, value data.Value) error {
+				// make sure the path contains the scope
+				path = path.Prepend(string(scope))
+				return hook(path, value)
+			})
+		}
+	}
+}
+
+// RegisterPostSetHook implements the [HookableSet] interface.
+// Because each [Class] also implements that interface, this
+// func is just going to redirect the call to every class within each registry.
+func (inv *Inventory) RegisterPostSetHook(hook SetHookFunc) {
+	for scope, reg := range inv.scopes {
+		for _, class := range reg.ClassMap() {
+			class.RegisterPostSetHook(func(path data.Path, value data.Value) error {
+				// make sure the path contains the scope
+				path = path.Prepend(string(scope))
+				return hook(path, value)
+			})
+		}
+	}
+}
+
+func (inv *Inventory) RegisterPreRegisterScopeHook(hook RegisterScopeHookFunc) {
+	inv.preRegisterScopeHooks = append(inv.preRegisterScopeHooks, hook)
+}
+
+func (inv *Inventory) RegisterPostRegisterScopeHook(hook RegisterScopeHookFunc) {
+	inv.postRegisterScopeHooks = append(inv.postRegisterScopeHooks, hook)
+}
+
+func (inv *Inventory) callPreRegisterScopeHooks(scope Scope, registry *Registry) error {
+	for _, hook := range inv.preRegisterScopeHooks {
+		err := hook(scope, registry)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (inv *Inventory) callPostRegisterScopeHooks(scope Scope, registry *Registry) error {
+	for _, hook := range inv.postRegisterScopeHooks {
+		err := hook(scope, registry)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

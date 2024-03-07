@@ -1,0 +1,7 @@
+person:
+  first_name: John
+  last_name: Doe
+  age: ${default:age}
+  occupation: Mechanic
+  default:
+    age: 35

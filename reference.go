@@ -295,12 +295,40 @@ func (manager *ValueReferenceManager) postRegisterClassHook() RegisterClassHookF
 			}
 		}
 
+		// make sure to also hook into the new class
+		class.RegisterPostSetHook(manager.postSetHook())
+
 		return nil
 	}
 }
 
 func (manager *ValueReferenceManager) postRegisterScopeHook() RegisterScopeHookFunc {
 	return func(scope Scope, registry *Registry) error {
+		references, err := reference.FindAllValueReferences(manager.source)
+		if err != nil {
+			return err
+		}
+
+		for _, ref := range references {
+			for _, class := range registry.ClassMap() {
+				refPath := ref.Path.StripPrefix(data.NewPath(string(scope)))
+
+				if refPath.HasPrefix(class.Identifier) {
+					err = manager.addReference(ref)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+
+		// register a postSet hook on the newly added registry, making sure that the scope prefix exists on all paths
+		registry.RegisterPostSetHook(func(path data.Path, value data.Value) error {
+			// make sure the path contains the scope
+			path = path.Prepend(string(scope))
+			return manager.postSetHook()(path, value)
+		})
+
 		return nil
 	}
 }

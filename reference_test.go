@@ -137,6 +137,103 @@ func TestValueManager_SetHooks_Registry(t *testing.T) {
 	})
 }
 
+func TestValueManager_SetHooks_Inventory(t *testing.T) {
+	person, err := NewClass("testdata/references/inventory/data/person.yaml", codec.NewYamlCodec(), data.NewPath("person"))
+	assert.NoError(t, err)
+	greeting, err := NewClass("testdata/references/inventory/data/greeting.yaml", codec.NewYamlCodec(), data.NewPath("greeting"))
+	assert.NoError(t, err)
+
+	dataScope := NewRegistry()
+	err = dataScope.RegisterClass(person)
+	assert.NoError(t, err)
+	err = dataScope.RegisterClass(greeting)
+	assert.NoError(t, err)
+
+	inventory, err := NewInventory()
+	assert.NoError(t, err)
+	err = inventory.RegisterScope(DataScope, dataScope)
+	assert.NoError(t, err)
+
+	manager, err := NewValueReferenceManager(inventory)
+	assert.NoError(t, err)
+
+	// These are the same tests as above, just to be sure that also works.
+	t.Run("expect no change if no reference is added/removed", func(t *testing.T) {
+		preReferenceCount := len(manager.AllReferences())
+		err = person.Set("test1", data.NewValue("hello there"))
+		assert.NoError(t, err)
+		posReferenceCount := len(manager.AllReferences())
+		assert.Equal(t, preReferenceCount, posReferenceCount)
+	})
+
+	t.Run("adding an invalid reference must fail", func(t *testing.T) {
+		err = person.Set("valid.new.test5", data.NewValue("${valid:this:is:invalid}"))
+		assert.ErrorIs(t, err, ErrInvalidReferenceTargetPath)
+	})
+
+	t.Run("adding a reference to a new path must only work if the target path is added first", func(t *testing.T) {
+		err = person.Set("valid.this.is.invalid", data.NewValue("yeah, no this works :)"))
+		assert.NoError(t, err)
+		err = person.Set("valid.new.test5", data.NewValue("${valid:this:is:invalid}"))
+		assert.NoError(t, err)
+	})
+
+	// Inventory specific tests
+	t.Run("register scope which introduces valid references", func(t *testing.T) {
+		testTarget, err := NewClass("testdata/references/inventory/targets/test.yaml", codec.NewYamlCodec(), data.NewPath("test"))
+		assert.NoError(t, err)
+
+		targetScope := NewRegistry()
+		err = targetScope.RegisterClass(testTarget)
+		assert.NoError(t, err)
+
+		err = inventory.RegisterScope(TargetsScope, targetScope)
+		assert.NoError(t, err)
+	})
+
+	t.Run("register scope which introduces an invalid references on a class after RegisterScope", func(t *testing.T) {
+		inventory, err := NewInventory()
+		assert.NoError(t, err)
+		err = inventory.RegisterScope(DataScope, dataScope)
+		assert.NoError(t, err)
+		_, _ = NewValueReferenceManager(inventory)
+
+		targetScope := NewRegistry()
+		assert.NoError(t, err)
+
+		testTarget, err := NewClass("testdata/references/inventory/targets/test.yaml", codec.NewYamlCodec(), data.NewPath("test"))
+		assert.NoError(t, err)
+		err = targetScope.RegisterClass(testTarget)
+
+		err = inventory.RegisterScope(TargetsScope, targetScope)
+		assert.NoError(t, err)
+
+		err = testTarget.Set("invalid.ref", data.NewValue("${data:does:not:exist}"))
+		assert.ErrorIs(t, err, ErrInvalidReferenceTargetPath)
+	})
+
+	t.Run("register scope which introduces invalid references on RegisterScope", func(t *testing.T) {
+		inventory, err := NewInventory()
+		assert.NoError(t, err)
+		err = inventory.RegisterScope(DataScope, dataScope)
+		assert.NoError(t, err)
+		_, _ = NewValueReferenceManager(inventory)
+
+		targetScope := NewRegistry()
+		assert.NoError(t, err)
+
+		testTarget, err := NewClass("testdata/references/inventory/targets/test.yaml", codec.NewYamlCodec(), data.NewPath("test"))
+		assert.NoError(t, err)
+		err = targetScope.RegisterClass(testTarget)
+
+		err = testTarget.Set("invalid.ref", data.NewValue("${data:does:not:exist}"))
+		assert.NoError(t, err)
+
+		err = inventory.RegisterScope(TargetsScope, targetScope)
+		assert.ErrorIs(t, err, ErrInvalidReferenceTargetPath)
+	})
+}
+
 func TestValueManager_ReplaceReferences(t *testing.T) {
 	filePath := "testdata/references/class/valid.yaml"
 	class, err := NewClass(filePath, codec.NewYamlCodec(), data.NewPath("valid"))
@@ -276,6 +373,81 @@ func TestValueManager_ReplaceReferences_Registry(t *testing.T) {
 		assert.NoError(t, err)
 		for path, expectedValue := range expected {
 			val, err := registry.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+	})
+}
+
+func TestValueManager_ReplaceReferences_Inventory(t *testing.T) {
+	person, err := NewClass("testdata/references/inventory/data/person.yaml", codec.NewYamlCodec(), data.NewPath("person"))
+	assert.NoError(t, err)
+	greeting, err := NewClass("testdata/references/inventory/data/greeting.yaml", codec.NewYamlCodec(), data.NewPath("greeting"))
+	assert.NoError(t, err)
+
+	// data scope
+	dataScope := NewRegistry()
+	err = dataScope.RegisterClass(person)
+	assert.NoError(t, err)
+	err = dataScope.RegisterClass(greeting)
+	assert.NoError(t, err)
+
+	inventory, err := NewInventory()
+	assert.NoError(t, err)
+	err = inventory.RegisterScope(DataScope, dataScope)
+	assert.NoError(t, err)
+
+	manager, err := NewValueReferenceManager(inventory)
+	assert.NoError(t, err)
+
+	expected := map[string]data.Value{
+		"data.person.age": data.NewValue(35),
+	}
+
+	t.Run("replace valid inventory", func(t *testing.T) {
+		err = manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := inventory.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+	})
+
+	t.Run("replacing should be idempotent", func(t *testing.T) {
+		err := manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := inventory.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+
+		err = manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := inventory.Get(path)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedValue.Raw, val.Raw)
+		}
+	})
+
+	t.Run("replace again after adding a new scope", func(t *testing.T) {
+		// target scope
+		testTarget, err := NewClass("testdata/references/inventory/targets/test.yaml", codec.NewYamlCodec(), data.NewPath("test"))
+		assert.NoError(t, err)
+		targetScope := NewRegistry()
+		assert.NoError(t, err)
+		err = targetScope.RegisterClass(testTarget)
+		assert.NoError(t, err)
+
+		expected["data.test.casual"] = data.NewValue("Hey, John")
+		expected["data.test.formal"] = data.NewValue("Hello, John Doe")
+
+		err = manager.ReplaceReferences()
+		assert.NoError(t, err)
+		for path, expectedValue := range expected {
+			val, err := inventory.Get(path)
 			assert.NoError(t, err)
 			assert.Equal(t, expectedValue.Raw, val.Raw)
 		}

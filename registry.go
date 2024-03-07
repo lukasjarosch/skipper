@@ -26,7 +26,8 @@ type Registry struct {
 	// classes map a classIdentifier string to the actual classes
 	classes map[string]*Class
 	// paths map absolute data paths to a classIdentifier string (key of the classes map)
-	paths                  map[string]string
+	paths map[string]string
+	// hooks
 	preRegisterClassHooks  []RegisterClassHookFunc
 	postRegisterClassHooks []RegisterClassHookFunc
 }
@@ -356,4 +357,8 @@ func (reg *Registry) callPostRegisterClassHooks(class *Class) error {
 		}
 	}
 	return nil
+}
+
+func (reg *Registry) ClassMap() map[string]*Class {
+	return reg.classes
 }
