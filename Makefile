@@ -41,9 +41,13 @@ lint-yaml: ## Lint all YAML files
 
 ## Docs
 
+setup-docs:
+	@virtualenv venv && source venv/bin/activate && pip install -r requirements.txt
+
 serve-docs:
 	@cd docs && $(MKDOCS) serve -a localhost:8080
 
+# serves the package documentation just like on gopkg.in
 serve-godocs:
 	@pkgsite -open
 
