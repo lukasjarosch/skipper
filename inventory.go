@@ -2,8 +2,7 @@ package skipper
 
 import (
 	"fmt"
-
-	"github.com/davecgh/go-spew/spew"
+	"strings"
 
 	"github.com/lukasjarosch/skipper/data"
 )
@@ -14,14 +13,20 @@ type Scope string
 var (
 	DataScope    Scope = "data"
 	TargetsScope Scope = "targets"
+
+	// UndefinedValue is a value which must be defined during compilation
+	// To ensure all values which can only be set within the target are actually set,
+	// one can use this value.
+	UndefinedValue = data.NewValue("__undefined__")
 )
 
 var (
-	ErrEmptyScope                 = fmt.Errorf("scope is empty")
-	ErrNilRegistry                = fmt.Errorf("registry is nil")
-	ErrScopeDoesNotExist          = fmt.Errorf("scope does not exist")
-	ErrScopeAlreadyRegistered     = fmt.Errorf("scope already registered")
-	ErrTargetCannotIntroducePaths = fmt.Errorf("target cannot introduce new paths")
+	ErrEmptyScope                   = fmt.Errorf("scope is empty")
+	ErrNilRegistry                  = fmt.Errorf("registry is nil")
+	ErrScopeDoesNotExist            = fmt.Errorf("scope does not exist")
+	ErrScopeAlreadyRegistered       = fmt.Errorf("scope already registered")
+	ErrTargetCannotIntroducePaths   = fmt.Errorf("target cannot introduce new paths")
+	ErrUndefinedValueNotOverwritten = fmt.Errorf("undefined value was not overwritten by target")
 )
 
 // Inventory is the top-level abstraction which represents all data.
@@ -122,10 +127,20 @@ func (inv *Inventory) Compile(target data.Path) error {
 		}
 
 		// The path exists within the inventory, overwrite it with the value from the target.
-		spew.Println("OVERWRITTEN", pathWithoutClassName)
 		err = inv.SetPath(pathWithoutClassName, v.Raw)
 		if err != nil {
 			return fmt.Errorf("failed to overwrite path %s: %w", pathWithoutClassName, err)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// undefined value detection, go through all paths to ensure all values are no 'UndefinedValue'
+	err = inv.WalkValues(func(p data.Path, v data.Value) error {
+		if strings.ToLower(strings.TrimSpace(v.String())) == UndefinedValue.String() {
+			return fmt.Errorf("%w: %s", ErrUndefinedValueNotOverwritten, p)
 		}
 		return nil
 	})

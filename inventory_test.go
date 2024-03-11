@@ -160,8 +160,8 @@ func TestInventoryAbsolutePath(t *testing.T) {
 }
 
 func TestInventory_Compile(t *testing.T) {
-	dataRegistry := func() *Registry {
-		commonClass, err := NewClass("testdata/compile/data/common.yaml", codec.NewYamlCodec(), data.NewPath("common"))
+	dataRegistry := func(class string) *Registry {
+		commonClass, err := NewClass(fmt.Sprintf("testdata/compile/data/%s.yaml", class), codec.NewYamlCodec(), data.NewPath(class))
 		assert.NoError(t, err)
 		dataRegistry := NewRegistry()
 		err = dataRegistry.RegisterClass(commonClass)
@@ -182,7 +182,7 @@ func TestInventory_Compile(t *testing.T) {
 
 	t.Run("valid target", func(t *testing.T) {
 		inventory, _ := NewInventory()
-		err := inventory.RegisterScope(DataScope, dataRegistry())
+		err := inventory.RegisterScope(DataScope, dataRegistry("common"))
 		assert.NoError(t, err)
 		err = inventory.RegisterScope(TargetsScope, targetRegistry("valid"))
 		assert.NoError(t, err)
@@ -204,12 +204,38 @@ func TestInventory_Compile(t *testing.T) {
 
 	t.Run("target cannot introduce paths in the inventory", func(t *testing.T) {
 		inventory, _ := NewInventory()
-		err := inventory.RegisterScope(DataScope, dataRegistry())
+		err := inventory.RegisterScope(DataScope, dataRegistry("common"))
 		assert.NoError(t, err)
 		err = inventory.RegisterScope(TargetsScope, targetRegistry("introduce_paths"))
 		assert.NoError(t, err)
 
 		err = inventory.Compile(data.NewPath("targets.introduce_paths"))
 		assert.ErrorIs(t, err, ErrTargetCannotIntroducePaths)
+	})
+
+	t.Run("error if undefined value is not overwritten", func(t *testing.T) {
+		inventory, _ := NewInventory()
+		err := inventory.RegisterScope(DataScope, dataRegistry("undefined"))
+		assert.NoError(t, err)
+		err = inventory.RegisterScope(TargetsScope, targetRegistry("not_overwritten_undefined"))
+		assert.NoError(t, err)
+
+		err = inventory.Compile(data.NewPath("targets.not_overwritten_undefined"))
+		assert.ErrorIs(t, err, ErrUndefinedValueNotOverwritten)
+	})
+
+	t.Run("no error if undefined value is overwritten", func(t *testing.T) {
+		inventory, _ := NewInventory()
+		err := inventory.RegisterScope(DataScope, dataRegistry("undefined"))
+		assert.NoError(t, err)
+		err = inventory.RegisterScope(TargetsScope, targetRegistry("overwritten_undefined"))
+		assert.NoError(t, err)
+
+		err = inventory.Compile(data.NewPath("targets.overwritten_undefined"))
+		assert.NoError(t, err)
+
+		val, err := inventory.Get("data.undefined.network_cidr")
+		assert.NoError(t, err)
+		assert.Equal(t, "10.0.0.0/8", val.String())
 	})
 }

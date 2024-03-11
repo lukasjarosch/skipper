@@ -1,0 +1,2 @@
+overwritten_undefined:
+  data.undefined.network_cidr: 10.0.0.0/8
