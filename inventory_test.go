@@ -1,9 +1,9 @@
 package skipper_test
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/lukasjarosch/skipper"
@@ -160,27 +160,56 @@ func TestInventoryAbsolutePath(t *testing.T) {
 }
 
 func TestInventory_Compile(t *testing.T) {
-	commonClass, err := NewClass("testdata/compile/data/common.yaml", codec.NewYamlCodec(), data.NewPath("common"))
-	assert.NoError(t, err)
+	dataRegistry := func() *Registry {
+		commonClass, err := NewClass("testdata/compile/data/common.yaml", codec.NewYamlCodec(), data.NewPath("common"))
+		assert.NoError(t, err)
+		dataRegistry := NewRegistry()
+		err = dataRegistry.RegisterClass(commonClass)
+		assert.NoError(t, err)
 
-	dataRegistry := NewRegistry()
-	err = dataRegistry.RegisterClass(commonClass)
-	assert.NoError(t, err)
+		return dataRegistry
+	}
 
-	testTarget, err := NewClass("testdata/compile/targets/test.yaml", codec.NewYamlCodec(), data.NewPath("test"))
-	assert.NoError(t, err)
-	targetRegistry := NewRegistry()
-	err = targetRegistry.RegisterClass(testTarget)
-	assert.NoError(t, err)
+	targetRegistry := func(name string) *Registry {
+		testTarget, err := NewClass(fmt.Sprintf("testdata/compile/targets/%s.yaml", name), codec.NewYamlCodec(), data.NewPath(name))
+		assert.NoError(t, err)
+		targetRegistry := NewRegistry()
+		err = targetRegistry.RegisterClass(testTarget)
+		assert.NoError(t, err)
 
-	inventory, _ := NewInventory()
-	err = inventory.RegisterScope(DataScope, dataRegistry)
-	assert.NoError(t, err)
-	err = inventory.RegisterScope(TargetsScope, targetRegistry)
-	assert.NoError(t, err)
+		return targetRegistry
+	}
 
-	err = inventory.Compile(data.NewPath("targets.test"))
-	assert.NoError(t, err)
+	t.Run("valid target", func(t *testing.T) {
+		inventory, _ := NewInventory()
+		err := inventory.RegisterScope(DataScope, dataRegistry())
+		assert.NoError(t, err)
+		err = inventory.RegisterScope(TargetsScope, targetRegistry("valid"))
+		assert.NoError(t, err)
 
-	spew.Dump(inventory.Get("data.common"))
+		err = inventory.Compile(data.NewPath("targets.valid"))
+		assert.NoError(t, err)
+
+		expected := map[string]data.Value{
+			"data.common.name": data.NewValue("Jane"),
+			"data.common.age":  data.NewValue("over 9000"),
+		}
+
+		for p, v := range expected {
+			val, err := inventory.Get(p)
+			assert.NoError(t, err)
+			assert.Equal(t, v.Raw, val.Raw)
+		}
+	})
+
+	t.Run("target cannot introduce paths in the inventory", func(t *testing.T) {
+		inventory, _ := NewInventory()
+		err := inventory.RegisterScope(DataScope, dataRegistry())
+		assert.NoError(t, err)
+		err = inventory.RegisterScope(TargetsScope, targetRegistry("introduce_paths"))
+		assert.NoError(t, err)
+
+		err = inventory.Compile(data.NewPath("targets.introduce_paths"))
+		assert.ErrorIs(t, err, ErrTargetCannotIntroducePaths)
+	})
 }

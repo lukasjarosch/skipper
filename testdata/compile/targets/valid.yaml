@@ -1,0 +1,5 @@
+valid:
+  data:
+    common:
+      name: "Jane"
+  data.common.age: "over 9000"

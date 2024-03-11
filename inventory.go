@@ -101,7 +101,7 @@ func (inv *Inventory) Compile(target data.Path) error {
 	classIdentifier := target.StripPrefix(data.NewPath(string(targetScope)))
 	targetClass, err := registry.GetClassByIdentifier(classIdentifier.String())
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot load target class from scope '%s' with identifier '%s': %w", targetScope, classIdentifier, err)
 	}
 
 	// Overwrite inventory paths with target values if applicable.
@@ -123,7 +123,7 @@ func (inv *Inventory) Compile(target data.Path) error {
 
 		// The path exists within the inventory, overwrite it with the value from the target.
 		spew.Println("OVERWRITTEN", pathWithoutClassName)
-		err = inv.SetPath(pathWithoutClassName, v)
+		err = inv.SetPath(pathWithoutClassName, v.Raw)
 		if err != nil {
 			return fmt.Errorf("failed to overwrite path %s: %w", pathWithoutClassName, err)
 		}
