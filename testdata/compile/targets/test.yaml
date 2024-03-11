@@ -1,0 +1,11 @@
+test:
+  ohai: "there"
+  data:
+    common.name: "PETER"
+    common.foo: "asdf"
+  # targets.test.data.common.name: "lol"
+  # data:
+  #   common.name: ASDF
+  # common:
+  #   name: John
+  #   age: 35

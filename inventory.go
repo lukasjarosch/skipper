@@ -3,19 +3,25 @@ package skipper
 import (
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/lukasjarosch/skipper/data"
 )
 
+// Scope defines a 'namespace' within the Inventory which is made up of a collection of classes.
 type Scope string
 
 var (
-	ErrEmptyScope             = fmt.Errorf("scope is empty")
-	ErrNilRegistry            = fmt.Errorf("registry is nil")
-	ErrScopeDoesNotExist      = fmt.Errorf("scope does not exist")
-	ErrScopeAlreadyRegistered = fmt.Errorf("scope already registered")
-
 	DataScope    Scope = "data"
 	TargetsScope Scope = "targets"
+)
+
+var (
+	ErrEmptyScope                 = fmt.Errorf("scope is empty")
+	ErrNilRegistry                = fmt.Errorf("registry is nil")
+	ErrScopeDoesNotExist          = fmt.Errorf("scope does not exist")
+	ErrScopeAlreadyRegistered     = fmt.Errorf("scope already registered")
+	ErrTargetCannotIntroducePaths = fmt.Errorf("target cannot introduce new paths")
 )
 
 // Inventory is the top-level abstraction which represents all data.
@@ -54,6 +60,75 @@ func (inv *Inventory) RegisterScope(scope Scope, registry *Registry) error {
 	inv.scopes[scope] = registry
 
 	err = inv.callPostRegisterScopeHooks(scope, registry)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Compile compiles the Inventory for a given target class.
+//
+// The target class is special as it is capable of overwriting values within the whole inventory.
+// This is required because most of the time there will be values which are only valid per target.
+// But in order to be able to model data wholistically, the user must be able to introduce
+// paths which values only become defined once the target (say: environment) is defined.
+//
+// The target given must be a valid, inventory-absolute, class-path.
+// So if the target to use originates from 'targets/develop.yaml', then
+// the target path is 'targets.develop'.
+//
+// Within the target, one can overwrite every existing (!) path within the inventory.
+// This works by iterating over every path of the target from which the class-name is stripped.
+// If the remaining path is a valid inventory path, then the path is overwritten by the value defined in the target.
+// Let's say that there exists a path 'data.common.network.name' with value 'AwesomeNet'.
+// If the target class is 'develop' and it has a class-path 'develop.data.common.network.name' with value 'SuperNet',
+// then the compiled inventory will have 'SuperNet' as value at 'data.common.network.name'.
+//
+// If within the target class, a non-existing
+func (inv *Inventory) Compile(target data.Path) error {
+	targetScope, err := inv.PathScope(target)
+	if err != nil {
+		return err
+	}
+
+	registry, err := inv.GetScope(targetScope)
+	if err != nil {
+		return err
+	}
+
+	// strip the scope prefix from the path, this should yield a valid classIdentifier within the registry
+	classIdentifier := target.StripPrefix(data.NewPath(string(targetScope)))
+	targetClass, err := registry.GetClassByIdentifier(classIdentifier.String())
+	if err != nil {
+		return err
+	}
+
+	// Overwrite inventory paths with target values if applicable.
+	err = targetClass.WalkValues(func(p data.Path, v data.Value) error {
+		pathWithoutClassName := p.StripPrefix(data.NewPath(targetClass.Name))
+
+		// If the path does not start with a valid scope we simply ignore it.
+		if _, err := inv.PathScope(pathWithoutClassName); err != nil {
+			return nil
+		}
+
+		// If the path does not exist within the inventory, but the target attempted to set it
+		// by using the scope prefix, abort.
+		// This is not allowed, only known paths can be overwritten.
+		// See [Registry.Set] for an explanation as of why.
+		if _, err := inv.GetPath(pathWithoutClassName); err != nil {
+			return fmt.Errorf("%w: path does not exist in inventory: %s", ErrTargetCannotIntroducePaths, pathWithoutClassName)
+		}
+
+		// The path exists within the inventory, overwrite it with the value from the target.
+		spew.Println("OVERWRITTEN", pathWithoutClassName)
+		err = inv.SetPath(pathWithoutClassName, v)
+		if err != nil {
+			return fmt.Errorf("failed to overwrite path %s: %w", pathWithoutClassName, err)
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
@@ -133,10 +208,12 @@ func (inv *Inventory) Set(path string, value interface{}) error {
 	return registry.Set(registryPath.String(), value)
 }
 
+// SetPath is a wrapper for [inventory.Set]
 func (inv *Inventory) SetPath(path data.Path, value interface{}) error {
 	return inv.Set(path.String(), value)
 }
 
+// Scopes returns all [Scope]s registered at the inventory
 func (inv *Inventory) Scopes() []Scope {
 	var scopes []Scope
 	for scope := range inv.scopes {

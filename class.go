@@ -141,7 +141,7 @@ func (c Class) GetAll() data.Value {
 func (c *Class) Set(path string, value interface{}) error {
 	absPath, err := c.container.AbsolutePath(data.NewPath(path))
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to determine absolute path in container: %w", err)
 	}
 
 	err = c.callPreSetHooks(absPath, data.NewValue(value))
@@ -151,7 +151,7 @@ func (c *Class) Set(path string, value interface{}) error {
 
 	err = c.container.SetPath(absPath, value)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot set path in container %s: %w", absPath, err)
 	}
 
 	err = c.callPostSetHooks(absPath, data.NewValue(value))

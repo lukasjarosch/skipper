@@ -3,9 +3,11 @@ package skipper_test
 import (
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/lukasjarosch/skipper"
+	"github.com/lukasjarosch/skipper/codec"
 	"github.com/lukasjarosch/skipper/data"
 )
 
@@ -155,4 +157,30 @@ func TestInventoryAbsolutePath(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInventory_Compile(t *testing.T) {
+	commonClass, err := NewClass("testdata/compile/data/common.yaml", codec.NewYamlCodec(), data.NewPath("common"))
+	assert.NoError(t, err)
+
+	dataRegistry := NewRegistry()
+	err = dataRegistry.RegisterClass(commonClass)
+	assert.NoError(t, err)
+
+	testTarget, err := NewClass("testdata/compile/targets/test.yaml", codec.NewYamlCodec(), data.NewPath("test"))
+	assert.NoError(t, err)
+	targetRegistry := NewRegistry()
+	err = targetRegistry.RegisterClass(testTarget)
+	assert.NoError(t, err)
+
+	inventory, _ := NewInventory()
+	err = inventory.RegisterScope(DataScope, dataRegistry)
+	assert.NoError(t, err)
+	err = inventory.RegisterScope(TargetsScope, targetRegistry)
+	assert.NoError(t, err)
+
+	err = inventory.Compile(data.NewPath("targets.test"))
+	assert.NoError(t, err)
+
+	spew.Dump(inventory.Get("data.common"))
 }
