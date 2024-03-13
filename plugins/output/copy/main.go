@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/lukasjarosch/skipper"
-	"github.com/lukasjarosch/skipper/codec"
 	"github.com/lukasjarosch/skipper/data"
 )
 
@@ -15,21 +14,6 @@ type Config struct {
 	SourcePaths []string `yaml:"sourcePaths"`
 	TargetPath  string   `yaml:"targetPath"`
 	Overwrite   bool     `yaml:"overwrite"`
-}
-
-func NewConfig(raw map[string]interface{}) (Config, error) {
-	yaml := codec.NewYamlCodec()
-	b, err := yaml.Marshal(raw)
-	if err != nil {
-		return Config{}, err
-	}
-
-	var config Config
-	err = yaml.UnmarshalTarget(b, &config)
-	if err != nil {
-		return Config{}, err
-	}
-	return config, nil
 }
 
 var ConfigPath = data.NewPath("config.plugins.output.copy")
