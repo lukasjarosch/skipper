@@ -3,6 +3,7 @@ package skipper
 import (
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/lukasjarosch/skipper/data"
 )
@@ -193,7 +194,7 @@ func (reg *Registry) Get(path string) (data.Value, error) {
 	if exists {
 		class := reg.classes[classIdentifier]
 		classPath := data.NewPath(path).StripPrefix(data.NewPath(classIdentifier))
-		return class.Get(classPath.String())
+		return class.Get(classPath.Prepend(class.Name).String())
 	}
 
 	return data.NilValue, fmt.Errorf("path is not valid within the registry '%s': %w", path, ErrPathNotFound)
@@ -361,4 +362,27 @@ func (reg *Registry) callPostRegisterClassHooks(class *Class) error {
 
 func (reg *Registry) ClassMap() map[string]*Class {
 	return reg.classes
+}
+
+func LoadRegistry(basePath string, classCodec Codec, pathSelector *regexp.Regexp) (*Registry, error) {
+	files, err := DiscoverFiles(basePath, pathSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	classes, err := ClassLoader(basePath, files, classCodec)
+	if err != nil {
+		return nil, err
+	}
+
+	registry := NewRegistry()
+
+	for _, class := range classes {
+		err = registry.RegisterClass(class)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return registry, nil
 }

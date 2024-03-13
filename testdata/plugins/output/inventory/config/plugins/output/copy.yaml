@@ -1,0 +1,7 @@
+copy:
+  - sourcePaths:
+      - foo
+    targetPath: /tmp/test
+  - sourcePaths:
+      - bar
+    targetPath: /tmp/ASDF

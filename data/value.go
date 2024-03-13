@@ -32,6 +32,28 @@ func (val Value) Map() (map[string]interface{}, error) {
 	return m, nil
 }
 
+// IsMap returns true if the raw value is a `map[string]interface{}`
+func (val Value) IsMap() bool {
+	_, err := val.Map()
+	return err == nil
+}
+
+// Slice attempts to convert the raw value to a []interface{}.
+// Returns an error if conversion is not possible.
+func (val Value) Slice() ([]interface{}, error) {
+	m, ok := val.Raw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("cannot convert value to []interface{}: %s", val)
+	}
+	return m, nil
+}
+
+// IsSlice returns true if the raw value is a `[]interface{}`
+func (val Value) IsSlice() bool {
+	_, err := val.Slice()
+	return err == nil
+}
+
 // Duration attempts to convert the value to a time.Duration. Returns an error if conversion is not possible.
 func (val Value) Duration() (time.Duration, error) {
 	dur, err := time.ParseDuration(val.String())

@@ -13,6 +13,7 @@ type Scope string
 var (
 	DataScope    Scope = "data"
 	TargetsScope Scope = "targets"
+	ConfigScope  Scope = "config"
 
 	// UndefinedValue is a value which must be defined during compilation
 	// To ensure all values which can only be set within the target are actually set,
