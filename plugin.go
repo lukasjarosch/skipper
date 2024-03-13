@@ -12,8 +12,8 @@ import (
 type PluginType string
 
 const (
-	// SymbolName defines the symbol which will be loaded from the shared library.
-	SymbolName string = "Plugin"
+	// PluginSymbolName defines the symbol which will be loaded from the shared library.
+	PluginSymbolName string = "Plugin"
 
 	OutputPlugin PluginType = "output"
 )
@@ -26,42 +26,45 @@ var (
 	ErrUnconfigurablePlugin = fmt.Errorf("plugin cannot be configured, does not implement the 'ConfigurablePlugin' interface")
 )
 
-type PluginMetadataProvider interface {
-	Name() string
-	Type() PluginType
-}
-
-type ConfigurablePlugin interface {
-	// ConfigPointer must return a pointer (!) to the config struct of the plugin.
-	// The configuration will be unmarshalled using YAML into the given struct.
-	// Struct-tags can be used.
-	ConfigPointer() interface{}
-	// Configure is called after the configuration of the plugin is injected.
-	// The plugin can then configure whatever it needs.
-	Configure() error
-}
-
-type Plugin interface {
-	PluginMetadataProvider
-	Run() error
-}
+type (
+	// PluginConstructor is a function which needs to be exported with the symbol SymbolName by the plugins.
+	PluginConstructor  func() Plugin
+	ConfigurablePlugin interface {
+		// ConfigPointer must return a pointer (!) to the config struct of the plugin.
+		// The configuration will be unmarshalled using YAML into the given struct.
+		// Struct-tags can be used.
+		ConfigPointer() interface{}
+		// Configure is called after the configuration of the plugin is injected.
+		// The plugin can then configure whatever it needs.
+		Configure() error
+	}
+	PluginMetadataProvider interface {
+		Name() string
+		Type() PluginType
+	}
+	Plugin interface {
+		PluginMetadataProvider
+		Run() error
+	}
+)
 
 type PluginManager struct {
-	plugins           map[PluginType]map[string]Plugin
-	configuredPlugins map[PluginType]map[string][]Plugin
-	pluginPaths       map[PluginType]map[string]string
+	plugins            map[PluginType]map[string]Plugin
+	configuredPlugins  map[PluginType]map[string][]Plugin
+	pluginConstructors map[PluginType]map[string]PluginConstructor
 }
 
 func NewPluginManager() *PluginManager {
 	pm := &PluginManager{
-		plugins:           make(map[PluginType]map[string]Plugin),
-		pluginPaths:       make(map[PluginType]map[string]string),
-		configuredPlugins: make(map[PluginType]map[string][]Plugin),
+		plugins:            make(map[PluginType]map[string]Plugin),
+		pluginConstructors: make(map[PluginType]map[string]PluginConstructor),
+		configuredPlugins:  make(map[PluginType]map[string][]Plugin),
 	}
 
+	// for every plugin type, create the sub-maps
 	for _, t := range []PluginType{OutputPlugin} {
 		pm.plugins[t] = make(map[string]Plugin)
-		pm.pluginPaths[t] = make(map[string]string)
+		pm.pluginConstructors[t] = make(map[string]PluginConstructor)
 		pm.configuredPlugins[t] = make(map[string][]Plugin)
 	}
 
@@ -69,8 +72,13 @@ func NewPluginManager() *PluginManager {
 }
 
 func (pm *PluginManager) LoadPlugin(path string) error {
-	plugin, err := pm.loadPlugin(path)
+	pluginConstructor, err := pm.loadPluginConstructor(path)
 	if err != nil {
+		return err
+	}
+
+	plugin := pluginConstructor()
+	if err := pm.validateMetadata(plugin); err != nil {
 		return err
 	}
 
@@ -79,34 +87,33 @@ func (pm *PluginManager) LoadPlugin(path string) error {
 	}
 
 	pm.plugins[plugin.Type()][plugin.Name()] = plugin
+	pm.pluginConstructors[plugin.Type()][plugin.Name()] = pluginConstructor
 
 	return nil
 }
 
-func (pm *PluginManager) loadPlugin(path string) (Plugin, error) {
+func (pm *PluginManager) loadPluginConstructor(path string) (PluginConstructor, error) {
 	p, err := plugin.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open plugin: %w", err)
 	}
 
-	symbol, err := p.Lookup(SymbolName)
+	symbol, err := p.Lookup(PluginSymbolName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to find symbol '%s': %w", SymbolName, err)
+		return nil, fmt.Errorf("unable to find symbol '%s': %w", PluginSymbolName, err)
 	}
 
-	loadedPlugin, validPlugin := symbol.(Plugin)
+	a := symbol.(*PluginConstructor)
+	_ = a
+
+	pluginConstructor, validPlugin := symbol.(*PluginConstructor)
 	if !validPlugin {
-		return nil, fmt.Errorf("invalid plugin: does not implement Plugin interface")
+		return nil, fmt.Errorf("invalid plugin: invalid symbol '%s', want=PluginConstructor, have=%T", PluginSymbolName, pluginConstructor)
 	}
 
-	if err := pm.validateMetadata(loadedPlugin); err != nil {
-		return nil, err
-	}
-
-	return loadedPlugin, nil
+	return *pluginConstructor, nil
 }
 
-// TODO: maybe add a 'MustInitializePlugin' to check for the 'ConfigurePlugin' interface?
 func (pm *PluginManager) ConfigurePlugin(typ PluginType, name string, config data.Value) error {
 	plugin, err := pm.GetPlugin(typ, name)
 	if err != nil {
@@ -123,18 +130,27 @@ func (pm *PluginManager) ConfigurePlugin(typ PluginType, name string, config dat
 
 	// If the config is a slice, it means that we need to have multiple instances
 	// of the plugin with different configs.
-	// WARN: how do we copy plugins? re-load? deep-copy?
 	if config.IsSlice() {
 		configs, _ := config.Slice()
 		for _, c := range configs {
-			err = pm.unmarshalConfig(iplugin, data.NewValue(c))
+			// create a new instance of the plugin and configure it using the data
+			plugin := pm.pluginConstructors[plugin.Type()][plugin.Name()]()
+			err = pm.unmarshalConfig(plugin.(ConfigurablePlugin), data.NewValue(c))
 			if err != nil {
 				return err
 			}
 
-			err = iplugin.Configure()
+			err = plugin.(ConfigurablePlugin).Configure()
 			if err != nil {
-				return fmt.Errorf("failed to initialize %s: %w", PluginID(plugin.Type(), plugin.Name()), err)
+				return fmt.Errorf("failed to configure plugin %s: %w", PluginID(plugin.Type(), plugin.Name()), err)
+			}
+
+			pm.configuredPlugins[typ][name] = append(pm.configuredPlugins[typ][name], plugin)
+
+			// TODO: remove
+			err = plugin.Run()
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -150,7 +166,8 @@ func (pm *PluginManager) ConfigurePlugin(typ PluginType, name string, config dat
 		if err != nil {
 			return fmt.Errorf("failed to initialize %s: %w", PluginID(plugin.Type(), plugin.Name()), err)
 		}
-		return nil
+
+		pm.configuredPlugins[typ][name] = append(pm.configuredPlugins[typ][name], plugin)
 	}
 
 	return nil

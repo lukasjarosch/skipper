@@ -1,20 +1,20 @@
 package main
 
 import (
-	"github.com/davecgh/go-spew/spew"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
 	"github.com/lukasjarosch/skipper"
 	"github.com/lukasjarosch/skipper/codec"
 	"github.com/lukasjarosch/skipper/data"
 )
 
-// Plugin symbol which is loaded by skipper.
-// If this does not exist, the plugin cannot be used.
-var Plugin = Copy{}
-
 type Config struct {
 	SourcePaths []string `yaml:"sourcePaths"`
 	TargetPath  string   `yaml:"targetPath"`
-	// OverwriteChmod os.FileMode `yaml:"overwriteChmod,omitempty"`
+	Overwrite   bool     `yaml:"overwrite"`
 }
 
 func NewConfig(raw map[string]interface{}) (Config, error) {
@@ -34,8 +34,41 @@ func NewConfig(raw map[string]interface{}) (Config, error) {
 
 var ConfigPath = data.NewPath("config.plugins.output.copy")
 
+// Plugin symbol which is loaded by skipper.
+// If this does not exist, the plugin cannot be used.
+var Plugin = NewCopy()
+
 type Copy struct {
 	config Config
+}
+
+func NewCopy() skipper.PluginConstructor {
+	return func() skipper.Plugin {
+		return &Copy{}
+	}
+}
+
+// Configure checks that all configured source-paths exist and are readable.
+func (copy *Copy) Configure() error {
+	// source-paths must be readable
+	for _, sourcePath := range copy.config.SourcePaths {
+		_, err := os.Open(sourcePath)
+		if err != nil {
+			return fmt.Errorf("cannot open source-path: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (copy *Copy) Run() error {
+	for _, source := range copy.config.SourcePaths {
+		err := copyST(source, copy.config.TargetPath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ConfigPointer returns a pointer to [Config] which is going to be used by skipper
@@ -44,74 +77,80 @@ func (copy *Copy) ConfigPointer() interface{} {
 	return &copy.config
 }
 
-func (copy *Copy) Configure() error {
-	spew.Dump(copy.config)
-	// configValue, err := inventory.GetPath(ConfigPath)
-	// if err != nil {
-	// 	return fmt.Errorf("config path does not exist: %w", err)
-	// }
-	//
-	// // TODO: this should be done by the manager, not the plugin
-	// // The plugin supports multiple instances of its configuration
-	// switch typ := configValue.Raw.(type) {
-	// case map[string]interface{}:
-	// 	config, err := NewConfig(typ)
-	// 	if err != nil {
-	// 		return fmt.Errorf("cannot create config: %w", err)
-	// 	}
-	// 	copy.configs = append(copy.configs, config)
-	// 	break
-	// case []interface{}:
-	// 	for _, c := range typ {
-	// 		if _, ok := c.(map[string]interface{}); !ok {
-	// 			return fmt.Errorf("malformed config: expected slice of maps, got %T", c)
-	// 		}
-	// 		conf, err := NewConfig(c.(map[string]interface{}))
-	// 		if err != nil {
-	// 			return fmt.Errorf("cannot create config: %w", err)
-	// 		}
-	// 		copy.configs = append(copy.configs, conf)
-	// 	}
-	// 	break
-	// default:
-	// 	return fmt.Errorf("malformed config at '%s': either a slice of configs or a simple config is expected", ConfigPath)
-	// }
-	//
-	// // At ConfigPath there could be a slice of maps, indicating
-	// // multiple configurations of this plugin.
-	// if configs, ok := configValue.Raw.([]interface{}); ok {
-	// 	for _, c := range configs {
-	// 		if _, ok := c.(map[string]interface{}); !ok {
-	// 			return fmt.Errorf("malformed config: expected slice of maps, got %T", c)
-	// 		}
-	// 		conf, err := NewConfig(c.(map[string]interface{}))
-	// 		if err != nil {
-	// 			return fmt.Errorf("cannot create config: %w", err)
-	// 		}
-	// 		copy.configs = append(copy.configs, conf)
-	// 	}
-	// }
-	//
-	// // There could also be just one map with the plugin config
-	// else if c, ok := configValue.Raw.(map[string]interface{}); ok {
-	// 	config, err := NewConfig(c)
-	// 	if err != nil {
-	// 		return fmt.Errorf("cannot create config: %w", err)
-	// 	}
-	// 	copy.configs = append(copy.configs, config)
-	// }
-
-	return nil
-}
-
-func (copy *Copy) Run() error {
-	return nil
-}
-
 func (copy *Copy) Name() string {
 	return "copy"
 }
 
 func (copy *Copy) Type() skipper.PluginType {
 	return skipper.OutputPlugin
+}
+
+// Copy recursively copies the contents of sourcePath to targetPath.
+func copyST(sourcePath, targetPath string) error {
+	// Get the file information of the source
+	sourceInfo, err := os.Stat(sourcePath)
+	if err != nil {
+		return err
+	}
+
+	// If the source is a directory, call the directory copy function
+	if sourceInfo.IsDir() {
+		return copyDir(sourcePath, targetPath)
+	}
+
+	// If the source is a file, call the file copy function
+	return copyFile(sourcePath, targetPath)
+}
+
+// copyDir copies the contents of a directory from sourcePath to targetPath.
+func copyDir(sourcePath, targetPath string) error {
+	// Create the target directory with the same permissions as source directory
+	sourceInfo, err := os.Stat(sourcePath)
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(targetPath, sourceInfo.Mode())
+	if err != nil {
+		return err
+	}
+
+	// Read the contents of the source directory
+	entries, err := os.ReadDir(sourcePath)
+	if err != nil {
+		return err
+	}
+
+	// Recursively copy each entry in the source directory
+	for _, entry := range entries {
+		sourceEntryPath := filepath.Join(sourcePath, entry.Name())
+		targetEntryPath := filepath.Join(targetPath, entry.Name())
+		err = copyST(sourceEntryPath, targetEntryPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// copyFile copies a single file from sourcePath to targetPath.
+func copyFile(sourcePath, targetPath string) error {
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	targetFile, err := os.Create(targetPath)
+	if err != nil {
+		return err
+	}
+	defer targetFile.Close()
+
+	_, err = io.Copy(targetFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
