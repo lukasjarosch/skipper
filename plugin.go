@@ -103,9 +103,6 @@ func (pm *PluginManager) loadPluginConstructor(path string) (PluginConstructor, 
 		return nil, fmt.Errorf("unable to find symbol '%s': %w", PluginSymbolName, err)
 	}
 
-	a := symbol.(*PluginConstructor)
-	_ = a
-
 	pluginConstructor, validPlugin := symbol.(*PluginConstructor)
 	if !validPlugin {
 		return nil, fmt.Errorf("invalid plugin: invalid symbol '%s', want=PluginConstructor, have=%T", PluginSymbolName, pluginConstructor)
@@ -120,18 +117,17 @@ func (pm *PluginManager) ConfigurePlugin(typ PluginType, name string, config dat
 		return err
 	}
 
-	// If the plugin does not need to be initialized, pretend we did and return an error.
-	// If the user doesn't mind about plugins not being initialized, just ignore the error.
-	iplugin, initializable := plugin.(ConfigurablePlugin)
-	if !initializable {
+	// If the plugin does not need to be configured, pretend we did and return an error.
+	// If the user doesn't mind about plugins not being configured, just ignore the error.
+	iplugin, configurable := plugin.(ConfigurablePlugin)
+	if !configurable {
 		pm.configuredPlugins[typ][name] = append(pm.configuredPlugins[typ][name], plugin)
 		return ErrUnconfigurablePlugin
 	}
 
 	// If the config is a slice, it means that we need to have multiple instances
 	// of the plugin with different configs.
-	if config.IsSlice() {
-		configs, _ := config.Slice()
+	if configs, err := config.Slice(); err == nil {
 		for _, c := range configs {
 			// create a new instance of the plugin and configure it using the data
 			plugin := pm.pluginConstructors[plugin.Type()][plugin.Name()]()
