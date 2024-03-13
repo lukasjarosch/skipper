@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/lukasjarosch/skipper"
-	"github.com/lukasjarosch/skipper/data"
 )
 
 type Config struct {
@@ -15,8 +14,6 @@ type Config struct {
 	TargetPath  string   `yaml:"targetPath"`
 	Overwrite   bool     `yaml:"overwrite"`
 }
-
-var ConfigPath = data.NewPath("config.plugins.output.copy")
 
 // Plugin symbol which is loaded by skipper.
 // If this does not exist, the plugin cannot be used.
