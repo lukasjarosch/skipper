@@ -24,23 +24,20 @@ var (
 )
 
 type (
-	// OutputConstructorFunc is a function which needs to be exported with the symbol SymbolName by the plugins.
+	// OutputConstructorFunc returns an Output.
+	// It is used to let the OutputManager know how to create instances of an output.
 	OutputConstructorFunc func() Output
 	// Configurable defines behaviour of anything which can be configured (duh).
 	Configurable interface {
-		// ConfigPointer must return a pointer (!) to the config struct of the plugin.
+		// ConfigPointer must return a pointer (!) to the config struct of the output.
 		// The configuration will be unmarshalled using YAML into the given struct.
 		// Struct-tags can be used.
 		ConfigPointer() interface{}
-		// Configure is called after the configuration of the plugin is injected.
-		// The plugin can then configure whatever it needs.
+		// Configure is called after the configuration of the output is injected.
+		// The output can then configure whatever it needs.
 		Configure() error
 	}
-	OutputMetadataProvider interface {
-		Type() OutputType
-	}
 	Output interface {
-		OutputMetadataProvider
 		Run() error
 	}
 )
@@ -115,7 +112,7 @@ func (om *OutputManager) ConfigureOutput(outputType OutputType, config data.Valu
 	// of the output with different configs.
 	if configs, err := config.Slice(); err == nil {
 		for _, c := range configs {
-			// create a new instance of the plugin and configure it using the data
+			// create a new instance of the output and configure it using the data
 			// The type assertion does not need to be checked, it's been validated above.
 			output := om.registered[outputType]()
 			err = om.unmarshalConfig(output.(Configurable), data.NewValue(c))
@@ -162,7 +159,7 @@ func (om *OutputManager) Run(typ OutputType) error {
 	return nil
 }
 
-func (om *OutputManager) unmarshalConfig(plugin Configurable, config data.Value) error {
+func (om *OutputManager) unmarshalConfig(output Configurable, config data.Value) error {
 	// TODO: make configurable to allow user to use different struct-tags?
 	configCodec := codec.NewYamlCodec()
 
@@ -176,11 +173,11 @@ func (om *OutputManager) unmarshalConfig(plugin Configurable, config data.Value)
 		return fmt.Errorf("cannot marshal config: %w", err)
 	}
 
-	if reflect.ValueOf(plugin.ConfigPointer()).Kind() != reflect.Ptr {
-		return fmt.Errorf("cannot unmarshal plugin config, ConfigType must return a pointer")
+	if reflect.ValueOf(output.ConfigPointer()).Kind() != reflect.Ptr {
+		return fmt.Errorf("cannot unmarshal output config, ConfigPointer must return a pointer")
 	}
 
-	err = configCodec.UnmarshalTarget(b, plugin.ConfigPointer())
+	err = configCodec.UnmarshalTarget(b, output.ConfigPointer())
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}

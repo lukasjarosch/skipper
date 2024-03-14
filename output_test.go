@@ -30,7 +30,7 @@ func TestOutputManager_ConfigureOutput(t *testing.T) {
 	err = om.RegisterOutput(output.CopyOutputType, output.NewCopyOutput())
 	assert.NoError(t, err)
 
-	config, err := inv.Get("config.plugins.output.copy")
+	config, err := inv.Get("config.output.copy")
 	assert.NoError(t, err)
 	err = om.ConfigureOutput(output.CopyOutputType, config)
 	assert.NoError(t, err)

@@ -50,7 +50,3 @@ func (copy *Copy) Run() error {
 func (copy *Copy) ConfigPointer() interface{} {
 	return &copy.config
 }
-
-func (copy *Copy) Type() skipper.OutputType {
-	return CopyOutputType
-}
