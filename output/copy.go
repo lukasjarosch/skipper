@@ -1,10 +1,7 @@
 package output
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/davecgh/go-spew/spew"
+	cp "github.com/otiai10/copy"
 
 	"github.com/lukasjarosch/skipper"
 )
@@ -12,8 +9,8 @@ import (
 const CopyOutputType = skipper.OutputType("copy")
 
 type CopyConfig struct {
-	SourcePaths []string `yaml:"sourcePaths"`
-	TargetPath  string   `yaml:"targetPath"`
+	SourcePath  string   `yaml:"sourcePath"`
+	TargetPaths []string `yaml:"targetPaths"`
 	Overwrite   bool     `yaml:"overwrite"`
 }
 
@@ -27,21 +24,28 @@ func NewCopyOutput() skipper.OutputConstructorFunc {
 	}
 }
 
-// Configure checks that all configured source-paths exist and are readable.
-func (copy *Copy) Configure() error {
-	// source-paths must be readable
-	for _, sourcePath := range copy.config.SourcePaths {
-		_, err := os.Open(sourcePath)
+func (copy *Copy) Run() error {
+	opts := cp.Options{}
+
+	for _, target := range copy.config.TargetPaths {
+		err := cp.Copy(copy.config.SourcePath, target, opts)
 		if err != nil {
-			return fmt.Errorf("cannot open source-path: %w", err)
+			return err
 		}
 	}
 
 	return nil
 }
 
-func (copy *Copy) Run() error {
-	spew.Println("RUN")
+func (copy *Copy) Copy(source, target string) error {
+	// There are multiple cases which need to be handled.
+	// 1. source is a FILE, target does NOT EXIST
+	//   -
+
+	return nil
+}
+
+func (copy *Copy) Configure() error {
 	return nil
 }
 

@@ -1,7 +1,4 @@
 copy:
-  - sourcePaths:
-      - /tmp/tmp.oW0UgFBec8
-    targetPath: /tmp/test/
-  - sourcePaths:
-      - /tmp/tmp.kBHMUTa4kv
-    targetPath: /tmp/ASDF
+  - sourcePath: ${root_path}/foo
+    targetPaths:
+      - /tmp/test/

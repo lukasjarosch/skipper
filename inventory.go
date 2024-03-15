@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/lukasjarosch/skipper/data"
 )
 
@@ -36,6 +38,9 @@ var (
 // Put simply, the Inventory is the projection of whatever is within the `inventory/` folder of a Skipper project.
 type Inventory struct {
 	scopes map[Scope]*Registry
+	// Globals are dynamically created, inventory scoped, paths which
+	// hold general information. Globals are unscoped.
+	globals map[string]data.Value
 	// hooks
 	preRegisterScopeHooks  []RegisterScopeHookFunc
 	postRegisterScopeHooks []RegisterScopeHookFunc
@@ -43,7 +48,8 @@ type Inventory struct {
 
 func NewInventory() (*Inventory, error) {
 	return &Inventory{
-		scopes: make(map[Scope]*Registry),
+		scopes:  make(map[Scope]*Registry),
+		globals: make(map[string]data.Value),
 	}, nil
 }
 
@@ -69,6 +75,21 @@ func (inv *Inventory) RegisterScope(scope Scope, registry *Registry) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (inv *Inventory) RegisterGlobal(path string, value data.Value) error {
+	if len(path) == 0 {
+		return data.ErrEmptyPath
+	}
+	if value.Raw == data.NilValue.Raw {
+		return data.ErrNilData
+	}
+	if _, exists := inv.globals[path]; exists {
+		return fmt.Errorf("global already registered: %s", path)
+	}
+	inv.globals[path] = value
 
 	return nil
 }
@@ -277,6 +298,8 @@ func (inv *Inventory) AbsolutePath(path data.Path, context data.Path) (data.Path
 	if len(context) == 0 {
 		return nil, fmt.Errorf("context path cannot be empty: %w", data.ErrEmptyPath)
 	}
+
+	spew.Println(path, context)
 
 	// maybe the path is already a valid absolute path?
 	_, err := inv.GetPath(path)

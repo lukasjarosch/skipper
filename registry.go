@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/davecgh/go-spew/spew"
+
 	"github.com/lukasjarosch/skipper/data"
 )
 
@@ -314,6 +316,8 @@ func (reg *Registry) AbsolutePath(path data.Path, context data.Path) (data.Path,
 	if _, exists := reg.paths[path.String()]; exists {
 		return path, nil
 	}
+
+	spew.Println(path, context)
 
 	// Otherwise attempt to resolve it using the context
 	classIdentifier, exists := reg.paths[context.String()]
