@@ -4,6 +4,9 @@ packages:
   github.com/lukasjarosch/skipper:
     interfaces:
       ValueReferenceSource:
+  github.com/lukasjarosch/skipper/expression:
+    interfaces:
+      PathValueProvider:
   github.com/lukasjarosch/skipper/reference:
     interfaces:
       ValueSource:

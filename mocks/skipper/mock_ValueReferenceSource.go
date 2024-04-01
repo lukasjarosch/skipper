@@ -162,39 +162,6 @@ func (_c *MockValueReferenceSource_RegisterPostSetHook_Call) RunAndReturn(run fu
 	return _c
 }
 
-// RegisterPreSetHook provides a mock function with given fields: _a0
-func (_m *MockValueReferenceSource) RegisterPreSetHook(_a0 skipper.SetHookFunc) {
-	_m.Called(_a0)
-}
-
-// MockValueReferenceSource_RegisterPreSetHook_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegisterPreSetHook'
-type MockValueReferenceSource_RegisterPreSetHook_Call struct {
-	*mock.Call
-}
-
-// RegisterPreSetHook is a helper method to define mock.On call
-//   - _a0 skipper.SetHookFunc
-func (_e *MockValueReferenceSource_Expecter) RegisterPreSetHook(_a0 interface{}) *MockValueReferenceSource_RegisterPreSetHook_Call {
-	return &MockValueReferenceSource_RegisterPreSetHook_Call{Call: _e.mock.On("RegisterPreSetHook", _a0)}
-}
-
-func (_c *MockValueReferenceSource_RegisterPreSetHook_Call) Run(run func(_a0 skipper.SetHookFunc)) *MockValueReferenceSource_RegisterPreSetHook_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(skipper.SetHookFunc))
-	})
-	return _c
-}
-
-func (_c *MockValueReferenceSource_RegisterPreSetHook_Call) Return() *MockValueReferenceSource_RegisterPreSetHook_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *MockValueReferenceSource_RegisterPreSetHook_Call) RunAndReturn(run func(skipper.SetHookFunc)) *MockValueReferenceSource_RegisterPreSetHook_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // SetPath provides a mock function with given fields: _a0, _a1
 func (_m *MockValueReferenceSource) SetPath(_a0 data.Path, _a1 interface{}) error {
 	ret := _m.Called(_a0, _a1)
