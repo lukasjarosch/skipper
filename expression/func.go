@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
+
+	"github.com/iancoleman/strcase"
 )
 
 type FuncMap map[string]any
@@ -14,6 +17,19 @@ var errorType = reflect.TypeFor[error]()
 var builtins = FuncMap{
 	"get_env": get_env,
 	"set_env": set_env,
+	"default": defaultFunc,
+
+	// string casing helpers
+	"to_upper":               func(s string) string { return strings.ToUpper(s) },
+	"to_lower":               func(s string) string { return strings.ToLower(s) },
+	"to_snake":               strcase.ToSnake,
+	"to_screaming_snake":     strcase.ToScreamingSnake,
+	"to_camel":               strcase.ToCamel,
+	"to_kebab":               strcase.ToKebab,
+	"to_screaming_kebab":     strcase.ToScreamingKebab,
+	"to_lower_camel":         strcase.ToLowerCamel,
+	"to_delimited":           to_delimited,
+	"to_screaming_delimited": to_screaming_delimited,
 }
 
 var builtinFuncsOnce struct {
@@ -107,4 +123,61 @@ func get_env(name string) (string, error) {
 // It will return the set value and an error (if any).
 func set_env(name string, value string) (string, error) {
 	return value, os.Setenv(name, value)
+}
+
+// defaultFunc checks whether 'input' is set and returns defaultStr if not set.
+// If 'input' is set, 'input' is returned.
+func defaultFunc(input, dfault interface{}) interface{} {
+	empty := func(given interface{}) bool {
+		g := reflect.ValueOf(given)
+		if !g.IsValid() {
+			return true
+		}
+
+		// Basically adapted from text/template.isTrue
+		switch g.Kind() {
+		default:
+			return g.IsNil()
+		case reflect.Array, reflect.Slice, reflect.Map, reflect.String:
+			return g.Len() == 0
+		case reflect.Bool:
+			return !g.Bool()
+		case reflect.Complex64, reflect.Complex128:
+			return g.Complex() == 0
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return g.Int() == 0
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			return g.Uint() == 0
+		case reflect.Float32, reflect.Float64:
+			return g.Float() == 0
+		case reflect.Struct:
+			return false
+		}
+	}
+
+	if empty(input) {
+		return dfault
+	}
+
+	return input
+}
+
+// to_delimited is a wrapper for [strcase.ToDelimited].
+// If the delim is empty, '.' is used.
+func to_delimited(str, delim string) string {
+	if delim == "" {
+		delim = "."
+	}
+
+	return strcase.ToDelimited(str, byte(delim[0]))
+}
+
+// to_delimited is a wrapper for [strcase.ToScreamingDelimited].
+// If the delim is empty, '.' is used.
+func to_screaming_delimited(str, delim string) string {
+	if delim == "" {
+		delim = "."
+	}
+
+	return strcase.ToScreamingDelimited(str, byte(delim[0]), "", true)
 }

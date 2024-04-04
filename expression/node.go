@@ -97,9 +97,9 @@ func (n ExpressionNode) ErrorContext(node Node) string {
 	}
 
 	context := fmt.Sprintln("Context:")
-	// context += fmt.Sprintln("|")
+	context += fmt.Sprintln("|")
 	context += fmt.Sprintln("|", n.Text())
-	context += fmt.Sprintln("|", underline(n.Text(), node.Text()), "-- HERE")
+	context += fmt.Sprintln("|", underline(n.Text(), node.Text()), "")
 
 	return context
 }

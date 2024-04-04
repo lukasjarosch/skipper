@@ -3,6 +3,7 @@ package expression_test
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,7 +155,7 @@ func TestExecuteExpression(t *testing.T) {
 					return fmt.Sprintf("hello, %d", count)
 				},
 			},
-			errExpected: fmt.Errorf("expected integer; found String"),
+			errExpected: expression.ErrIncompatibleArgType,
 		},
 		{
 			name:        "get_env builtin with variable not set",
@@ -185,6 +186,33 @@ func TestExecuteExpression(t *testing.T) {
 			pathValues: map[string]interface{}{},
 			expected:   envVarValue,
 		},
+		{
+			name:        "path as call arg",
+			input:       `${to_upper(some:value)}`,
+			variableMap: map[string]interface{}{},
+			pathValues: map[string]interface{}{
+				"some.value": "hello",
+			},
+			expected: "HELLO",
+		},
+		{
+			name:        "call nesting",
+			input:       `${to_screaming_kebab(to_snake(to_upper(some:value)))}`,
+			variableMap: map[string]interface{}{},
+			pathValues: map[string]interface{}{
+				"some.value": "hello there",
+			},
+			expected: "HELLO-THERE",
+		},
+		{
+			name:        "default func",
+			input:       `${default(some:empty:path, 123)}`,
+			variableMap: map[string]interface{}{},
+			pathValues: map[string]interface{}{
+				"some.empty.path": 0,
+			},
+			expected: 123,
+		},
 	}
 
 	for _, tt := range tests {
@@ -209,8 +237,18 @@ func TestExecuteExpression(t *testing.T) {
 				}
 
 				assert.NoError(t, err)
-				assert.Equal(t, tt.expected, val.String())
+				assert.EqualValues(t, reflect.ValueOf(tt.expected).Interface(), val.Interface(), "values should be equal, have %v got %v", val, reflect.ValueOf(tt.expected))
 			}
 		})
 	}
+}
+
+func valuesEqual(v1 reflect.Value, v2 reflect.Value) bool {
+	if v1.Type().Kind() == reflect.Int {
+		v1 = reflect.ValueOf(v1.Interface())
+	}
+	if v2.Type().Kind() == reflect.Int {
+		v2 = reflect.ValueOf(v2.Interface())
+	}
+	return v1.Interface() == v2.Interface()
 }

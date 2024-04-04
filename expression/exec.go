@@ -17,13 +17,15 @@ type state struct {
 }
 
 var (
-	zero reflect.Value
+	zero             reflect.Value
+	reflectValueType = reflect.TypeFor[reflect.Value]()
 
 	ErrUndefinedVariable        = fmt.Errorf("undefined variable")
 	ErrFunctionNotDefined       = fmt.Errorf("function not defined")
 	ErrCallInvalidArgumentCount = fmt.Errorf("invalid argument count")
 	ErrNotAFunc                 = fmt.Errorf("not a function")
 	ErrBadFuncSignature         = fmt.Errorf("bad function signature")
+	ErrIncompatibleArgType      = fmt.Errorf("incompatible argument type")
 )
 
 // UsedVariables returns a list of all variable names which are used within the expression.
@@ -137,11 +139,11 @@ func (s *state) evalPath(path *PathNode) (reflect.Value, error) {
 		case *VariableNode:
 			val, err := s.evalVariable(segment)
 			if err != nil {
-				panic(err) // TODO: implement
+				s.error(err)
 			}
 			segments = append(segments, val.String())
 		default:
-			panic("NOT IMPLEMENTED")
+			s.errorf("invalid path segment node: %q", seg)
 		}
 	}
 
@@ -160,6 +162,26 @@ func (s *state) evalVariable(variable *VariableNode) (reflect.Value, error) {
 		return zero, fmt.Errorf("%w: %s", ErrUndefinedVariable, variable.Name)
 	}
 	return reflect.ValueOf(value), nil
+}
+
+func (s *state) evalString(string *StringNode) reflect.Value {
+	s.at(string)
+	return reflect.ValueOf(string.Value)
+}
+
+func (s *state) evalNumber(num *NumberNode) (reflect.Value, error) {
+	s.at(num)
+	if num.IsInt {
+		return reflect.ValueOf(num.Int64), nil
+	}
+	if num.IsUint {
+		return reflect.ValueOf(num.Uint64), nil
+	}
+	if num.IsFloat {
+		return reflect.ValueOf(num.Float64), nil
+	}
+
+	return zero, fmt.Errorf("invalid number")
 }
 
 func (s *state) evalCall(call *CallNode) (reflect.Value, error) {
@@ -192,10 +214,63 @@ func (s *state) evalCall(call *CallNode) (reflect.Value, error) {
 		return zero, fmt.Errorf("%w %s: does not meet the requirements: %s() (%s)", ErrBadFuncSignature, ident, ident, strings.Join(outStr, ", "))
 	}
 
+	unwrap := func(v reflect.Value) reflect.Value {
+		if v.Kind() != reflect.Interface {
+			return v
+		}
+		if v.IsNil() {
+			return reflect.Value{}
+		}
+		return v.Elem()
+	}
+
 	// make argument list
 	argv := make([]reflect.Value, numInArgs)
 	for i := 0; i < numInArgs; i++ {
-		argv[i] = s.evalCallArg(typ.In(i), call.Arguments[i])
+		var argValue reflect.Value
+
+		// first, evaluate the value of the argument node
+		switch node := call.Arguments[i].(type) {
+		case *PathNode:
+			val, err := s.evalPath(node)
+			if err != nil {
+				s.error(err)
+			}
+			argValue = val
+		case *VariableNode:
+			val, err := s.evalVariable(node)
+			if err != nil {
+				s.error(err)
+			}
+			argValue = val
+		case *CallNode:
+			val, err := s.evalCall(node)
+			if err != nil {
+				s.error(err)
+			}
+			argValue = val
+		case *StringNode:
+			argValue = s.evalString(node)
+
+		case *NumberNode:
+			val, err := s.evalNumber(node)
+			if err != nil {
+				s.error(err)
+			}
+			argValue = val
+		}
+
+		argType := typ.In(i)
+
+		// argType and argValue need to be of the same type
+		// except in cases where argType is interface{}
+		if argType.Kind() != reflect.Interface {
+			if argType.Kind() != argValue.Kind() {
+				s.errorf("%s expected %s got %s", ErrIncompatibleArgType, argType.Kind(), argValue.Kind())
+			}
+		}
+
+		argv[i] = s.validateType(argValue, argType)
 	}
 
 	// in case of an existing AlternativeExpr, perform the call and execute the AlternativeExpr in case of an error
@@ -209,59 +284,160 @@ func (s *state) evalCall(call *CallNode) (reflect.Value, error) {
 
 	// TODO: handle variadic functions
 
-	return safeCall(ident, fn, argv)
+	val, err := safeCall(ident, fn, argv)
+	_ = unwrap
+	return unwrap(val), err
 }
 
-func (s *state) evalCallArg(typ reflect.Type, node Node) reflect.Value {
-	s.at(node)
+// canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
+func canBeNil(typ reflect.Type) bool {
 	switch typ.Kind() {
-	case reflect.String:
-		switch n := node.(type) {
-		case *VariableNode:
-			val, err := s.evalVariable(n)
-			if err != nil {
-				s.error(err)
-			}
-			return val
-		case *CallNode:
-			val, err := s.evalCall(n)
-			if err != nil {
-				s.error(err)
-			}
-			return val
-		default:
-			return s.evalString(typ, node)
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return true
+	case reflect.Struct:
+		return typ == reflectValueType
+	}
+	return false
+}
+
+func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
+	if !value.IsValid() {
+		if typ == nil {
+			// An untyped nil interface{}. Accept as proper nil value.
+			return reflect.ValueOf(nil)
 		}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		// TODO: handle variable and call
-		return s.evalInteger(typ, node)
+		if canBeNil(typ) {
+			// Like above, but use the zero value of the non-nil type.
+			return reflect.Zero(typ)
+		}
+		if typ == reflectValueType && value.Type() != typ {
+			return reflect.ValueOf(value)
+		}
+		if typ != nil && !value.Type().AssignableTo(typ) {
+			if value.Kind() == reflect.Interface && !value.IsNil() {
+				value = value.Elem()
+				if value.Type().AssignableTo(typ) {
+					return value
+				}
+				// fallthrough
+			}
+			// Does one dereference or indirection work? We could do more, as we
+			// do with method receivers, but that gets messy and method receivers
+			// are much more constrained, so it makes more sense there than here.
+			// Besides, one is almost always all you need.
+			switch {
+			case value.Kind() == reflect.Pointer && value.Type().Elem().AssignableTo(typ):
+				value = value.Elem()
+				if !value.IsValid() {
+					s.errorf("dereference of nil pointer of type %s", typ)
+				}
+			case reflect.PointerTo(value.Type()).AssignableTo(typ) && value.CanAddr():
+				value = value.Addr()
+			default:
+				s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
+			}
+		}
 	}
 
-	// TODO: handle floats
-
-	return zero
+	return value
 }
 
-func (s *state) evalString(typ reflect.Type, n Node) reflect.Value {
-	s.at(n)
+// func (s *state) evalCallArg(typ reflect.Type, value reflect.Value) reflect.Value {
+// 	return value.Convert(typ)
+// switch typ.Kind() {
+// case reflect.Interface:
+// 	// TODO: convert to interface
+// 	return value.Convert(typ)
+// case reflect.String:
+// 	return value.Convert(typ)
+// case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+// 	// TODO: convert to int
+// 	return value
+// case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+// 	// TODO: convert to uint
+// 	return value
+// case reflect.Float32, reflect.Float64:
+// 	// TODO: convert to float
+// 	return value
+// }
+// s.at(node)
+// switch typ.Kind() {
+// case reflect.Interface:
+// 	switch n := node.(type) {
+// 	case *PathNode:
+// 		val, err := s.evalPath(n)
+// 		if err != nil {
+// 			s.error(err)
+// 		}
+// 		return val
+// 	case *StringNode:
+// 		val := s.evalString(reflect.TypeOf(""), n)
+// 		return val
+// 	}
+// 	spew.Dump(typ, node)
+// case reflect.String:
+// 	switch n := node.(type) {
+// 	case *VariableNode:
+// 		val, err := s.evalVariable(n)
+// 		if err != nil {
+// 			s.error(err)
+// 		}
+// 		if typ != val.Type() {
+// 			s.errorf("argument must be of type %s, but variable value is %q %s", typ.String(), val, val.String())
+// 		}
+// 		return val
+// 	case *CallNode:
+// 		val, err := s.evalCall(n)
+// 		if err != nil {
+// 			s.error(err)
+// 		}
+// 		if typ != val.Type() {
+// 			s.errorf("argument must be of type %s, but call value is %q %s", typ.String(), val, val.String())
+// 		}
+// 		return val
+// 	case *PathNode:
+// 		val, err := s.evalPath(n)
+// 		if err != nil {
+// 			s.error(err)
+// 		}
+// 		if typ != val.Type() {
+// 			s.errorf("argument must be of type %s, but path value is %q %s", typ.String(), val, val.String())
+// 		}
+// 		return val
+// 	default:
+// 		return s.evalString(typ, node)
+// 	}
+// case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+// 	// TODO: handle variable and call
+// 	return s.evalInteger(typ, node)
+// }
 
-	if n, ok := n.(*StringNode); ok {
-		value := reflect.New(typ).Elem()
-		value.SetString(n.Value)
-		return value
-	}
-	s.errorf("expected string, found %s", n)
-	panic("not reached")
-}
+// TODO: handle floats
+// TODO: handle boolean
 
-func (s *state) evalInteger(typ reflect.Type, n Node) reflect.Value {
-	s.at(n)
+// return zero
+// }
 
-	if n, ok := n.(*NumberNode); ok && n.IsInt {
-		value := reflect.New(typ).Elem()
-		value.SetInt(n.Int64)
-		return value
-	}
-	s.errorf("expected integer; found %s", n)
-	panic("not reached")
-}
+// func (s *state) evalString(typ reflect.Type, n Node) reflect.Value {
+// 	s.at(n)
+//
+// 	if n, ok := n.(*StringNode); ok {
+// 		value := reflect.New(typ).Elem()
+// 		value.SetString(n.Value)
+// 		return value
+// 	}
+// 	s.errorf("expected string, found %s", n)
+// 	panic("not reached")
+// }
+//
+// func (s *state) evalInteger(typ reflect.Type, n Node) reflect.Value {
+// 	s.at(n)
+//
+// 	if n, ok := n.(*NumberNode); ok && n.IsInt {
+// 		value := reflect.New(typ).Elem()
+// 		value.SetInt(n.Int64)
+// 		return value
+// 	}
+// 	s.errorf("expected integer; found %s", n)
+// 	panic("not reached")
+// }
