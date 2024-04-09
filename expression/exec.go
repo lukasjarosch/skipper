@@ -89,6 +89,7 @@ func ResolveVariablePath(path PathNode, varMap map[string]any) (newPathNode *Pat
 	// TODO: what about the positions?
 	pathExpr := fmt.Sprintf("${%s}", strings.Join(newSegmentStrings, ":"))
 
+	// handle parser or lexer panics gracefully
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {
@@ -112,14 +113,6 @@ func ResolveVariablePath(path PathNode, varMap map[string]any) (newPathNode *Pat
 	}
 
 	return newPathNode, nil
-}
-
-func Map(vs []string, f func(string) string) []string {
-	vsm := make([]string, len(vs))
-	for i, v := range vs {
-		vsm[i] = f(v)
-	}
-	return vsm
 }
 
 func ResolveVariable(varNode *VariableNode, varMap map[string]any) (interface{}, error) {

@@ -4,14 +4,15 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/dominikbraun/graph"
 )
 
-// expressionNodeHash returns a string which allows the graph to
-// distinguish expression nodes.
-func expressionNodeHash(expr *ExpressionNode) string {
-	return expr.Text()
-}
+// PathMap maps path strings (dot-separated) and maps it to the expressions which occur at the path.
+type PathMap map[string][]*ExpressionNode
+
+// VariableMap holds variable-name to value mappings
+type VariableMap map[string]any
 
 var dependencyGraph graph.Graph[string, *ExpressionNode] = graph.New(expressionNodeHash, graph.Acyclic(), graph.Directed(), graph.PreventCycles())
 
@@ -29,15 +30,21 @@ func InitializeDependencyGraph(expressions []*ExpressionNode) error {
 	return nil
 }
 
-// PathMap maps path strings (dot-separated) and maps it to the expressions which occur at the path.
-type PathMap map[string][]*ExpressionNode
+// expressionNodeHash returns a string which allows the graph to
+// distinguish expression nodes.
+func expressionNodeHash(expr *ExpressionNode) string {
+	return expr.Text()
+}
 
-// Dependencies takes an expression node and a [PathMap]
-// and returns those on which the passed expression depends on.
+// Dependencies takes an expression node, a [PathMap] and a [VariableMap]
+// and returns the skipper paths from within the allExpressions PathMap on which the expression depends on.
 //
-// An ExpressionNode is dependent on another if
-// it has a PathNode at which's value another expression exists.
-func Dependencies(expr *ExpressionNode, allExpressions PathMap, variables map[string]interface{}) ([]*ExpressionNode, error) {
+// An ExpressionNode is dependent on another if it has a PathNode
+// of which the skipper path (dot-separated) matches a key in the PathMap.
+// Thus, the ExpressionNode is dependent on all ExpressionNodes of that path.
+//
+// TODO: return a MapMap instead of only a slice to prevent information loss
+func Dependencies(expr *ExpressionNode, allExpressions PathMap, variables VariableMap) ([]string, error) {
 	pathNodes := PathsInExpression(expr)
 	resolvedPathNodes := make([]*PathNode, len(pathNodes))
 
@@ -53,10 +60,12 @@ func Dependencies(expr *ExpressionNode, allExpressions PathMap, variables map[st
 
 	// If the skipper path occurs as key in allExpressions,
 	// then all those expressions are direct dependencies to the current one.
-	var dependingOnExpressions []*ExpressionNode
-	for _, path := range resolvedPathNodes {
-		if expr, ok := allExpressions[path.SkipperPath().String()]; ok {
-			dependingOnExpressions = append(dependingOnExpressions, expr...)
+	var dependingOnExpressions []string
+	for _, pathNode := range resolvedPathNodes {
+		spew.Dump(pathNode.Text())
+		pathMapKey := pathNode.SkipperPath().String()
+		if _, ok := allExpressions[pathMapKey]; ok {
+			dependingOnExpressions = append(dependingOnExpressions, pathMapKey)
 		}
 	}
 
@@ -65,6 +74,9 @@ func Dependencies(expr *ExpressionNode, allExpressions PathMap, variables map[st
 
 // PathsInExpression returns all PathNodes which occur in the expression
 func PathsInExpression(expr *ExpressionNode) (paths []*PathNode) {
+	if expr == nil {
+		return nil
+	}
 	pathsInCall := func(call *CallNode) (paths []*PathNode) {
 		for _, argNode := range call.Arguments {
 			switch node := argNode.(type) {

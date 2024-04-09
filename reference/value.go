@@ -3,12 +3,10 @@ package reference
 import (
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
 	"github.com/dominikbraun/graph"
-	"github.com/dominikbraun/graph/draw"
 
 	"github.com/lukasjarosch/skipper/data"
 )
@@ -416,21 +414,4 @@ func DeduplicateValueReferences(references []ValueReference) []ValueReference {
 	}
 
 	return deduplicated
-}
-
-// VisualizeDependencyGraph is mainly a debugging function which will render a DOT file
-// of the dependencyGraph into the given filePath and add the label as graph description.
-func VisualizeDependencyGraph(graph graph.Graph[string, ValueReference], filePath string, label string) error {
-	file, err := os.Create(filePath)
-	if err != nil {
-		return err
-	}
-	err = draw.DOT(graph, file,
-		draw.GraphAttribute("label", label),
-		draw.GraphAttribute("overlap", "prism"))
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
