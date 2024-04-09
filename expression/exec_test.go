@@ -205,7 +205,7 @@ func TestExecuteExpression(t *testing.T) {
 			expected: "HELLO-THERE",
 		},
 		{
-			name:        "default func",
+			name:        "default func with empty int",
 			input:       `${default(some:empty:path, 123)}`,
 			variableMap: map[string]interface{}{},
 			pathValues: map[string]interface{}{
@@ -213,12 +213,61 @@ func TestExecuteExpression(t *testing.T) {
 			},
 			expected: 123,
 		},
+		{
+			name:        "default func with empty float",
+			input:       `${default(some:empty:path, 123)}`,
+			variableMap: map[string]interface{}{},
+			pathValues: map[string]interface{}{
+				"some.empty.path": 0.0,
+			},
+			expected: 123,
+		},
+		{
+			name:        "default func with empty string",
+			input:       `${default(some:empty:path, 123)}`,
+			variableMap: map[string]interface{}{},
+			pathValues: map[string]interface{}{
+				"some.empty.path": "",
+			},
+			expected: 123,
+		},
+		{
+			name:        "default func with path as default value",
+			input:       `${default(some:empty:path, some:not:empty:path)}`,
+			variableMap: map[string]interface{}{},
+			pathValues: map[string]interface{}{
+				"some.empty.path":     "",
+				"some.not.empty.path": "hello",
+			},
+			expected: "hello",
+		},
+		{
+			name:  "default func with variable as default value",
+			input: `${default(some:empty:path, $default)}`,
+			variableMap: map[string]interface{}{
+				"default": "henlo",
+			},
+			pathValues: map[string]interface{}{
+				"some.empty.path": "",
+			},
+			expected: "henlo",
+		},
+		{
+			name:  "default func with call as default value",
+			input: `${default(some:empty:path, set_env("FOO_BAR", "henlo"))}`,
+			variableMap: map[string]interface{}{
+				"default": "henlo",
+			},
+			pathValues: map[string]interface{}{
+				"some.empty.path": "",
+			},
+			expected: "henlo",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expressions, err := expression.Parse(tt.input)
-			assert.NoError(t, err)
+			expressions := expression.Parse(tt.input)
 			assert.NotEmpty(t, expressions)
 
 			pathValueProvider := mock.NewMockPathValueProvider(t)
@@ -243,12 +292,127 @@ func TestExecuteExpression(t *testing.T) {
 	}
 }
 
-func valuesEqual(v1 reflect.Value, v2 reflect.Value) bool {
-	if v1.Type().Kind() == reflect.Int {
-		v1 = reflect.ValueOf(v1.Interface())
+func makeIdentifierNode(value string) *expression.IdentifierNode {
+	return &expression.IdentifierNode{
+		Pos:      0,
+		NodeType: expression.NodeIdentifier,
+		Value:    value,
 	}
-	if v2.Type().Kind() == reflect.Int {
-		v2 = reflect.ValueOf(v2.Interface())
+}
+
+func makeVariableNode(name string) *expression.VariableNode {
+	return &expression.VariableNode{
+		Pos:      0,
+		NodeType: expression.NodeVariable,
+		Name:     name,
 	}
-	return v1.Interface() == v2.Interface()
+}
+
+func makePathNode(segments []expression.Node) *expression.PathNode {
+	return &expression.PathNode{
+		Pos:      0,
+		NodeType: expression.NodePath,
+		Segments: segments,
+	}
+}
+
+func TestResolveVariablePath(t *testing.T) {
+	tests := []struct {
+		name         string
+		inputPath    *expression.PathNode
+		inputVarMap  map[string]any
+		expectedPath string
+		errExpected  error
+	}{
+		{
+			name:         "Path with only identifiers",
+			inputPath:    makePathNode([]expression.Node{makeIdentifierNode("foo"), makeIdentifierNode("bar"), makeIdentifierNode("baz")}),
+			expectedPath: "foo:bar:baz",
+		},
+		{
+			name:         "Path with only one variable",
+			inputPath:    makePathNode([]expression.Node{makeIdentifierNode("foo"), makeVariableNode("bar"), makeIdentifierNode("baz")}),
+			expectedPath: "foo:bar:baz",
+			inputVarMap: map[string]any{
+				"bar": "bar",
+			},
+		},
+		{
+			name:      "Path with only complex variable",
+			inputPath: makePathNode([]expression.Node{makeIdentifierNode("foo"), makeVariableNode("bar"), makeIdentifierNode("baz")}),
+			inputVarMap: map[string]any{
+				"bar": []struct{}{},
+			},
+			errExpected: fmt.Errorf("variable resolves to complex type"),
+		},
+		{
+			name:      "Path with empty string variable",
+			inputPath: makePathNode([]expression.Node{makeIdentifierNode("foo"), makeVariableNode("bar"), makeIdentifierNode("baz")}),
+			inputVarMap: map[string]any{
+				"bar": "",
+			},
+			errExpected: fmt.Errorf("variables in path cannot be empty"),
+		},
+		{
+			name:      "Path with nil variable",
+			inputPath: makePathNode([]expression.Node{makeIdentifierNode("foo"), makeVariableNode("bar"), makeIdentifierNode("baz")}),
+			inputVarMap: map[string]any{
+				"bar": nil,
+			},
+			errExpected: fmt.Errorf("variables in path cannot be empty"),
+		},
+		{
+			name:      "Path with number variable",
+			inputPath: makePathNode([]expression.Node{makeIdentifierNode("foo"), makeVariableNode("bar"), makeIdentifierNode("baz")}),
+			inputVarMap: map[string]any{
+				"bar": 12,
+			},
+			errExpected: fmt.Errorf("unexpected parsing error"),
+		},
+		{
+			name:      "Path with float variable",
+			inputPath: makePathNode([]expression.Node{makeIdentifierNode("foo"), makeVariableNode("bar"), makeIdentifierNode("baz")}),
+			inputVarMap: map[string]any{
+				"bar": 12.12,
+			},
+			errExpected: fmt.Errorf("unexpected parsing error"),
+		},
+		{
+			name:      "Path with illegal characters in variable",
+			inputPath: makePathNode([]expression.Node{makeIdentifierNode("foo"), makeVariableNode("bar"), makeIdentifierNode("baz")}),
+			inputVarMap: map[string]any{
+				"bar": ":*(",
+			},
+			errExpected: fmt.Errorf("unexpected parsing error"),
+		},
+		{
+			name:      "Path with only variables",
+			inputPath: makePathNode([]expression.Node{makeVariableNode("foo"), makeVariableNode("bar"), makeVariableNode("baz")}),
+			inputVarMap: map[string]any{
+				"foo": "foo",
+				"bar": "bar",
+				"baz": "ohai",
+			},
+			expectedPath: "foo:bar:ohai",
+		},
+		{
+			name:         "Empty path",
+			inputPath:    makePathNode([]expression.Node{}),
+			expectedPath: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ret, err := expression.ResolveVariablePath(*tt.inputPath, tt.inputVarMap)
+
+			if tt.errExpected != nil {
+				assert.ErrorContains(t, err, tt.errExpected.Error())
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedPath, ret.Text())
+		})
+	}
 }

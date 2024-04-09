@@ -3,6 +3,10 @@ package expression
 import (
 	"fmt"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
+
+	"github.com/lukasjarosch/skipper/data"
 )
 
 type Tree struct {
@@ -14,12 +18,51 @@ type Tree struct {
 	peekCount    int
 }
 
-func Parse(text string) ([]*ExpressionNode, error) {
+func Parse(text string) []*ExpressionNode {
 	t := &Tree{}
 	return t.Parse(text)
 }
 
-func (t *Tree) Parse(input string) ([]*ExpressionNode, error) {
+func ParsePath(segments []string, variables map[string]any) (*PathNode, error) {
+	pathExpression := fmt.Sprintf("${%s}", strings.Join(segments, ":"))
+
+	t := &Tree{}
+	exprNodes := t.Parse(pathExpression)
+
+	if len(exprNodes) == 0 {
+		return nil, fmt.Errorf("parsing did not return a valid expression")
+	}
+
+	// there is at least one expression (there won't be more due to the input)
+	switch node := exprNodes[0].Child.(type) {
+	case *PathNode:
+		for _, segment := range node.Segments {
+			// skip identifier nodes
+			if segment.Type() == NodeIdentifier {
+				continue
+			}
+
+			// node is a variable
+			varNode, ok := segment.(*VariableNode)
+			if !ok {
+				return nil, fmt.Errorf("unexpected node type: %s", segment.Type().String())
+			}
+
+			variableValue, exists := variables[varNode.Name]
+			if !exists {
+				return nil, fmt.Errorf("%w: %s", ErrUndefinedVariable, varNode.Name)
+			}
+
+			data.ToString(variableValue)
+			spew.Dump("VAR", variableValue)
+		}
+		return node, nil
+	default:
+		return nil, fmt.Errorf("expected path node, got %q", node)
+	}
+}
+
+func (t *Tree) Parse(input string) []*ExpressionNode {
 	t.input = input
 	t.lex = lex(input)
 	t.parse()
@@ -29,7 +72,7 @@ func (t *Tree) Parse(input string) ([]*ExpressionNode, error) {
 		expr = append(expr, node.(*ExpressionNode))
 	}
 
-	return expr, nil
+	return expr
 }
 
 // expect consumes the next token and guarantees it has the required type.

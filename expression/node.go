@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/lukasjarosch/skipper/data"
 )
 
 type Node interface {
@@ -171,6 +173,14 @@ func (n *PathNode) Text() string {
 		segments = append(segments, seg.Text())
 	}
 	return strings.Join(segments, ":")
+}
+
+func (n *PathNode) SkipperPath() data.Path {
+	segments := []string{}
+	for _, seg := range n.Segments {
+		segments = append(segments, seg.Text())
+	}
+	return data.NewPathVar(segments...)
 }
 
 type IdentifierNode struct {

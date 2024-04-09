@@ -28,48 +28,7 @@ var (
 	ErrIncompatibleArgType      = fmt.Errorf("incompatible argument type")
 )
 
-// UsedVariables returns a list of all variable names which are used within the expression.
-func UsedVariables(expr *ExpressionNode) (variableNames []string) {
-	variablesInPath := func(path *PathNode) (vars []string) {
-		for _, segNode := range path.Segments {
-			switch node := segNode.(type) {
-			case *IdentifierNode:
-				continue
-			case *VariableNode:
-				vars = append(vars, node.Name)
-			}
-		}
-		return
-	}
-	var variablesInCall func(*CallNode) []string
-	variablesInCall = func(call *CallNode) (vars []string) {
-		for _, argNode := range call.Arguments {
-			switch node := argNode.(type) {
-			case *VariableNode:
-				vars = append(vars, node.Name)
-			case *PathNode:
-				vars = append(vars, variablesInPath(node)...)
-			case *CallNode:
-				vars = append(vars, variablesInCall(node)...)
-			}
-		}
-		if call.AlternativeExpr != nil {
-			vars = append(vars, UsedVariables(call.AlternativeExpr)...)
-		}
-		return
-	}
-
-	switch node := expr.Child.(type) {
-	case *PathNode:
-		variableNames = append(variableNames, variablesInPath(node)...)
-	case *CallNode:
-		variableNames = append(variableNames, variablesInCall(node)...)
-	case *VariableNode:
-		variableNames = append(variableNames, node.Name)
-	}
-
-	return
-}
+// VariablesInExpression returns a list of all variable names which are used within the expression.
 
 type PathValueProvider interface {
 	GetPath(data.Path) (interface{}, error)
@@ -85,6 +44,93 @@ func Execute(expr *ExpressionNode, valueProvider PathValueProvider, variableMap 
 	defer errRecover(&err)
 	val, err = state.walkExpression(state.expression)
 	return
+}
+
+// ResolveVariablePath will attempt to convert all VariableNodes into IdentifierNodes.
+// Not all VariableNodes are convertible because they may resolve to complex values (e.g. a map).
+// Only variables which can also be used within a path (identifiers) can be converted.
+// If that translation is possible, the returned path will only contain IdentifierNode as segments.
+func ResolveVariablePath(path PathNode, varMap map[string]any) (newPathNode *PathNode, err error) {
+	if varMap == nil {
+		varMap = make(map[string]any)
+	}
+	pathSegments := VariableNodesInPathNode(&path)
+	if len(pathSegments) == 0 {
+		return &path, nil
+	}
+
+	newSegmentStrings := make([]string, len(path.Segments))
+
+	for i, node := range pathSegments {
+		if node == nil {
+			newSegmentStrings[i] = path.Segments[i].(*IdentifierNode).Value
+			continue
+		}
+
+		varValue, err := ResolveVariable(node, varMap)
+		if err != nil {
+			return nil, err
+		}
+
+		// exclude complex types which cannot be converted to string
+		varValueString, err := data.ToString(varValue)
+		if err != nil {
+			return nil, fmt.Errorf("%s: variable resolves to complex type: %w", node.Name, err)
+		}
+
+		if varValueString == "" {
+			return nil, fmt.Errorf("%s: variables in path cannot be empty", node.Name)
+		}
+
+		newSegmentStrings[i] = varValueString
+	}
+
+	// use all string values to build a new expression to parse
+	// TODO: what about the positions?
+	pathExpr := fmt.Sprintf("${%s}", strings.Join(newSegmentStrings, ":"))
+
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = fmt.Errorf("unexpected parsing error: %w", e)
+			} else {
+				err = fmt.Errorf("unexpected panic: %v", r)
+			}
+			newPathNode = nil
+		}
+	}()
+
+	expressions := Parse(pathExpr)
+	if len(expressions) < 1 || len(expressions) > 1 {
+		return nil, fmt.Errorf("parse should return one expression but returned %d; this is a bug", len(expressions))
+	}
+	expr := expressions[0]
+
+	newPathNode, ok := expr.Child.(*PathNode)
+	if !ok {
+		return nil, fmt.Errorf("invalid expression child, expected PathNode got %T", newPathNode)
+	}
+
+	return newPathNode, nil
+}
+
+func Map(vs []string, f func(string) string) []string {
+	vsm := make([]string, len(vs))
+	for i, v := range vs {
+		vsm[i] = f(v)
+	}
+	return vsm
+}
+
+func ResolveVariable(varNode *VariableNode, varMap map[string]any) (interface{}, error) {
+	if varNode == nil {
+		return nil, fmt.Errorf("nil VariableNode")
+	}
+	value, exists := varMap[varNode.Name]
+	if !exists {
+		return zero, fmt.Errorf("%w: %s", ErrUndefinedVariable, varNode.Name)
+	}
+	return value, nil
 }
 
 // at marks the node as current node
