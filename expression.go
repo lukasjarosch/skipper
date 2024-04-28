@@ -2,8 +2,11 @@ package skipper
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/lukasjarosch/skipper/data"
 	"github.com/lukasjarosch/skipper/expression"
@@ -133,6 +136,9 @@ func (pvp pathValueProvider) GetPathValue(path data.Path) (data.Value, error) {
 	if !ok {
 		return data.NilValue, fmt.Errorf("path does not exist: %s", path)
 	}
+	if d, ok := res.(data.Value); ok {
+		return d, nil
+	}
 	return data.NewValue(res), nil
 }
 
@@ -230,13 +236,23 @@ func (m *ExpressionManager) ExecuteInput(input string) (data.Value, error) {
 			if len(exprOffsets) == 0 {
 				continue
 			}
+
+			// in case the sourceValue only consists of the expression, we can
+			// use raw value replacement instead of string replacement in all other cases.
+			if exprOffsets[0] == 0 && len(sourceValue.String()) == exprOffsets[1] {
+				valueProvider[pathVertex] = result.(reflect.Value).Interface()
+				continue
+			}
+
+			// perform string replacement
 			oldValue := sourceValue.String()[exprOffsets[0]:exprOffsets[1]]
 			newValue := strings.Replace(sourceValue.String(), oldValue, data.NewValue(result).String(), 1)
-
-			// update the valueProvider with the new value
 			valueProvider[pathVertex] = newValue
+			spew.Println("ASDF", newValue)
 		}
 	}
+
+	spew.Dump(valueProvider)
 
 	return valueProvider.GetPathValue(data.NewPath(tmpVertexHash))
 }
