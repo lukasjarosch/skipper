@@ -11,6 +11,7 @@ import (
 type dependencyGraph graph.Graph[string, string]
 
 var (
+	ErrEmptyVertexHash           = fmt.Errorf("empty vertex hash")
 	ErrSelfReferencingDependency = fmt.Errorf("self-referencing dependency")
 	ErrCyclicReference           = fmt.Errorf("cyclic dependency")
 )
@@ -25,6 +26,10 @@ func NewDependencyGraph() *DependencyGraph {
 }
 
 func (dg *DependencyGraph) AddVertex(vertexHash string) error {
+	if len(vertexHash) == 0 {
+		return ErrEmptyVertexHash
+	}
+
 	err := dg.graph.AddVertex(vertexHash)
 	if err != nil {
 		// ignore duplicate vertex errors
@@ -36,11 +41,16 @@ func (dg *DependencyGraph) AddVertex(vertexHash string) error {
 	return nil
 }
 
+func (dg *DependencyGraph) HasEdge(sourceVertexHash, targetVertexHash string) bool {
+	_, err := dg.graph.Edge(sourceVertexHash, targetVertexHash)
+	return err == nil
+}
+
 func (dg *DependencyGraph) RegisterDependencies(dependerVertexHash string, dependeeVertexHashes []string) error {
 	for _, dependency := range dependeeVertexHashes {
 		dependeeVertex, err := dg.graph.Vertex(dependency)
 		if err != nil {
-			return fmt.Errorf("unexpectedly could not fetch dependency vertex %s: %w", dependency, err)
+			return fmt.Errorf("could not fetch dependency vertex %s: %w", dependency, err)
 		}
 
 		// prevent self-referencing references
@@ -87,12 +97,12 @@ func (dg *DependencyGraph) RemoveVertex(vertexHash string) error {
 	return dg.graph.RemoveVertex(vertexHash)
 }
 
+// TopologicalSort performs a stable topological sort of the dependency graph.
+// The returned orderedHashes is stable in that the hashes are sorted
+// by their length or alphabetically if they are the same length.
+// This eliminates the issue that the actual topological sorting algorithm usually
+// has multiple valid solutions.
 func (dg *DependencyGraph) TopologicalSort() (vertexHashes []string, err error) {
-	// Perform a stable topological sort of the dependency graph.
-	// The returned orderedHashes is stable in that the hashes are sorted
-	// by their length or alphabetically if they are the same length.
-	// This eliminates the issue that the actual topological sorting algorithm usually
-	// has multiple valid solutions.
 	orderedHashes, err := graph.StableTopologicalSort[string, string](dg.graph, func(s1, s2 string) bool {
 		// Strings are of different length, sort by length
 		if len(s1) != len(s2) {
@@ -116,4 +126,68 @@ func (dg *DependencyGraph) TopologicalSort() (vertexHashes []string, err error) 
 	}
 
 	return
+}
+
+// Subgraph returns a dependency graph with the given rootVertexHash as root vertex.
+// The returned DependencyGraph contains only the dependencies of the rootVertexHash.
+func (dg *DependencyGraph) Subgraph(rootVertexHash string) (*DependencyGraph, error) {
+	sub := NewDependencyGraph()
+
+	rootVertex, err := dg.graph.Vertex(rootVertexHash)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create subgraph of '%s': %w", rootVertexHash, err)
+	}
+	sub.AddVertex(rootVertex)
+
+	// fetch all leaf vertecies (vertecies without outgoing edges) which can be reached from the rootVertex
+	// these determine the paths which we need to add to the subgraph
+	depLeafHashes := []string{}
+	err = graph.DFS[string, string](dg.graph, rootVertex, func(s string) bool {
+		adj, _ := dg.graph.AdjacencyMap()
+		if len(adj[s]) == 0 {
+			depLeafHashes = append(depLeafHashes, s)
+		}
+
+		return false // keep iterating
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// traverse all paths and add them to the subgraph
+	for _, leafHash := range depLeafHashes {
+		paths, err := graph.AllPathsBetween[string, string](dg.graph, rootVertexHash, leafHash)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, path := range paths {
+			// add every vertex along the path
+			for _, vertexHash := range path {
+				err = sub.AddVertex(vertexHash)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			// add every edge along the path, ignoring existing ones
+			for i := range path {
+				if len(path) <= i+1 {
+					break
+				}
+				err = sub.graph.AddEdge(path[i], path[i+1])
+				if err != nil {
+					if !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+						return nil, err
+					}
+				}
+			}
+		}
+	}
+
+	return sub, nil
+}
+
+func (dg *DependencyGraph) Visualize(filename string, title string) error {
+	return visualize[string, string](dg.graph, filename, title)
 }
