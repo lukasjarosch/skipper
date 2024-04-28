@@ -179,8 +179,6 @@ func (m *ExpressionManager) ExecuteInput(input string) (data.Value, error) {
 		return data.NilValue, err
 	}
 
-	subGraph.Visualize("/tmp/sub", "sub")
-
 	vertexOrder, err := subGraph.TopologicalSort()
 	if err != nil {
 		return data.NilValue, err
@@ -220,29 +218,18 @@ func (m *ExpressionManager) ExecuteInput(input string) (data.Value, error) {
 			pathResults[i] = result
 		}
 
-		// figure out the byte offsets for every expression within the source value
-		// the order is the same as pathResults, so the pathResults map directly to the offsets which need to be replaced.
-		exprPositions := make([][]int, len(pathResults))
-		sourceValue, _ := valueProvider.GetPathValue(data.NewPath(pathVertex))
-		idx := expressionRegex.FindAllStringSubmatchIndex(sourceValue.String(), -1)
-		for n, match := range idx {
-			for i := 0; i < len(match); i += 2 {
-				start := match[i]
-				end := match[i+1]
-				exprPositions[n] = []int{start, end}
+		for _, result := range pathResults {
+			sourceValue, err := valueProvider.GetPathValue(data.NewPath(pathVertex))
+			if err != nil {
+				return data.NilValue, err
 			}
-		}
-
-		for i, result := range pathResults {
-			if len(exprPositions[i]) == 0 {
-				continue
-			}
-
-			sourceValue, _ = valueProvider.GetPathValue(data.NewPath(pathVertex))
 
 			// fetch the start and end offset of this expression
 			// and replace the old value with the result of the expression evaluation
 			exprOffsets := expressionRegex.FindStringSubmatchIndex(sourceValue.String())
+			if len(exprOffsets) == 0 {
+				continue
+			}
 			oldValue := sourceValue.String()[exprOffsets[0]:exprOffsets[1]]
 			newValue := strings.Replace(sourceValue.String(), oldValue, data.NewValue(result).String(), 1)
 
