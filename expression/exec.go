@@ -305,7 +305,19 @@ func (s *state) evalCall(call *CallNode) (reflect.Value, error) {
 		// except in cases where argType is interface{}
 		if argType.Kind() != reflect.Interface {
 			if argType.Kind() != argValue.Kind() {
-				s.errorf("%s expected %s got %s", ErrIncompatibleArgType, argType.Kind(), argValue.Kind())
+
+				// it may very well be that, at this point, the argValue is a `data.Value`
+				// because it is the result of an expression which was executed prior to this one
+				dataValue, ok := argValue.Interface().(data.Value)
+				if !ok {
+					s.errorf("%s expected %s; got %s", ErrIncompatibleArgType, argType.Kind(), argValue.Kind())
+				}
+				if reflect.TypeOf(dataValue.Raw) == argType {
+					argValue = reflect.ValueOf(dataValue.Raw)
+				} else {
+					s.errorf("%s (data.Value) expected %s; got %s", ErrIncompatibleArgType, argType.Kind(), argValue.Kind())
+				}
+
 			}
 		}
 
