@@ -1,6 +1,8 @@
 package expression
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"reflect"
@@ -8,6 +10,8 @@ import (
 	"sync"
 
 	"github.com/iancoleman/strcase"
+
+	"github.com/lukasjarosch/skipper/data"
 )
 
 type FuncMap map[string]any
@@ -19,7 +23,16 @@ var builtins = FuncMap{
 	"set_env": set_env,
 	"default": defaultFunc,
 
-	// string casing helpers
+	// string
+	"replace":     func(input, search, replace string) string { return strings.ReplaceAll(input, search, replace) },
+	"trim_space":  func(input string) string { return strings.TrimSpace(input) },
+	"trim_all":    func(input, cutset string) string { return strings.Trim(input, cutset) },
+	"trim_left":   func(input, cutset string) string { return strings.TrimLeft(input, cutset) },
+	"trim_right":  func(input, cutset string) string { return strings.TrimRight(input, cutset) },
+	"trim_suffix": func(input, suffix string) string { return strings.TrimSuffix(input, suffix) },
+	"trim_prefix": func(input, prefix string) string { return strings.TrimPrefix(input, prefix) },
+
+	// string case
 	"to_upper":               func(s string) string { return strings.ToUpper(s) },
 	"to_lower":               func(s string) string { return strings.ToLower(s) },
 	"to_snake":               strcase.ToSnake,
@@ -30,6 +43,22 @@ var builtins = FuncMap{
 	"to_lower_camel":         strcase.ToLowerCamel,
 	"to_delimited":           to_delimited,
 	"to_screaming_delimited": to_screaming_delimited,
+
+	// lists
+	"must_first": mustFirst,
+	"first": func(input interface{}) interface{} {
+		first, err := mustFirst(input)
+		if err != nil {
+			panic(err)
+		}
+		return first
+	},
+
+	// crypto
+	"sha256": func(s string) string {
+		hash := sha256.Sum256([]byte(s))
+		return hex.EncodeToString(hash[:])
+	},
 }
 
 var builtinFuncsOnce struct {
@@ -180,4 +209,36 @@ func to_screaming_delimited(str, delim string) string {
 	}
 
 	return strcase.ToScreamingDelimited(str, byte(delim[0]), "", true)
+}
+
+// mustFirst attempts to return the first element of the given list.
+func mustFirst(list interface{}) (interface{}, error) {
+	tp := reflect.TypeOf(list).Kind()
+
+	// in case the parameter is `data.Value`, use its means to resolve the first element
+	if val, ok := list.(data.Value); ok {
+		valList, err := val.List()
+		if err != nil {
+			return nil, fmt.Errorf("mustFirst: failed to convert data.Value to list: %w", err)
+		}
+		if len(valList) == 0 {
+			return nil, nil
+		}
+		return valList[0], nil
+	}
+
+	// all other cases: list is not [data.Value]
+	switch tp {
+	case reflect.Slice, reflect.Array:
+		l2 := reflect.ValueOf(list)
+
+		l := l2.Len()
+		if l == 0 {
+			return nil, nil
+		}
+
+		return l2.Index(0).Interface(), nil
+	default:
+		return nil, fmt.Errorf("mustFirst: unable to find first element on type %s", tp)
+	}
 }

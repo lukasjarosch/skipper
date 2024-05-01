@@ -6,8 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/lukasjarosch/skipper/data"
 	"github.com/lukasjarosch/skipper/expression"
 	"github.com/lukasjarosch/skipper/graph"
@@ -121,6 +119,9 @@ func (m *ExpressionManager) executeExpression(expr *expression.ExpressionNode) (
 	return data.NilValue, nil
 }
 
+// pathValueProvider is used as a data context for executing expressions.
+// It is used to dynamically create a map of paths which provide all
+// necessary data to execute an expression.
 type pathValueProvider map[string]interface{}
 
 func (pvp pathValueProvider) GetPath(path data.Path) (interface{}, error) {
@@ -219,7 +220,7 @@ func (m *ExpressionManager) ExecuteInput(input string) (data.Value, error) {
 		for i, expr := range expressions {
 			result, err := expression.Execute(expr, valueProvider, m.variables.GetAll(), nil)
 			if err != nil {
-				return data.NilValue, fmt.Errorf("failed to execute expression at path '%s': %w", pathVertex, err)
+				return data.NilValue, fmt.Errorf("failed to execute expression '%s' at path '%s': %w", expr.Text(), pathVertex, err)
 			}
 			pathResults[i] = result
 		}
@@ -248,11 +249,8 @@ func (m *ExpressionManager) ExecuteInput(input string) (data.Value, error) {
 			oldValue := sourceValue.String()[exprOffsets[0]:exprOffsets[1]]
 			newValue := strings.Replace(sourceValue.String(), oldValue, data.NewValue(result).String(), 1)
 			valueProvider[pathVertex] = newValue
-			spew.Println("ASDF", newValue)
 		}
 	}
-
-	spew.Dump(valueProvider)
 
 	return valueProvider.GetPathValue(data.NewPath(tmpVertexHash))
 }

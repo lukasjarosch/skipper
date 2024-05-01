@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -57,4 +58,18 @@ func (val Value) Float64() (float64, error) {
 		return 0.0, fmt.Errorf("cannot convert value to float64: %s", val)
 	}
 	return f, nil
+}
+
+// List will return a slice if the underlying type is either a slice or an array.
+// In all other cases, an error is returned.
+func (val Value) List() ([]interface{}, error) {
+	if !IsArray(val.Raw) {
+		return nil, fmt.Errorf("value is not a list")
+	}
+	rawSlice := reflect.ValueOf(val.Raw)
+	list := make([]interface{}, rawSlice.Len())
+	for i := 0; i < rawSlice.Len(); i++ {
+		list[i] = rawSlice.Index(i).Interface()
+	}
+	return list, nil
 }

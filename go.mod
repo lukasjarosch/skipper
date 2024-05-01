@@ -1,6 +1,8 @@
 module github.com/lukasjarosch/skipper
 
-go 1.21
+go 1.22
+
+toolchain go1.22.0
 
 require (
 	github.com/dominikbraun/graph v0.23.0
@@ -11,8 +13,11 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
-	github.com/kr/pretty v0.2.0 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rogpeppe/go-internal v1.12.0 // indirect
+	github.com/ryboe/q v1.0.21 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/vektra/mockery v1.1.2 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect

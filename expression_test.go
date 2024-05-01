@@ -1,6 +1,7 @@
 package skipper_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,14 +60,62 @@ func TestExpressionManager_ExecuteInput(t *testing.T) {
 		errExpected error
 	}{
 		{
-			name:  "ExpressionManager_ExecuteInput",
-			input: "${john:name}",
+			name:  "Simple valid path",
+			input: "This is ${project:name}",
 			pathValues: map[string]data.Value{
-				"john.name":  data.NewValue("${john:first} ${john:last}"),
+				"project.name": data.NewValue("skipper"),
+			},
+			expected: data.NewValue("This is skipper"),
+		},
+		{
+			name:  "Simple path with dependencies",
+			input: "Hello there, ${john:name}",
+			pathValues: map[string]data.Value{
+				"john.name":  data.NewValue("${to_upper(john:first)} ${to_lower(john:last)}"),
 				"john.first": data.NewValue("john"),
 				"john.last":  data.NewValue("doe"),
 			},
-			expected: data.NewValue("john doe"),
+			expected: data.NewValue("Hello there, JOHN doe"),
+		},
+		{
+			name:  "Function call",
+			input: "This is ${to_upper(project:name)}",
+			pathValues: map[string]data.Value{
+				"project.name": data.NewValue("skipper"),
+			},
+			expected: data.NewValue("This is SKIPPER"),
+		},
+		{
+			name:  "Function call with two params",
+			input: `This is ${replace(project:name, "skipper", "peter")}`,
+			pathValues: map[string]data.Value{
+				"project.name": data.NewValue("skipper"),
+			},
+			expected: data.NewValue("This is peter"),
+		},
+		{
+			name:  "List function call with valid string list",
+			input: `This is ${first(project:names)}`,
+			pathValues: map[string]data.Value{
+				"project.names": data.NewValue([]string{"skipper", "bob"}),
+			},
+			expected: data.NewValue("This is skipper"),
+		},
+		{
+			name:  "List function call with valid int list",
+			input: `This is ${first(project:names)}`,
+			pathValues: map[string]data.Value{
+				"project.names": data.NewValue([]int{1, 2, 3, 4}),
+			},
+			expected: data.NewValue("This is 1"),
+		},
+		{
+			name:  "List function call with invalid list",
+			input: `This is ${first(project:names)}`,
+			pathValues: map[string]data.Value{
+				"project.names": data.NewValue("def-not-a-list"),
+			},
+			errExpected: fmt.Errorf("failed to convert data.Value to list"),
 		},
 	}
 
@@ -89,7 +138,7 @@ func TestExpressionManager_ExecuteInput(t *testing.T) {
 			ret, err := exprManager.ExecuteInput(tt.input)
 
 			if tt.errExpected != nil {
-				assert.ErrorIs(t, err, tt.errExpected)
+				assert.ErrorContains(t, err, tt.errExpected.Error())
 				return
 			}
 
