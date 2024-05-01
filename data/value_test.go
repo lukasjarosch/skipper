@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/lukasjarosch/skipper/data"
+	. "github.com/lukasjarosch/skipper/v1/data"
 	"github.com/stretchr/testify/assert"
 )
 

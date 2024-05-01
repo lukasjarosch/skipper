@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lukasjarosch/skipper/data"
+	"github.com/lukasjarosch/skipper/v1/data"
 )
 
 // Scope defines a 'namespace' within the Inventory which is made up of a collection of classes.

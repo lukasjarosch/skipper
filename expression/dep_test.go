@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lukasjarosch/skipper/expression"
+	"github.com/lukasjarosch/skipper/v1/expression"
 )
 
 func TestInitializeDependencyGraph(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/lukasjarosch/skipper/data"
+	"github.com/lukasjarosch/skipper/v1/data"
 )
 
 type state struct {

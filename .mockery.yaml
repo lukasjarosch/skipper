@@ -1,15 +1,15 @@
 with-expecter: True
 dir: "mocks/{{ .PackageName }}"
 packages:
-  github.com/lukasjarosch/skipper:
+  github.com/lukasjarosch/skipper/v1:
     interfaces:
       ValueReferenceSource:
       PathValueSource:
       VariableSource:
-  github.com/lukasjarosch/skipper/expression:
+  github.com/lukasjarosch/skipper/v1/expression:
     interfaces:
       PathValueProvider:
-  github.com/lukasjarosch/skipper/reference:
+  github.com/lukasjarosch/skipper/v1/reference:
     interfaces:
       ValueSource:
       ValueTarget:

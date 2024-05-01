@@ -8,7 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/lukasjarosch/skipper/data"
+	"github.com/lukasjarosch/skipper/v1/data"
 )
 
 // YamlPathSelector is used to select paths to files which can be handled by the yaml codec.

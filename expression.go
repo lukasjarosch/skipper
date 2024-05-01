@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/lukasjarosch/skipper/data"
-	"github.com/lukasjarosch/skipper/expression"
-	"github.com/lukasjarosch/skipper/graph"
+	"github.com/lukasjarosch/skipper/v1/data"
+	"github.com/lukasjarosch/skipper/v1/expression"
+	"github.com/lukasjarosch/skipper/v1/graph"
 )
 
 // expressionRegex is used to find the offsets within the context in which an expression occurred

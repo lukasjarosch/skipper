@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/lukasjarosch/skipper/data"
-	mocks "github.com/lukasjarosch/skipper/mocks/reference"
-	. "github.com/lukasjarosch/skipper/reference"
+	"github.com/lukasjarosch/skipper/v1/data"
+	mocks "github.com/lukasjarosch/skipper/v1/mocks/reference"
+	. "github.com/lukasjarosch/skipper/v1/reference"
 )
 
 func TestReplaceValueReferences(t *testing.T) {

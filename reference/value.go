@@ -8,7 +8,7 @@ import (
 
 	"github.com/dominikbraun/graph"
 
-	"github.com/lukasjarosch/skipper/data"
+	"github.com/lukasjarosch/skipper/v1/data"
 )
 
 var (

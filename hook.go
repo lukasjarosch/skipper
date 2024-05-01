@@ -1,6 +1,6 @@
 package skipper
 
-import "github.com/lukasjarosch/skipper/data"
+import "github.com/lukasjarosch/skipper/v1/data"
 
 // SetHookFunc can be registered as either preSetHook or postSetHook
 // and will then be called respectively.

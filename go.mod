@@ -1,4 +1,4 @@
-module github.com/lukasjarosch/skipper
+module github.com/lukasjarosch/skipper/v1
 
 go 1.22
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lukasjarosch/skipper/data"
+	"github.com/lukasjarosch/skipper/v1/data"
 )
 
 func TestWalk(t *testing.T) {

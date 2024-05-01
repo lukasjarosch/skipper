@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lukasjarosch/skipper/data"
-	"github.com/lukasjarosch/skipper/expression"
-	mock "github.com/lukasjarosch/skipper/mocks/expression"
+	"github.com/lukasjarosch/skipper/v1/data"
+	"github.com/lukasjarosch/skipper/v1/expression"
+	mock "github.com/lukasjarosch/skipper/v1/mocks/expression"
 )
 
 var (

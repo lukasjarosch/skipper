@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/lukasjarosch/skipper"
-	"github.com/lukasjarosch/skipper/codec"
-	"github.com/lukasjarosch/skipper/data"
+	. "github.com/lukasjarosch/skipper/v1"
+	"github.com/lukasjarosch/skipper/v1/codec"
+	"github.com/lukasjarosch/skipper/v1/data"
 )
 
 var (

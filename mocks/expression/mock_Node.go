@@ -3,7 +3,7 @@
 package expression
 
 import (
-	expression "github.com/lukasjarosch/skipper/expression"
+	expression "github.com/lukasjarosch/skipper/v1/expression"
 	mock "github.com/stretchr/testify/mock"
 )
 

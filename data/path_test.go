@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/lukasjarosch/skipper/data"
+	. "github.com/lukasjarosch/skipper/v1/data"
 )
 
 func TestNewPath(t *testing.T) {

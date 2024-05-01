@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lukasjarosch/skipper"
-	"github.com/lukasjarosch/skipper/data"
-	mocks "github.com/lukasjarosch/skipper/mocks/skipper"
+	"github.com/lukasjarosch/skipper/v1"
+	"github.com/lukasjarosch/skipper/v1/data"
+	mocks "github.com/lukasjarosch/skipper/v1/mocks/skipper"
 )
 
 func TestNewExpressionManager(t *testing.T) {

@@ -3,7 +3,7 @@
 package skipper
 
 import (
-	data "github.com/lukasjarosch/skipper/data"
+	data "github.com/lukasjarosch/skipper/v1/data"
 	mock "github.com/stretchr/testify/mock"
 )
 

@@ -11,7 +11,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 
-	"github.com/lukasjarosch/skipper/data"
+	"github.com/lukasjarosch/skipper/v1/data"
 )
 
 type FuncMap map[string]any

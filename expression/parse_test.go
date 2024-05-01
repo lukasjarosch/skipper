@@ -6,7 +6,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/lukasjarosch/skipper/expression"
+	"github.com/lukasjarosch/skipper/v1/expression"
 )
 
 func TestParse(t *testing.T) {
