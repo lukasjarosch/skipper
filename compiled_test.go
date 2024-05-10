@@ -9,24 +9,6 @@ import (
 	"github.com/lukasjarosch/skipper/v1"
 )
 
-// func TestWriteCompiledInventoryFile(t *testing.T) {
-// 	err := skipper.WriteCompiledInventoryFile(skipper.CompiledInventory{
-// 		BuildID: "hello-there",
-// 	}, "/tmp/compiled.skipper")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// }
-//
-// func TestLoadCompiledInventoryFile(t *testing.T) {
-// 	inventory, err := skipper.LoadCompiledInventoryFile("/tmp/compiled.skipper")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-//
-// 	q.Q(inventory)
-// }
-
 func TestCompiledInventory_WriteAndLoadCompiledInventoryFile(t *testing.T) {
 	// Create a test inventory
 	testInventory := skipper.CompiledInventory{

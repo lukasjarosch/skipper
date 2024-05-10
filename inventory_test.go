@@ -239,3 +239,13 @@ func TestInventory_Compile(t *testing.T) {
 		assert.Equal(t, "10.0.0.0/8", val.String())
 	})
 }
+
+func TestInventory_Compile2(t *testing.T) {
+	inv, _ := NewInventory()
+
+	registry := makeNewRegistry(t)
+	err := inv.RegisterScope(DataScope, registry)
+	assert.NoError(t, err)
+
+	inv.Compile2(data.NewPath("foo.bar"))
+}

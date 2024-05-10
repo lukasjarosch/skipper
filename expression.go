@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ryboe/q"
+
 	"github.com/lukasjarosch/skipper/v1/data"
 	"github.com/lukasjarosch/skipper/v1/expression"
 	"github.com/lukasjarosch/skipper/v1/graph"
@@ -256,8 +258,17 @@ func (m *ExpressionManager) ExecuteInput(input string) (data.Value, error) {
 }
 
 // ExecuteRegistry will execute all known expressions in the order determined by the DependencyGraph
-func (m *ExpressionManager) ExecuteRegistry() error {
-	return nil
+// TODO: Instead of allowing the manager to overwrite the inventory, we could embed the manager into it
+// and let it just return a map of path -> newValue and let the inventory handle the overwriting.
+func (m *ExpressionManager) ExecuteRegistry() (map[string]data.Value, error) {
+	pathOrder, err := m.dependencies.TopologicalSort()
+	if err != nil {
+		return nil, err
+	}
+
+	q.Q(pathOrder)
+
+	return nil, nil
 }
 
 // resetDependencyGraph resets the DependencyGraph with the current registry state.

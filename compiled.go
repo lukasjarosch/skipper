@@ -4,9 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/gob"
-	"errors"
+	"fmt"
 	"os"
+	"time"
+
+	"github.com/google/uuid"
 )
+
+var ErrCompiledInventoryIntegityCheckFailed = fmt.Errorf("CompiledInventory failed to pass the integrity check and cannot be loaded")
 
 // CompiledInventory is the result of calling [Inventory.Compile].
 // It is essentially a read-only copy of the source Inventory
@@ -14,9 +19,50 @@ import (
 // If one then makes further modifications to the source inventory, a new CompiledInventory artifact must be created.
 // The CompiledInventory can then be passed on to make good use of the heap of data :)
 // TODO: should this have metadata like buildTimestamp and who build it?
-// TODO: should it be possible to actually write this artifact to a file? Skipper could then also work with pre-compiled inventories.
+// TODO: This should have capabilities() func like (can-write, can-reveal) to tell the consumer what it can do with it (and to allow more flexibility)
 type CompiledInventory struct {
+	// BuildID is an UUIDv4
 	BuildID string
+	// BuildTimestamp is the timestamp of creation of the instance, in UTF.
+	BuildTimestamp time.Time
+	// capabilities determine what can be done with this inventory when loaded by a consumer
+	capability InventoryCapability
+	scopes     map[Scope]*Registry
+}
+
+func (c CompiledInventory) HasCapability(cap InventoryCapability) bool {
+	return c.capability&cap != 0
+}
+
+// NewCompiledInventory returns a new CompiledInventory
+// with read capability, buildId and buildTimestamp.
+func NewCompiledInventory() CompiledInventory {
+	return CompiledInventory{
+		BuildID:        uuid.New().String(),
+		BuildTimestamp: time.Now().UTC(),
+		capability:     InventoryRead,
+	}
+}
+
+// InventoryCapability is a binary value.
+// Capabilities define what a consumer can do with an Inventory.
+type InventoryCapability uint8
+
+const (
+	// Read (default capability) allows a consumer to read all values within the inventory.
+	InventoryRead InventoryCapability = 1 << iota
+	// Write allows the user to modify the inventory
+	InventoryWrite
+	// Reveal allows, given the config is provided, that the consumer can reveal secrets
+	InventoryReveal
+)
+
+func (c *InventoryCapability) AddCapability(cap InventoryCapability) {
+	*c |= cap
+}
+
+func (c *InventoryCapability) RemoveCapability(cap InventoryCapability) {
+	*c &= ^cap
 }
 
 func init() {
@@ -76,7 +122,7 @@ func LoadCompiledInventoryFile(filePath string) (CompiledInventory, error) {
 	// calculate hash of the actual data and compare
 	actualHash := sha256.Sum256(fileData)
 	if !bytes.Equal(hash, actualHash[:]) {
-		return zero, errors.New("file integrity check failed")
+		return zero, ErrCompiledInventoryIntegityCheckFailed
 	}
 
 	// decode the remaining fileData

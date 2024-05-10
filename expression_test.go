@@ -147,3 +147,47 @@ func TestExpressionManager_ExecuteInput(t *testing.T) {
 		})
 	}
 }
+
+func TestExpressionManager_ExecuteRegistry(t *testing.T) {
+	tests := []struct {
+		name        string
+		pathValues  map[string]data.Value
+		variables   map[string]any
+		expected    map[string]data.Value
+		errExpected error
+	}{
+		{
+			name: "Simple valid path",
+			pathValues: map[string]data.Value{
+				"project.name": data.NewValue("skipper"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := mocks.NewMockPathValueSource(t)
+			source.EXPECT().Values().Return(tt.pathValues)
+
+			varSource := mocks.NewMockVariableSource(t)
+			varSource.EXPECT().GetAll().Return(tt.variables)
+
+			for path := range tt.pathValues {
+				source.EXPECT().GetPath(data.NewPath(path)).Return(tt.pathValues[path], nil)
+			}
+
+			exprManager, err := skipper.NewExpressionManager(source, varSource)
+			assert.NoError(t, err)
+
+			ret, err := exprManager.ExecuteRegistry()
+
+			if tt.errExpected != nil {
+				assert.ErrorContains(t, err, tt.errExpected.Error())
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, ret)
+		})
+	}
+}

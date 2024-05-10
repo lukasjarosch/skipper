@@ -39,6 +39,8 @@ This allows you for example to have way more control over how you want to proces
 Skipper is not meant to be a _one-size-fits-all_ solution. The goal of Skipper is to enable
 you to create the own - custom built - template and inventory engine, without having to do the heavy lifing.
 
+![](./docs/docs/assets/current_arch_state.svg)
+
 # TODO
 
 - [ ] Core Features

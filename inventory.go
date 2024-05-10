@@ -2,6 +2,7 @@ package skipper
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/lukasjarosch/skipper/v1/data"
@@ -72,6 +73,20 @@ func (inv *Inventory) RegisterScope(scope Scope, registry *Registry) error {
 	return nil
 }
 
+func (inv *Inventory) Compile2(target data.Path) (CompiledInventory, error) {
+	compiled := NewCompiledInventory()
+	compiled.scopes = maps.Clone(inv.scopes)
+
+	// TODO: what about the hooks within the scopes? They should be disabled
+
+	// TODO: deep-copy this inventory into the compiled inventory
+	// TODO: select and merge target class
+	// TODO: execute all expressions and write those resulting new values
+	// TODO: reveal secrets if requested / allowed
+
+	return compiled, nil
+}
+
 // Compile compiles the Inventory for a given target class.
 //
 // The target class is special as it is capable of overwriting values within the whole inventory.
@@ -90,7 +105,8 @@ func (inv *Inventory) RegisterScope(scope Scope, registry *Registry) error {
 // If the target class is 'develop' and it has a class-path 'develop.data.common.network.name' with value 'SuperNet',
 // then the compiled inventory will have 'SuperNet' as value at 'data.common.network.name'.
 //
-// If within the target class, a non-existing
+// If within the target class, a non-existing path will be associated with the target class.
+// TODO: check the above! ^^^
 func (inv *Inventory) Compile(target data.Path) error {
 	targetScope, err := inv.PathScope(target)
 	if err != nil {
