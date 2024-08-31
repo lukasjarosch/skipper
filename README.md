@@ -8,7 +8,7 @@
 
   <!-- LOGO -->
   <a href="https://github.com/lukasjarosch/skipper">
-    <img src="./docs/docs/assets/logo.png" alt="Logo" width="128" height="128">
+    <img src="./docs/docs/assets/logo.png" alt="Logo">
   </a>
 
   <!-- SKIPPER TLDR -->
